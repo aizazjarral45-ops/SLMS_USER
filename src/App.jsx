@@ -1,4 +1,5 @@
 import "./App.css";
+import Header from "./assets/Pages/Header/header";
 import Sidebar from "./assets/Pages/sidebar/sidebar";
 // import Login from "./assets/Pages/login";
 function App() {
@@ -6,8 +7,11 @@ function App() {
   return (
     <>
       {/* <Login></Login> */}
-     
- <Sidebar></Sidebar>
+      <Header></Header>
+ <Sidebar>
+  
+ </Sidebar>
+
     </>
   );
 }
