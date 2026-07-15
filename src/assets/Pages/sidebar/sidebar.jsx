@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   AppstoreOutlined,
-  QwenFilled,
+  AuditOutlined,
   BookOutlined,
   WalletOutlined,
   HomeOutlined,
@@ -10,6 +10,7 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { Breadcrumb, Layout, Menu, theme } from "antd";
+import Link from "antd/es/typography/Link";
 const { Header, Content, Footer, Sider } = Layout;
 function getItem(label, key, icon, children) {
   return {
@@ -21,7 +22,7 @@ function getItem(label, key, icon, children) {
 }
 const items = [
   getItem("Dashboard", "1", <AppstoreOutlined />),
-  getItem("AI Copilot", "2", <QwenFilled />),
+  getItem("AI Copilot", "2", <AuditOutlined />),
   getItem("Academic", "3", <BookOutlined />),
   getItem("Hostel", "4", <HomeOutlined />),
   getItem("Expense ", "5", <WalletOutlined />),
@@ -31,9 +32,9 @@ const items = [
 ];
 const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
-  // const {
-  //   token: { colorBgContainer, borderRadiusLG },
-  // } = theme.useToken();
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
   const currentYear = new Date().getFullYear();
   return (
     <Layout style={{ minHeight: "100vh", margin: "-8px" }}>
@@ -51,6 +52,11 @@ const Sidebar = () => {
           style={{ background: "#1E3A8A" }}
         />
       </Sider>
+      <Layout>
+        <Content style={{ margin: "0 16px" }}>
+         
+        </Content>
+      </Layout>
     </Layout>
   );
 };

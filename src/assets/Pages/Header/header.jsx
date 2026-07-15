@@ -7,6 +7,7 @@ import {
 } from "@ant-design/icons";
 import "./header.css";
 import Search from "antd/es/transfer/search";
+import { Button } from "antd";
 
 function Header() {
   return (
@@ -20,7 +21,6 @@ function Header() {
       <div className="icons">
         <QwenFilled />
         <BellOutlined />
-
         <LogoutOutlined />
       </div>
     </div>
