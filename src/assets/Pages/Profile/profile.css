@@ -1,0 +1,127 @@
+.profile-card {
+  background-color: #ffffff;
+  border-radius: 30px;
+  max-width: 1100px;
+  margin: 0 auto;
+  box-shadow: 0 18px 40px rgba(23, 120, 255, 0.12);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.profile-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 60px rgba(23, 120, 255, 0.16);
+}
+.gradient {
+  background-image: linear-gradient(135deg, #3b82f6 0%, #1677ff 100%);
+  height: 150px;
+  border-radius: 0 0 30px 30px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 18px 24px;
+}
+.gradient-button {
+  background-image: linear-gradient(135deg, #ffffff 0%, #eef5ff 100%);
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  padding: 10px 16px;
+  min-width: 150px;
+  border-radius: 12px;
+  margin-left: auto;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+.gradient-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px rgba(22, 119, 255, 0.2);
+  background-image: linear-gradient(135deg, #ffffff 0%, #dbeafe 100%);
+}
+.profile-down {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 24px;
+}
+.profile-img img {
+  height: 190px;
+  width: 190px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-top: -100px;
+  padding: 6px;
+  background: #eef5ff;
+  border: 3px solid #ffffff;
+  box-shadow: 0 12px 24px rgba(23, 120, 255, 0.12);
+}
+.profile-name {
+  font-size: 26px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+.profile-subtitle {
+  font-size: 14px;
+  color: #475569;
+  margin-top: 4px;
+}
+.cardrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0 24px 24px;
+}
+.card {
+  flex: 1 1 160px;
+  min-width: 160px;
+  height: 90px;
+  background-color: #f8fafc;
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(23, 120, 255, 0.12);
+}
+.info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+}
+.detail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 700;
+}
+@media screen and (max-width: 560px) {
+  .profile-card {
+    margin: 16px;
+  }
+  .gradient {
+    height: 120px;
+    padding: 14px 18px;
+  }
+  .profile-down {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .gradient-button {
+    margin-left: 0;
+    width: 100%;
+    max-width: 220px;
+  }
+  .cardrapper {
+    gap: 12px;
+  }
+  .card {
+    width: 100%;
+  }
+}
