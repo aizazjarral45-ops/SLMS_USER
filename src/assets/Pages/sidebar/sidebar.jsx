@@ -9,8 +9,9 @@ import {
   InfoCircleOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Breadcrumb, Layout, Menu, theme } from "antd";
+import { AutoComplete, Breadcrumb, Layout, Menu, theme } from "antd";
 import Link from "antd/es/typography/Link";
+import Profile from "../Profile/profile";
 const { Header, Content, Footer, Sider } = Layout;
 function getItem(label, key, icon, children) {
   return {
@@ -37,7 +38,15 @@ const Sidebar = () => {
   } = theme.useToken();
   const currentYear = new Date().getFullYear();
   return (
-    <Layout style={{ minHeight: "100vh", margin: "-8px" }}>
+    <Layout
+      style={{
+        height: "auto",
+        overflowY: "auto",
+        position: "sticky",
+        top: 0,
+        margin: "-8px",
+      }}
+    >
       <Sider
         collapsible
         collapsed={collapsed}
@@ -54,7 +63,7 @@ const Sidebar = () => {
       </Sider>
       <Layout>
         <Content style={{ margin: "0 16px" }}>
-         
+          <Profile></Profile>
         </Content>
       </Layout>
     </Layout>
