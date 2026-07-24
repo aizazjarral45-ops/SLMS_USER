@@ -1,27 +1,18 @@
 import "./profile.css";
 import React, { useState } from "react";
 import {
-  ContactsOutlined,
   EditOutlined,
   LoadingOutlined,
+  DeleteOutlined,
   PhoneFilled,
   PlusOutlined,
-  ProfileOutlined,
+  PullRequestOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import {
-  Avatar,
-  Button,
-  Card,
-  Flex,
-  Form,
-  Input,
-  message,
-  Modal,
-  Upload,
-} from "antd";
-import { CgEnter } from "react-icons/cg";
-
+import { Avatar, Button, Card, Flex, Form, message, Modal, Upload } from "antd";
+import { PersonalModal } from "./Modal";
+import { ContactModal } from "./contactmodal";
+import { ProfileModal } from "./profilemodal";
 const getBase64 = (img, callback) => {
   const reader = new FileReader();
   reader.addEventListener("load", () => callback(reader.result));
@@ -29,56 +20,58 @@ const getBase64 = (img, callback) => {
 };
 function Profile() {
   const [visible, setvisible] = useState(false);
-  const [contactVisible, setContactVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
-  const [form] = Form.useForm();
+  const [contactVisible, setContactVisible] = useState(false);
+  const [personalform] = Form.useForm();
   const [contactForm] = Form.useForm();
   const [profileForm] = Form.useForm();
-  const [personalData, setPersonalData] = useState({
-    fullName: "",
-    fname: "",
-    gender: "",
-    dob: "",
-    phone: "",
-    cnic: "",
-    bloodGroup: "",
-    nationality: "",
-    maritalStatus: "",
+  const [personalData, setPersonalData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("personalData")) || {};
+    } catch {
+      return {};
+    }
   });
-  const [profileData, setProfileData] = useState({
-    name: "",
-    rollNo: "",
-    department: "",
-    semester: "",
-    batch: "",
-    sessions: "",
+  const [profileData, setProfileData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("profileData")) || {};
+    } catch {
+      return {};
+    }
   });
-  const [contactData, setContactData] = useState({
-    universityEmail: "",
-    personalEmail: "",
-    phone: "",
-    emergencyContact: "",
-    currentAddress: "",
-    permanentAddress: "",
+  const [contactData, setContactData] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("contactData")) || {};
+    } catch {
+      return {};
+    }
   });
   const [messageApi, contextHolder] = message.useMessage();
   const personalFormHandler = (value) => {
-    setPersonalData((prev) => ({ ...prev, ...value }));
-    setvisible(false);
+    const updatedPersonal = { ...personalData, ...value };
+    setPersonalData(updatedPersonal);
+    localStorage.setItem("personalData", JSON.stringify(updatedPersonal));
     messageApi.success("Personal Information updated");
+    setvisible(false);
   };
   const contactFormHandler = (value) => {
-    setContactData((prev) => ({ ...prev, ...value }));
+    const updatedContact = { ...contactData, ...value };
+    setContactData(updatedContact);
+    localStorage.setItem("contactData", JSON.stringify(updatedContact));
     setContactVisible(false);
     messageApi.success("Contact information updated");
   };
   const profileFormHandler = (value) => {
-    setProfileData((prev) => ({ ...prev, ...value }));
+    const updatedProfile = { ...profileData, ...value };
+    setProfileData(updatedProfile);
+    localStorage.setItem("profileData", JSON.stringify(updatedProfile));
     setProfileVisible(false);
     messageApi.success("Profile details updated");
   };
   const [loading, setLoading] = useState(false);
-  const [imageUrl, setImageUrl] = useState(null);
+  const [imageUrl, setImageUrl] = useState(
+    () => localStorage.getItem("profileImageUrl") || null,
+  );
   const beforeUpload = (file) => {
     const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
     if (!isJpgOrPng) {
@@ -99,14 +92,64 @@ function Profile() {
       getBase64(info.file.originFileObj, (url) => {
         setLoading(false);
         setImageUrl(url);
+        localStorage.setItem("profileImageUrl", url);
       });
     }
   };
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const handlePreview = () => {
+    if (imageUrl) {
+      setPreviewVisible(true);
+    }
+  };
+
+  const resetAllProfileData = () => {
+    const confirmed = window.confirm(
+      "This will clear all profile data saved on this page. If you are agree than Continue",
+    );
+
+    if (!confirmed) return;
+
+    localStorage.removeItem("personalData");
+    localStorage.removeItem("profileData");
+    localStorage.removeItem("contactData");
+    localStorage.removeItem("profileImageUrl");
+
+    setPersonalData({});
+    setProfileData({});
+    setContactData({});
+    setImageUrl(null);
+    setLoading(false);
+    setvisible(false);
+    setProfileVisible(false);
+    setContactVisible(false);
+    setPreviewVisible(false);
+    personalform.resetFields();
+    profileForm.resetFields();
+    contactForm.resetFields();
+    messageApi.success("All profile data has been reset succesfully");
+  };
+
   const uploadButton = (
     <button style={{ border: 0, background: "none" }} type="button">
       {loading ? <LoadingOutlined /> : <PlusOutlined />}
       <div style={{ marginTop: 8 }}>Upload</div>
     </button>
+  );
+  const renderPreviewModal = () => (
+    <Modal
+      open={previewVisible}
+      footer={null}
+      onCancel={() => setPreviewVisible(false)}
+    >
+      {imageUrl && (
+        <img
+          alt="profile preview"
+          style={{ width: "100%", maxHeight: "80vh", objectFit: "contain" }}
+          src={imageUrl}
+        />
+      )}
+    </Modal>
   );
   return (
     <>
@@ -129,21 +172,35 @@ function Profile() {
         <div className="profile-down">
           <div className="profile">
             <Flex gap="medium" wrap>
-              <Upload
-                name="avatar"
-                listType="picture-circle"
-                className="avatar-uploader"
-                showUploadList={false}
-                action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
-                beforeUpload={beforeUpload}
-                onChange={handleChange}
-              >
+              <div style={{ textAlign: "center" }}>
                 {imageUrl ? (
-                  <img draggable={false} src={imageUrl} alt="avatar" />
+                  <img
+                    draggable={false}
+                    src={imageUrl}
+                    alt="avatar"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      cursor: "pointer",
+                    }}
+                    onClick={handlePreview}
+                  />
                 ) : (
-                  uploadButton
+                  <Upload
+                    name="avatar"
+                    listType="picture-circle"
+                    className="avatar-uploader"
+                    showUploadList={false}
+                    action="https://660d2bd96ddfa2943b33731c.mockapi.io/api/upload"
+                    beforeUpload={beforeUpload}
+                    onChange={handleChange}
+                  >
+                    {uploadButton}
+                  </Upload>
                 )}
-              </Upload>
+              </div>
             </Flex>
           </div>
         </div>
@@ -183,6 +240,18 @@ function Profile() {
           </div>
         </div>
       </div>
+      <ProfileModal
+        visible={profileVisible}
+        onClose={() => setProfileVisible(false)}
+        form={profileForm}
+        initialValues={profileData}
+        onFinish={profileFormHandler}
+        imageUrl={imageUrl}
+        uploadButton={uploadButton}
+        beforeUpload={beforeUpload}
+        handleChange={handleChange}
+      />
+      {renderPreviewModal()}
       {contextHolder}
       <div
         style={{
@@ -194,6 +263,7 @@ function Profile() {
         }}
       >
         <Card
+          className="personal-card"
           title={
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Avatar
@@ -208,7 +278,7 @@ function Profile() {
             <Button
               icon={<EditOutlined></EditOutlined>}
               onClick={() => {
-                form.setFieldsValue(personalData);
+                personalform.setFieldsValue(personalData);
                 setvisible(true);
               }}
             >
@@ -255,6 +325,7 @@ function Profile() {
           </div>
         </Card>
         <Card
+          className="contact-card"
           title={
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <Avatar
@@ -314,139 +385,37 @@ function Profile() {
           </div>
         </Card>
       </div>
-      <Modal
-        title="Edit Personal info"
-        open={visible}
-        onOk={() => setvisible(false)}
-        onCancel={() => setvisible(false)}
-        footer={null}
-      >
-        <Form
-          form={form}
-          onFinish={personalFormHandler}
-          layout="vertical"
-          initialValues={personalData}
-        >
-          <Form.Item
-            label="Full Name"
-            name="fullName"
-            rules={[{ required: true }]}
-          >
-            <Input type="text" placeholder="Enter Your Name"></Input>
-          </Form.Item>
-          <Form.Item
-            label="Father's Name"
-            name="fname"
-            rules={[{ required: true }]}
-          >
-            <Input type="text" placeholder="Enter Your Father Name"></Input>
-          </Form.Item>
-          <Form.Item label="Gender" name="gender" rules={[{ required: true }]}>
-            <Input type="text" placeholder="Enter Your Gender"></Input>
-          </Form.Item>
-          <Form.Item label="Phone No" name="phone" rules={[{ required: true }]}>
-            <Input type="number" placeholder="Enter Your Phone"></Input>
-          </Form.Item>
-          <Form.Item label="CNIC" name="cnic">
-            <Input type="number" placeholder="Enter Your CNIC number"></Input>
-          </Form.Item>
-          <Form.Item
-            label="Nationality"
-            name="nationality"
-            rules={[{ required: true }]}
-          >
-            <Input type="text" placeholder="Enter Your Nationality"></Input>
-          </Form.Item>
-          <Form.Item label="Date of Birth" name="dob">
-            <Input type="date"></Input>
-          </Form.Item>
-          <Form.Item label="Blood Group" name="bloodGroup">
-            <Input type="text" placeholder="Enter Your Blood Group"></Input>
-          </Form.Item>
-          <Form.Item label="Marital Status" name="maritalStatus">
-            <Input type="text" placeholder="Enter Your Marital Status"></Input>
-          </Form.Item>
-          <Button htmlType="submit" type="primary">
-            Submit
+
+      <PersonalModal
+        visible={visible}
+        onClose={() => setvisible(false)}
+        form={personalform}
+        initialValues={personalData}
+        onFinish={personalFormHandler}
+      />
+      <ContactModal
+        visible={contactVisible}
+        onClose={() => setContactVisible(false)}
+        form={contactForm}
+        initialValues={contactData}
+        onFinish={contactFormHandler}
+      />
+      <Card className="danger-card">
+        <div className="danger-title">Danger Zone</div>
+        <div className="danger-content">
+          If you no longer wish to use your account, you can permanently delete<br/>
+          it along with all associated data, including your profile, settings,<br/>
+          uploaded content, and activity history. Once deletion is confirmed,<br/>
+          the process will begin immediately and cannot be reversed. Please make<br/>
+          sure you've saved any information you'd like to keep before
+          proceeding.
+        </div>
+        <div className="resetbutton">
+          <Button danger onClick={resetAllProfileData} icon={<DeleteOutlined />}>
+            Reset All Data
           </Button>
-        </Form>
-      </Modal>
-      <Modal
-        title="Edit Contact Info"
-        open={contactVisible}
-        onOk={() => setContactVisible(false)}
-        onCancel={() => setContactVisible(false)}
-        footer={null}
-      >
-        <Form
-          form={contactForm}
-          onFinish={contactFormHandler}
-          layout="vertical"
-          initialValues={contactData}
-        >
-          <Form.Item label="University Email" name="universityEmail">
-            <Input type="email" placeholder="Enter Your University Email" />
-          </Form.Item>
-          <Form.Item
-            label="Personal Email"
-            name="personalEmail"
-            rules={[{ required: true, type: "email" }]}
-          >
-            <Input type="email" placeholder="Enter Your Personal Email" />
-          </Form.Item>
-          <Form.Item label="Phone No" name="phone" rules={[{ required: true }]}>
-            <Input type="text" placeholder="Enter Your Phone" />
-          </Form.Item>
-          <Form.Item label="Emergency Contact" name="emergencyContact">
-            <Input type="text" placeholder="Enter Emergency Contact" />
-          </Form.Item>
-          <Form.Item label="Current Address" name="currentAddress">
-            <Input type="text" placeholder="Enter Your Current Address" />
-          </Form.Item>
-          <Form.Item label="Permanent Address" name="permanentAddress">
-            <Input type="text" placeholder="Enter Your Permanent Address" />
-          </Form.Item>
-          <Button htmlType="submit" type="primary">
-            Submit
-          </Button>
-        </Form>
-      </Modal>
-      <Modal
-        title="Edit Profile "
-        open={profileVisible}
-        onOk={() => setProfileVisible(false)}
-        onCancel={() => setProfileVisible(false)}
-        footer={null}
-      >
-        <Form
-          form={profileForm}
-          onFinish={profileFormHandler}
-          layout="vertical"
-          initialValues={profileData}
-        >
-          <Form.Item label="Name" name="name" rules={[{ required: true }]}>
-            <Input type="text" placeholder="Enter Name" />
-          </Form.Item>
-          <Form.Item label="Roll No" name="rollNo" rules={[{ required: true }]}>
-            <Input type="text" placeholder="Enter Roll No" />
-          </Form.Item>
-          <Form.Item label="Department" name="department">
-            <Input type="text" placeholder="Enter Department" />
-          </Form.Item>
-          <Form.Item label="Semester" name="semester">
-            <Input type="text" placeholder="Enter Semester" />
-          </Form.Item>
-          <Form.Item label="Batch" name="batch">
-            <Input type="text" placeholder="Enter Batch" />
-          </Form.Item>
-          <Form.Item label="Sessions" name="sessions">
-            <Input type="text" placeholder="Enter Sessions" />
-          </Form.Item>
-          <Button htmlType="submit" type="primary">
-            Submit
-          </Button>
-        </Form>
-      </Modal>
+        </div>
+      </Card>
     </>
   );
 }

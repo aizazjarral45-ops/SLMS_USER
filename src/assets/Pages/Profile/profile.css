@@ -220,17 +220,126 @@
   display: flex;
   justify-content: space-between;
   color: #3d3b3b;
+  margin-bottom: 8px;
 }
+
 .cardinfo-data {
   display: flex;
   justify-content: space-between;
   font-size: 16px;
   font-weight: 500;
   color: #0b0b0b;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
 }
+
 .twocard {
   display: flex;
   flex: 1 1 48%;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+.personal-card,
+.contact-card {
+  background-color: #ffffff;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  flex: 1 1 100%;
+  border: 1px solid #edf0f5;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.contact-card:hover,
+.personal-card:hover {
+  box-shadow: 0 8px 24px rgba(23, 120, 255, 0.15);
+  transform: translateY(-4px);
+  border-color: #bfdbfe;
+}
+
+.personal-card::before,
+.contact-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1677ff, #3b82f6);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.personal-card:hover::before,
+.contact-card:hover::before {
+  opacity: 1;
+}
+
+.cardinfo-label {
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.3px;
+}
+
+.cardinfo-value {
+  font-weight: 600;
+  color: #0f172a;
+  text-align: right;
+}
+
+.danger-card {
+  position: relative;
+  margin-top: 14px;
+  margin-bottom: 20px;
+  border: 1px solid #ff4d4f;
+  border-radius: 8px;
+  background: #fff1f0;
+  color: #2b2b2b;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.danger-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #ff7875, #ff4d4f);
+}
+
+.danger-card:hover {
+  box-shadow: 0 8px 24px rgba(207, 19, 34, 0.15);
+  transform: translateY(-3px);
+  border-color: #ff7875;
+  background: linear-gradient(#fff1f0 0%, #ffebeb 100%);
+}
+
+.danger-title {
+  font-weight: 700;
+  font-size: 18px;
+  color: #cf1322;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  letter-spacing: 0.9px;
+}
+
+.danger-content {
+  text-align: center;
+  margin: 5px 0px 15px 0px;
+  color: #595959;
+  font-size: 14px;
+  line-height: 1.6; 
+
+}
+.resetbutton{
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
