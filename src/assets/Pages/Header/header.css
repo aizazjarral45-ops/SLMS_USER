@@ -3,9 +3,14 @@
   justify-content: space-between;
   align-items: center;
   background-color: #1e3a8a;
-  margin: -8px -8px 0 -8px;
+  margin: 0;
   height: 120px;
   color: white;
+  padding: 0 20px;
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 .icons {
   padding-right: 30px;
@@ -27,4 +32,49 @@
   height: auto;
   object-fit: contain;
   background-color: transparent;
+}
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 24px;
+  object-fit: cover;
+  transition: all 0.3s ease;
+}
+.profile-avatar:hover {
+  transform: scale(1.1);
+}
+.profile-parent {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.3s ease;
+}
+.profile-parent:hover {
+  opacity: 0.8;
+}
+.student-name {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.student-name:hover {
+  color: #93c5fd;
+}
+.student-dept {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+.student-dept:hover {
+  color: #93c5fd;
 }

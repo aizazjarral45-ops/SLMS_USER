@@ -70,7 +70,7 @@ function Profile() {
   };
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState(
-    () => localStorage.getItem("profileImageUrl") || null,
+    () => profileData.profileImage || localStorage.getItem("profileImageUrl") || null,
   );
   const beforeUpload = (file) => {
     const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
@@ -92,7 +92,9 @@ function Profile() {
       getBase64(info.file.originFileObj, (url) => {
         setLoading(false);
         setImageUrl(url);
-        localStorage.setItem("profileImageUrl", url);
+        const updatedProfile = { ...profileData, profileImage: url };
+        setProfileData(updatedProfile);
+        localStorage.setItem("profileData", JSON.stringify(updatedProfile));
       });
     }
   };
@@ -113,7 +115,6 @@ function Profile() {
     localStorage.removeItem("personalData");
     localStorage.removeItem("profileData");
     localStorage.removeItem("contactData");
-    localStorage.removeItem("profileImageUrl");
 
     setPersonalData({});
     setProfileData({});
