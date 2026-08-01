@@ -1,7 +1,7 @@
 import React from "react";
 import {
   AppstoreOutlined,
-  AuditOutlined,
+  RobotOutlined,
   BookOutlined,
   WalletOutlined,
   HomeOutlined,
@@ -11,8 +11,9 @@ import {
 } from "@ant-design/icons";
 
 const sidebarItems = [
+
   { key: "1", label: "Dashboard", icon: <AppstoreOutlined /> },
-  { key: "2", label: "AI Copilot", icon: <AuditOutlined /> },
+  { key: "2", label: "AI Copilot", icon: <RobotOutlined /> },
   { key: "3", label: "Academic", icon: <BookOutlined /> },
   { key: "4", label: "Hostel", icon: <HomeOutlined /> },
   { key: "5", label: "Expense", icon: <WalletOutlined /> },

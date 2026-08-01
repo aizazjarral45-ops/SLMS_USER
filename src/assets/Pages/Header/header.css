@@ -3,7 +3,6 @@
   justify-content: space-between;
   align-items: center;
   background-color: #1e3a8a;
-  margin: 0;
   height: 120px;
   color: white;
   padding: 0 20px;
@@ -16,7 +15,7 @@
   padding-right: 30px;
   display: flex;
   gap: 30px;
-  font-size: 25px;
+  align-items: center;
 }
 .search {
   display: flex;
@@ -36,13 +35,13 @@
 .profile-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 100%;
+  border: 2px solid #5770b7;
   background-color: #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 24px;
   object-fit: cover;
   transition: all 0.3s ease;
 }

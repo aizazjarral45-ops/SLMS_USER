@@ -3,14 +3,14 @@ import {
   BellOutlined,
   NotificationOutlined,
   QwenFilled,
-  LogoutOutlined,
+  RobotOutlined,
 } from "@ant-design/icons";
 import Profile from "../Profile/profile.jsx";
 import "./header.css";
-import { Card, Input } from "antd";
+import { Button, Card, Input } from "antd";
 import { useEffect, useState } from "react";
 import Search from "antd/es/transfer/search.js";
-
+import { BsRobot } from "react-icons/bs";
 
 function Header() {
   const [profileData, setProfile] = useState({});
@@ -30,10 +30,23 @@ function Header() {
         <Search placeholder="Search here"></Search>
       </div>
       <div className="icons">
-        
-        <QwenFilled />
-        <BellOutlined />
-        <LogoutOutlined />
+        <Button
+          style={{
+            color: "#fff",
+            fontSize: 25,
+          }}
+          type="text"
+          icon={<RobotOutlined />}
+        />
+        <Button
+          style={{
+            color: "#fff",
+            fontSize: 25,
+          }}
+          type="text"
+          icon={<BellOutlined />}
+        />
+
         <div className="profile-parent">
           <img
             className="profile-avatar"

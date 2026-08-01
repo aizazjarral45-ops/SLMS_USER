@@ -109,11 +109,12 @@ function Profile() {
     const confirmed = window.confirm(
       "This will clear all profile data saved on this page. If you are agree than Continue",
     );
-
     if (!confirmed) return;
 
     localStorage.removeItem("personalData");
     localStorage.removeItem("profileData");
+    localStorage.removeItem("profileImageUrl");
+    localStorage.removeItem("profileImage");
     localStorage.removeItem("contactData");
 
     setPersonalData({});

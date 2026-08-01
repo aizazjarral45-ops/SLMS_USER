@@ -5,11 +5,9 @@ body,
   height: 100%;
   overflow: hidden;
 }
-
 body {
   font-family: Arial, sans-serif;
 }
-
 .app-shell {
   height: 100vh;
   display: flex;
@@ -20,16 +18,13 @@ body {
   flex: 1;
   overflow: hidden;
 }
-
 .app-sidebar {
   background: #1e3a8a !important;
   overflow-y: auto;
 }
-
 .app-sidebar .ant-layout-sider-children {
   overflow-y: auto;
 }
-
 .app-content {
   overflow-y: auto;
   padding: 16px;
