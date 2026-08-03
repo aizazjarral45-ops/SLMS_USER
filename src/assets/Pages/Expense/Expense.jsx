@@ -6,6 +6,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Flex,
   Form,
   Input,
   InputNumber,
@@ -35,9 +36,9 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Expense.css";
-
 const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-expenses";
+const BUDGET_STORAGE_KEY = "slms-monthly-budgets";
 
 const categories = [
   "Food",
@@ -53,7 +54,6 @@ const categories = [
   "Printing",
   "Miscellaneous",
 ];
-
 const seedExpenses = [
   {
     key: "1",
@@ -104,7 +104,6 @@ const seedExpenses = [
     receipt: "Uploaded",
   },
 ];
-
 function getInitialExpenses() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -113,32 +112,44 @@ function getInitialExpenses() {
     return seedExpenses;
   }
 }
-
-function ChartCard({ title, items, formatValue }) {
+function ChartCard({ title, items, formatValue, budget }) {
   const max = Math.max(...items.map((item) => item.value), 1);
+  const referenceValue = budget && budget > 0 ? budget : max;
 
   return (
     <Card className="expense-panel" title={title}>
       <div className="expense-chart">
-        {items.map((item) => (
-          <div key={item.label} className="expense-chart-row">
-            <div className="expense-chart-meta">
-              <Text>{item.label}</Text>
-              <Text strong>{formatValue(item.value)}</Text>
+        {items.map((item) => {
+          const fillPercent = Math.min(
+            (item.value / referenceValue) * 100,
+            100,
+          );
+          return (
+            <div key={item.label} className="expense-chart-row">
+              <div className="expense-chart-meta">
+                <Text>{item.label}</Text>
+                <Space direction="vertical" align="end" size={0}>
+                  <Text strong>{formatValue(item.value)}</Text>
+                  {budget ? (
+                    <Text type="secondary">
+                      {fillPercent.toFixed(0)}% of budget
+                    </Text>
+                  ) : null}
+                </Space>
+              </div>
+              <div className="expense-chart-track">
+                <div
+                  className="expense-chart-fill"
+                  style={{ width: `${fillPercent}%` }}
+                />
+              </div>
             </div>
-            <div className="expense-chart-track">
-              <div
-                className="expense-chart-fill"
-                style={{ width: `${(item.value / max) * 100}%` }}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
 }
-
 function Expense() {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
@@ -146,6 +157,18 @@ function Expense() {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [open, setOpen] = useState(false);
+  const [budgetModal, setBudgetModal] = useState(false);
+  const [monthlyBudget, setMonthlyBudget] = useState(() => {
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem(BUDGET_STORAGE_KEY) || "[]",
+      );
+      return stored.length ? Number(stored[stored.length - 1]) : 0;
+    } catch {
+      return 0;
+    }
+  });
+  const [newMonthlyBudget, setNewMonthlyBudget] = useState(monthlyBudget);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
@@ -161,14 +184,11 @@ function Expense() {
       return matchesQuery && matchesCategory;
     });
   }, [categoryFilter, expenses, query]);
-
   const totalSpent = useMemo(
     () => expenses.reduce((sum, item) => sum + Number(item.amount), 0),
     [expenses],
   );
-
-  const today = dayjs("2026-07-30");
-
+  const today = dayjs();
   const todaySpent = expenses
     .filter((item) => dayjs(item.date).isSame(today, "day"))
     .reduce((sum, item) => sum + Number(item.amount), 0);
@@ -176,13 +196,13 @@ function Expense() {
   const weeklySpent = expenses
     .filter((item) => dayjs(item.date).isAfter(today.subtract(7, "day")))
     .reduce((sum, item) => sum + Number(item.amount), 0);
-
-  const monthlyBudget = 30000;
   const remainingBudget = Math.max(monthlyBudget - totalSpent, 0);
+  const budgetPercent = monthlyBudget
+    ? Math.round((remainingBudget / monthlyBudget) * 100)
+    : 0;
   const highestExpense = expenses.reduce((largest, item) => {
     return Number(item.amount) > Number(largest.amount || 0) ? item : largest;
   }, {});
-
   const categoryTotals = categories
     .map((category) => ({
       label: category,
@@ -195,38 +215,30 @@ function Expense() {
     }))
     .filter((item) => item.value > 0)
     .slice(0, 6);
-
-  const dailySpending = [
-    "Jul 25",
-    "Jul 26",
-    "Jul 27",
-    "Jul 28",
-    "Jul 29",
-    "Jul 30",
-  ].map((label, index) => ({
-    label,
-    value: expenses
-      .filter((item) =>
-        dayjs(item.date).isSame(today.subtract(5 - index, "day"), "day"),
-      )
-      .reduce((sum, item) => sum + Number(item.amount), 0),
-  }));
-
+  const dailySpending = Array.from({ length: 6 }, (_, index) => {
+    const date = today.subtract(5 - index, "day");
+    return {
+      label: date.format("MMM D"),
+      value: expenses
+        .filter((item) => dayjs(item.date).isSame(date, "day"))
+        .reduce((sum, item) => sum + Number(item.amount), 0),
+    };
+  });
   const weeklyComparison = [
     { label: "Today", value: Number(todaySpent.toFixed(2)) },
     { label: "This Week", value: Number(weeklySpent.toFixed(2)) },
     { label: "This Month", value: Number(weeklySpent.toFixed(2)) },
   ];
-
   const financialInsights = [
-    `Budget warning: ${Math.round((totalSpent / monthlyBudget) * 100)}% of your monthly budget has been used.`,
+    monthlyBudget
+      ? `Budget warning: ${Math.round((totalSpent / monthlyBudget) * 100)}% of your monthly budget has been used.`
+      : "Set a monthly budget to see how much of it you've used.",
     highestExpense.title
       ? `Highest spending was on ${highestExpense.title} at $${Number(highestExpense.amount).toFixed(2)}.`
       : "No major expense recorded yet.",
     "Prediction: if this pace continues, you may exceed the monthly budget by around $38.",
     "Recommendation: shift entertainment and transport to lower-cost options for the next 5 days.",
   ];
-
   const onFinish = (values) => {
     const record = {
       key: `${Date.now()}`,
@@ -238,18 +250,15 @@ function Expense() {
       description: values.description,
       location: values.location,
     };
-
     setExpenses((current) => [record, ...current]);
     setOpen(false);
     form.resetFields();
     messageApi.success("Expense added successfully.");
   };
-
   const handleDelete = (key) => {
     setExpenses((current) => current.filter((item) => item.key !== key));
     messageApi.success("Expense removed.");
   };
-
   const columns = [
     {
       title: "Date",
@@ -280,7 +289,6 @@ function Expense() {
       sorter: (a, b) => a.amount - b.amount,
       render: (value) => `$${Number(value).toFixed(2)}`,
     },
-
     {
       title: "Actions",
       key: "actions",
@@ -296,7 +304,6 @@ function Expense() {
       ),
     },
   ];
-
   return (
     <div className="expense-page">
       {contextHolder}
@@ -315,18 +322,64 @@ function Expense() {
           <Space align="start">
             <WalletOutlined className="expense-highlight-icon" />
             <div>
-              <Text type="secondary">Budget Remaining</Text>
-              <Title level={3}>${remainingBudget.toFixed(2)}</Title>
+              <Text type="secondary">Total Budget</Text>             
+              <Title level={3}>${monthlyBudget.toFixed(2)}</Title>
               <Progress
                 percent={Math.round((remainingBudget / monthlyBudget) * 100)}
                 showInfo={false}
                 strokeColor="#2563eb"
               />
+              <Button
+                type="text"
+                icon={<DollarCircleOutlined />}
+                onClick={() => {
+                  setNewMonthlyBudget(monthlyBudget);
+                  setBudgetModal(true);
+                }}
+              >Add Budget
+              </Button>
             </div>
           </Space>
         </Card>
       </div>
-
+      <Modal
+        title="Add Budget"
+        open={budgetModal}
+        okText="Save"
+        cancelText="Cancel"
+        onCancel={() => {
+          setNewMonthlyBudget(monthlyBudget);
+          setBudgetModal(false);
+        }}
+        onOk={() => {
+          const val = Number(newMonthlyBudget) || 0;
+          setMonthlyBudget(val);
+          try {
+            const arr = JSON.parse(
+              localStorage.getItem(BUDGET_STORAGE_KEY) || "[]",
+            );
+            arr.push(val);
+            localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(arr));
+          } catch {
+            localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify([val]));
+          }
+          setBudgetModal(false);
+        }}
+      >
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          Current monthly budget: ${monthlyBudget.toFixed(2)}. Remaining budget:
+          ${remainingBudget.toFixed(2)}.
+        </Paragraph>
+        <InputNumber
+          placeholder="Enter new monthly budget"
+          style={{ width: "100%" }}
+          value={newMonthlyBudget}
+          min={0}
+          formatter={(value) => `$ ${value}`}
+          parser={(value) => value.replace(/\$\s?|(,*)/g, "")}
+          onChange={(value) => setNewMonthlyBudget(Number(value) || 0)}
+        />
+      </Modal>
       <Row gutter={[25, 25]} style={{ width: "100%" }}>
         {[
           {
@@ -456,12 +509,11 @@ function Expense() {
           </Space>
         </Card>
       </Col>
-
       <div className="expense-chart-grid">
         <ChartCard
           title="Daily Spending"
           items={dailySpending}
-          formatValue={(value) => `$${value.toFixed(2)}`}
+          formatValue={(value) => `$${value.toFixed(1)}`}
         />
         <ChartCard
           title="Expense Categories"
@@ -469,25 +521,63 @@ function Expense() {
           formatValue={(value) => `$${value.toFixed(2)}`}
         />
         <ChartCard
-          title="Weekly Comparison"
+          title="Comparison"
           items={weeklyComparison}
-          formatValue={(value) => `$${value.toFixed(2)}`}
+          formatValue={(value) => `$${value.toFixed(3)}`}
         />
       </div>
-      <Card className="expense-panel" title="Budget Remaining">
-        <div className="expense-budget-ring">
-          <Progress
-            type="circle"
-            percent={Math.round((remainingBudget / monthlyBudget) * 100)}
-            format={() => `$${remainingBudget.toFixed(0)}`}
-            strokeColor={{ "0%": "#60a5fa", "100%": "#1d4ed8" }}
-          />
-          <Paragraph>
-            Stay below $18/day for the rest of July to remain comfortably inside
-            your monthly target.
-          </Paragraph>
-        </div>
-      </Card>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={12}>
+          <Card className="expense-panel" title="Monthly Budget ">
+            <div className="expense-budget-ring">
+              <Paragraph>
+                This is the budget you've planned for this month. Keep an eye
+                <br />
+                on your spending and stay within your budget. <hr />
+              </Paragraph>
+              <Progress
+                type="circle"
+                percent={Math.round((remainingBudget / monthlyBudget) * 100)}
+                format={() => `$${monthlyBudget.toFixed(0)}`}
+                strokeColor={{ "0%": "#60a5fa", "100%": "#1d4ed8" }}
+              />
+              <Paragraph>
+                <hr />
+                Advice: Review your budget every week so you can make small
+                <br />
+                adjustments before it's too late.
+              </Paragraph>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card className="expense-panel" title="Budget Remaining">
+            <div className="expense-budget-ring">
+              <Paragraph>
+                Budget warning
+                ${Math.round((totalSpent / monthlyBudget) * 100)}% of your
+                monthly budget has been used <br/>in this month.
+                <hr></hr>
+              </Paragraph>
+              <Progress
+                type="circle"
+                percent={Math.round((remainingBudget / monthlyBudget) * 100)}
+                format={() => `$${remainingBudget.toFixed(0)}`}
+                strokeColor={{ "0%": "#60a5fa", "100%": "#1d4ed8" }}
+              />
+              <Paragraph>
+                <hr></hr>
+                Only $
+                {Math.round(
+                  ((monthlyBudget - totalSpent) / monthlyBudget) * 100,
+                )}
+                % remains. Review your recent expenses and plan <br />
+                your spending carefully to avoid exceeding your budget.
+              </Paragraph>
+            </div>
+          </Card>
+        </Col>
+      </Row>
       <Modal
         title="Add Expense"
         open={open}
@@ -559,7 +649,6 @@ function Expense() {
           <Form.Item name="location" label="Where was the money used?">
             <Input placeholder="Location" />
           </Form.Item>
-
           <div className="expense-modal-actions">
             <Button onClick={() => setOpen(false)}>Cancel</Button>
             <Button
@@ -575,5 +664,4 @@ function Expense() {
     </div>
   );
 }
-
 export default Expense;
