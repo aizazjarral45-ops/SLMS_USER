@@ -1,0 +1,171 @@
+.setting-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 24px;
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  color: #1f2937;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.setting-hero {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+.setting-panel,
+.setting-inner-card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(18px);
+  padding: 28px;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.setting-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.setting-inner-card {
+  min-height: 220px;
+}
+
+.setting-panel:hover,
+.setting-inner-card:hover {
+  border-color: rgba(37, 99, 235, 0.32);
+  transform: translateY(-4px);
+}
+
+.setting-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 16px;
+  margin-bottom: 14px;
+  background: rgba(96, 165, 250, 0.14);
+  color: #1d4ed8;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.setting-avatar {
+  width: 45px;
+  height: 45px;
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 16px 40px rgba(37, 99, 235, 0.18);
+}
+
+.setting-stack,
+.setting-full-width {
+  width: 100%;
+}
+
+.setting-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #edf3ff;
+}
+
+.setting-toggle-row:last-child {
+  border-bottom: 0;
+}
+
+.setting-reminder-list {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.setting-reminder-list li {
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.setting-block-text {
+  margin-top: 20px;
+  line-height: 1.8;
+  color: #475569;
+}
+
+.setting-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.setting-modal-actions button,
+.setting-page button {
+  min-width: 130px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.setting-modal-actions button:hover,
+.setting-page button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+}
+
+.setting-modal-actions .primary-button,
+.setting-page .primary-button {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.setting-modal-actions .secondary-button,
+.setting-page .secondary-button {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+@media (max-width: 992px) {
+  .setting-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .setting-page {
+    padding: 18px 16px 24px;
+  }
+
+  .setting-panel,
+  .setting-inner-card {
+    padding: 20px;
+  }
+
+  .setting-modal-actions {
+    justify-content: center;
+  }
+}
