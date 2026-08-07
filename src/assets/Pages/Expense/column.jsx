@@ -57,7 +57,7 @@ export const Columndata = () => {
         <Button type="link">Delete</Button>
       </div>
     ),
-
+    
     }])
   
 }

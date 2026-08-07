@@ -19,10 +19,8 @@ import {
   message,
 } from "antd";
 import {
-  CalendarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  EnvironmentOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
   FormOutlined,
@@ -31,11 +29,11 @@ import {
   SendOutlined,
   SolutionOutlined,
   TagOutlined,
-  WarningOutlined,
   InfoCircleOutlined,
   TeamOutlined,
 } from "@ant-design/icons";
 import "./Complaints.css";
+import { guidanceItems } from "./guidelines";
 
 const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-complaints";
@@ -81,29 +79,6 @@ function Complaints() {
       return matchesQuery && matchesFilter;
     });
   }, [complaints, filter, query]);
-
-  const guidanceItems = [
-    {
-      icon: <PaperClipOutlined style={{ color: "#1890ff" }} />,
-      text: "Add clear evidence or screenshots for faster review.",
-    },
-    {
-      icon: <WarningOutlined style={{ color: "#fa8c16" }} />,
-      text: "Mark truly urgent issues as High priority only when they affect safety or exams.",
-    },
-    {
-      icon: <EnvironmentOutlined style={{ color: "#52c41a" }} />,
-      text: "Hostel and IT complaints usually resolve fastest when the exact location is included.",
-    },
-    {
-      icon: <InboxOutlined style={{ color: "#1890ff" }} />,
-      text: "Attach any relevant reference details to avoid delays and reduce follow-up questions.",
-    },
-    {
-      icon: <CalendarOutlined style={{ color: "#fa8c16" }} />,
-      text: "Include date and time when the issue occurred to help the support team investigate accurately.",
-    },
-  ];
 
   const submitComplaint = (values) => {
     const record = {
@@ -350,7 +325,7 @@ function Complaints() {
             }
           >
             <List
-              dataSource={guidanceItems}
+              dataSource={guidanceItems()}
               renderItem={(item) => (
                 <List.Item>
                   <Space align="start">

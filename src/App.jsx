@@ -7,9 +7,11 @@ import Header from "./assets/Pages/Header/header";
 import Sidebar from "./assets/Pages/sidebar/sidebar";
 // import Profile from "./assets/Pages/Profile/profile";
 import sidebarItems from "./assets/Pages/sidebar/sidebarItems";
+// import Academic from "./assets/Pages/Academic/Academic";
 // import Settings from "./assets/Pages/Setting/Setting";
 
 // import Complaints from "./assets/Pages/Complaints/Complaints";
+import Hostel from "./assets/Pages/Hostel/Hostel";
 
 // import Expense from "./assets/Pages/Expense/Expense";
 
@@ -32,10 +34,10 @@ function App() {
         <Content className="app-content">
           {/* <Profile /> */}
           {/* <Expense/> */}
-          {/* <Complaints /> */}
+          <Hostel />
           {/* <Settings/> */}
-
-          <h1>Add File Name below there In App.jsx</h1>
+             {/* <Academic/> */}
+          {/* <h1>Add File Name below there In App.jsx</h1>
           <h2>here</h2>
           <h4>
             create a content in your own pages that is created in pages section
@@ -43,7 +45,7 @@ function App() {
             commit this lines
           </h4>
           HOPE FOR THE BEST
-          <h4 />
+          <h4 /> */}
         </Content>
       </Layout>
     </div>
