@@ -1,109 +1,126 @@
-.complaints-page {
-  --bg: #ffffff;
-  --muted: #6b7280;
-  --accent: #2563eb;
-  --panel-border: rgba(147, 197, 253, 0.22);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 16px 12px 40px;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    "Helvetica Neue",
-    Arial;
-  color: #0f172a;
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-}
+﻿@import "../SharedPageDesign.css";
 
 .complaints-hero {
+  position: relative;
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-.complaints-panel {
-  border: 1px solid var(--panel-border);
-  border-radius: 16px;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.06);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  padding: 20px;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease;
-}
-
-.complaints-panel:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
-  border-color: var(--accent);
-}
-
-.complaints-pill {
-  display: inline-flex;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  gap: 28px;
   align-items: center;
-  gap: 8px;
-  border-radius: 230px;
-  font-size: 30px;
-  font-weight: 600;
-  padding: 15px 14px;
-  margin-bottom: 12px;
-  background: rgba(37, 99, 235, 0.08);
-  color: var(--accent);
-  border: 1px solid rgba(37, 99, 235, 0.12);
+  min-height: 280px;
+  padding: 36px;
+  overflow: hidden;
+  border-radius: 24px;
+  color: #fff;
+  background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
+  box-shadow: 0 26px 68px rgba(15, 23, 42, 0.18);
 }
 
-.complaints-icon {
-  color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
+.complaints-hero::after {
+  position: absolute;
+  right: 20%;
+  bottom: -90px;
+  width: 220px;
+  height: 220px;
+  content: "";
+  border: 1px solid rgba(219, 234, 254, 0.32);
+  border-radius: 50%;
+  box-shadow: 0 0 0 24px rgba(219, 234, 254, 0.08), 0 0 0 60px rgba(219, 234, 254, 0.05);
 }
 
-.complaints-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin: 0 0 8px 0;
+.complaints-hero > div,
+.complaints-hero > .complaints-panel {
+  z-index: 1;
 }
 
-.complaints-subtext {
-  font-size: 14px;
-  color: var(--muted);
-  margin-bottom: 12px;
+.complaints-pill.ant-tag {
+  margin-bottom: 16px;
+  padding: 7px 14px;
+  color: #dbeafe;
+  border: 1px solid rgba(219, 234, 254, 0.3);
+  background: rgba(15, 23, 42, 0.16);
+  font-size: 13px;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+}
+
+.complaints-hero h2.ant-typography {
+  max-width: 640px;
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.complaints-hero > div > .ant-typography {
+  max-width: 680px;
+  margin-bottom: 0;
+  color: rgba(226, 232, 255, 0.9);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.complaints-hero > .complaints-panel.ant-card {
+  align-self: center;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  box-shadow: 0 18px 36px rgba(8, 47, 73, 0.16) !important;
+}
+
+.complaints-panel .ant-card-extra .ant-input-search {
+  width: 250px;
 }
 
 .complaints-actions {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
 .complaints-btn {
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
+  border: 0;
   border-radius: 10px;
-  cursor: pointer;
+  padding: 8px 14px;
+  color: #fff;
+  background: linear-gradient(115deg, var(--slms-blue), #3b82f6);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
   font-weight: 600;
-  transition:
-    background 0.15s ease,
-    transform 0.12s ease;
+  cursor: pointer;
 }
 
-.complaints-btn:active {
-  transform: translateY(1px);
+.complaints-btn:hover {
+  background: linear-gradient(115deg, var(--slms-blue-dark), var(--slms-blue));
+  transform: translateY(-1px);
+}
+
+.complaints-panel .ant-timeline {
+  margin-top: 8px;
+}
+
+.complaints-panel .ant-list-item {
+  padding: 14px 2px;
 }
 
 @media (max-width: 992px) {
   .complaints-hero {
     grid-template-columns: 1fr;
+  }
+
+  .complaints-hero > .complaints-panel.ant-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 576px) {
+  .complaints-hero {
+    gap: 18px;
+    min-height: 0;
+    padding: 22px;
+    border-radius: 18px;
+  }
+
+  .complaints-panel .ant-card-extra .ant-input-search,
+  .complaints-panel .ant-card-extra .ant-select {
+    width: 100% !important;
   }
 }

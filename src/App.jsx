@@ -5,16 +5,13 @@ import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import Header from "./assets/Pages/Header/header";
 import Sidebar from "./assets/Pages/sidebar/sidebar";
-// import Profile from "./assets/Pages/Profile/profile";
-import sidebarItems from "./assets/Pages/sidebar/sidebarItems";
-// import Academic from "./assets/Pages/Academic/Academic";
-
-// import Settings from "./assets/Pages/Setting/Setting";
-
-// import Complaints from "./assets/Pages/Complaints/Complaints";
-// import Hostel from "./assets/Pages/Hostel/Hostel";
-
-// import Expense from "./assets/Pages/Expense/Expense";
+import Profile from "./assets/Pages/Profile/profile";
+import Settings from "./assets/Pages/Setting/Setting";
+import Complaints from "./assets/Pages/Complaints/Complaints";
+import Hostel from "./assets/Pages/Hostel/Hostel";
+import Expense from "./assets/Pages/Expense/Expense";
+import Academic from "./assets/Pages/Academic/Academic";
+import { Routes, Route } from "react-router-dom";
 
 function App() {
   const [collapsed, setCollapsed] = useState(false);
@@ -30,23 +27,17 @@ function App() {
           theme="dark"
           className="app-sidebar"
         >
-          <Sidebar items={sidebarItems} />
+          <Sidebar />
         </Sider>
         <Content className="app-content">
-          {/* <Profile />
-          <Expense/> */}
-          {/* <Hostel /> */}
-          {/* <Settings/> */}
-            {/* <Academic/> */}
-          <h1>Add File Name below there In App.jsx</h1>
-          <h2>here</h2>
-          <h4>
-            create a content in your own pages that is created in pages section
-            only add a file name here and when you start your project please
-            commit this lines
-          </h4>
-          HOPE FOR THE BEST
-          <h4 />
+          <Routes>
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/expense" element={<Expense />} />
+            <Route path="/complaints" element={<Complaints />} />
+            <Route path="/setting" element={<Settings />} />
+            <Route path="/hostel" element={<Hostel />} />
+            <Route path="/academic" element={<Academic />} />
+          </Routes>
         </Content>
       </Layout>
     </div>

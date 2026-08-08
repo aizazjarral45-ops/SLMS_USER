@@ -1,0 +1,212 @@
+﻿:where(.complaints-page, .setting-page, .expense-page) {
+  --slms-blue: #1e3a8a;
+  --slms-blue-dark: #1d4ed8;
+  --slms-navy: #0f172a;
+  --slms-ink: #111827;
+  --slms-muted: #64748b;
+  --slms-border: #dbeafe;
+  --slms-surface: rgba(255, 255, 255, 0.96);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100%;
+  padding: 12px 10px 32px;
+  color: var(--slms-ink);
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-btn-primary {
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(115deg, var(--slms-blue), #3b82f6);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-btn-primary:hover {
+  background: linear-gradient(
+    115deg,
+    var(--slms-blue-dark),
+    var(--slms-blue)
+  ) !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.26);
+  transform: translateY(-1px);
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-btn-default,
+:where(.complaints-page, .setting-page, .expense-page) .ant-btn-text {
+  border-radius: 10px;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-btn-default:hover,
+:where(.complaints-page, .setting-page, .expense-page) .ant-btn-text:hover {
+  border-color: #93c5fd;
+  color: var(--slms-blue);
+  background: #f8fbff;
+}
+
+:where(.complaints-page) .complaints-panel.ant-card,
+:where(.setting-page) .setting-panel.ant-card,
+:where(.setting-page) .setting-inner-card.ant-card,
+:where(.expense-page) .expense-panel.ant-card {
+  border: 1px solid var(--slms-border) !important;
+  border-radius: 18px !important;
+  background: var(--slms-surface) !important;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06) !important;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+:where(.complaints-page) .complaints-panel.ant-card:hover,
+:where(.setting-page) .setting-panel.ant-card:hover,
+:where(.setting-page) .setting-inner-card.ant-card:hover,
+:where(.expense-page) .expense-panel.ant-card:hover {
+  border-color: rgba(59, 130, 246, 0.35) !important;
+  box-shadow: 0 18px 42px rgba(30, 64, 175, 0.12) !important;
+  transform: translateY(-2px);
+}
+
+:where(.complaints-page) .complaints-panel .ant-card-head,
+:where(.setting-page) .setting-panel .ant-card-head,
+:where(.setting-page) .setting-inner-card .ant-card-head,
+:where(.expense-page) .expense-panel .ant-card-head {
+  min-height: 64px;
+  border-bottom-color: #edf2f7;
+  background: linear-gradient(
+    90deg,
+    rgba(239, 246, 255, 0.75),
+    rgba(255, 255, 255, 0)
+  );
+}
+
+:where(.complaints-page) .complaints-panel .ant-card-head-title,
+:where(.setting-page) .setting-panel .ant-card-head-title,
+:where(.setting-page) .setting-inner-card .ant-card-head-title,
+:where(.expense-page) .expense-panel .ant-card-head-title {
+  color: var(--slms-navy);
+  font-size: 17px;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-card-extra {
+  max-width: 100%;
+}
+
+:where(.complaints-page, .setting-page, .expense-page)
+  .ant-form-item-label
+  > label {
+  color: #334155;
+  font-weight: 600;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-input,
+:where(.complaints-page, .setting-page, .expense-page) .ant-input-number,
+:where(.complaints-page, .setting-page, .expense-page) .ant-select-selector,
+:where(.complaints-page, .setting-page, .expense-page) .ant-picker {
+  border-color: #dbe4f0 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  background: #fff !important;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-input:hover,
+:where(.complaints-page, .setting-page, .expense-page) .ant-input-number:hover,
+:where(.complaints-page, .setting-page, .expense-page)
+  .ant-select-selector:hover,
+:where(.complaints-page, .setting-page, .expense-page) .ant-picker:hover {
+  border-color: #93c5fd !important;
+  background: #fbfdff !important;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-input:focus,
+:where(.complaints-page, .setting-page, .expense-page) .ant-input-focused,
+:where(.complaints-page, .setting-page, .expense-page)
+  .ant-input-number-focused,
+:where(.complaints-page, .setting-page, .expense-page)
+  .ant-select-focused
+  .ant-select-selector,
+:where(.complaints-page, .setting-page, .expense-page) .ant-picker-focused {
+  border-color: var(--slms-blue) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12) !important;
+}
+
+:where(.complaints-page, .expense-page) .ant-table {
+  overflow: hidden;
+  border: 1px solid #edf2f7;
+  border-radius: 16px;
+  background: #fff;
+}
+
+:where(.complaints-page, .expense-page) .ant-table-thead > tr > th {
+  color: #334155;
+  border-bottom: 1px solid #e2e8f0;
+  background: #eff6ff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+:where(.complaints-page, .expense-page) .ant-table-tbody > tr > td {
+  padding: 14px;
+  border-bottom-color: #eef2f7;
+}
+
+:where(.complaints-page, .expense-page) .ant-table-tbody > tr:hover > td {
+  background: #f5f8ff !important;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-alert {
+  border-radius: 14px;
+}
+
+:where(.complaints-page, .setting-page, .expense-page) .ant-tag {
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.complaints-page, .setting-page, .expense-page) *,
+  :where(.complaints-page, .setting-page, .expense-page) *::before,
+  :where(.complaints-page, .setting-page, .expense-page) *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 576px) {
+  :where(.complaints-page, .setting-page, .expense-page) {
+    gap: 18px;
+    padding: 0 0 24px;
+  }
+
+  :where(.complaints-page) .complaints-panel .ant-card-head,
+  :where(.setting-page) .setting-panel .ant-card-head,
+  :where(.setting-page) .setting-inner-card .ant-card-head,
+  :where(.expense-page) .expense-panel .ant-card-head {
+    align-items: flex-start;
+    min-height: auto;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  :where(.complaints-page) .complaints-panel .ant-card-head-wrapper,
+  :where(.setting-page) .setting-panel .ant-card-head-wrapper,
+  :where(.setting-page) .setting-inner-card .ant-card-head-wrapper,
+  :where(.expense-page) .expense-panel .ant-card-head-wrapper {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  :where(.complaints-page, .setting-page, .expense-page) .ant-card-extra {
+    width: 100%;
+  }
+}
