@@ -24,7 +24,6 @@ import {
   ExclamationCircleOutlined,
   FileTextOutlined,
   FormOutlined,
-  InboxOutlined,
   PaperClipOutlined,
   SendOutlined,
   SolutionOutlined,

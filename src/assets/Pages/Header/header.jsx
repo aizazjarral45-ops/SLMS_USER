@@ -1,16 +1,12 @@
 import logo from "../../Images/slms.png";
 import {
   BellOutlined,
-  NotificationOutlined,
-  QwenFilled,
   RobotOutlined,
 } from "@ant-design/icons";
-import Profile from "../Profile/profile.jsx";
 import "./header.css";
-import { Button, Card, Input } from "antd";
+import { Button } from "antd";
 import { useEffect, useState } from "react";
 import Search from "antd/es/transfer/search.js";
-import { BsRobot } from "react-icons/bs";
 
 function Header() {
   const [profileData, setProfile] = useState({});
@@ -18,7 +14,7 @@ function Header() {
     try {
       const stored = localStorage.getItem("profileData");
       if (stored) setProfile(JSON.parse(stored));
-    } catch (e) {}
+    } catch {}
   }, []);
 
   return (
@@ -48,11 +44,15 @@ function Header() {
         />
 
         <div className="profile-parent">
-          <img
-            className="profile-avatar"
-            src={profileData.profileImage || ""}
-            alt={"profile"}
-          />
+          {profileData.profileImage ? (
+            <img
+              className="profile-avatar"
+              src={profileData.profileImage}
+              alt="profile"
+            />
+          ) : (
+            <div className="profile-avatar profile-avatar-placeholder" />
+          )}
           <div>
             <div className="student-name">
               {profileData.name || "student name"}

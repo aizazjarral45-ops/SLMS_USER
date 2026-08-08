@@ -51,7 +51,7 @@ export const Columndata = () => {
     title: "Action",
     key: "action",
     width: "10%",
-    render: (_, record) => (
+    render: () => (
       <div style={{ display: "flex" }}>
         <Button type="link">View </Button>
         <Button type="link">Delete</Button>

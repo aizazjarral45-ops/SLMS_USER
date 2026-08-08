@@ -99,7 +99,7 @@ function Settings() {
     const saved = localStorage.getItem("reminders");
     try {
       return saved ? JSON.parse(saved) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   });
@@ -119,7 +119,7 @@ function Settings() {
   const saveLocalStorage = (key, value) => {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-    } catch (e) {}
+    } catch {}
   };
 
   const toggleNotification = (key, value) => {

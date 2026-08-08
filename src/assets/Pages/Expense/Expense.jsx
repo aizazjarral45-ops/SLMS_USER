@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
-  Badge,
   Button,
   Card,
   Col,
   DatePicker,
-  Flex,
   Form,
   Input,
   InputNumber,
@@ -19,19 +17,16 @@ import {
   Table,
   Tag,
   Typography,
-  Upload,
   message,
 } from "antd";
 import {
   ArrowUpOutlined,
   BarChartOutlined,
   CalendarOutlined,
-  CameraOutlined,
   DeleteOutlined,
   DollarCircleOutlined,
   LineChartOutlined,
   PlusOutlined,
-  RiseOutlined,
   WalletOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
@@ -197,9 +192,6 @@ function Expense() {
     .filter((item) => dayjs(item.date).isAfter(today.subtract(7, "day")))
     .reduce((sum, item) => sum + Number(item.amount), 0);
   const remainingBudget = Math.max(monthlyBudget - totalSpent, 0);
-  const budgetPercent = monthlyBudget
-    ? Math.round((remainingBudget / monthlyBudget) * 100)
-    : 0;
   const highestExpense = expenses.reduce((largest, item) => {
     return Number(item.amount) > Number(largest.amount || 0) ? item : largest;
   }, {});

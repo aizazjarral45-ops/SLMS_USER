@@ -1,545 +1,615 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Avatar,
-  Badge,
   Button,
-  Calendar,
   Card,
   Col,
+  Empty,
+  Form,
+  Input,
+  InputNumber,
   List,
+  Modal,
+  Popconfirm,
   Progress,
   Row,
   Space,
   Statistic,
   Table,
-  Modal,
-  Form,
-  Input,
-  InputNumber,
   Tag,
   Typography,
+  message,
 } from "antd";
 import {
   BookOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExclamationCircleOutlined,
-  FileDoneOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  EnvironmentOutlined,
   FileTextOutlined,
-  QuestionCircleOutlined,
-  RiseOutlined,
+  PlusOutlined,
+  ReadOutlined,
   ScheduleOutlined,
-  TeamOutlined,
-  WarningOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import "./Academic.css";
+
 const { Title, Paragraph, Text } = Typography;
+const STORAGE_KEY = "slms-academic-workspace";
 
-const courseCards = [
-  {
-    code: "CS-302",
-    title: "AI Fundamentals",
-    instructor: "Dr. Hina Rashid",
-    credits: 3,
-    status: "In Progress",
+const createDefaultWorkspace = () => ({
+  profile: {
+    program: "BS Computer Science",
+    semester: 6,
+    cgpa: 3.62,
   },
-  {
-    code: "CS-318",
-    title: "Advanced Web Engineering",
-    instructor: "Prof. Ahmed Raza",
-    credits: 4,
-    status: "Project Heavy",
-  },
-  {
-    code: "CS-305",
-    title: "Database Systems",
-    instructor: "Dr. Sana Qureshi",
-    credits: 3,
-    status: "On Track",
-  },
-  {
-    code: "MGT-201",
-    title: "Entrepreneurship",
-    instructor: "Ms. Mahnoor Saleem",
-    credits: 2,
-    status: "Elective",
-  },
-];
-
-const assignments = [
-  {
-    key: "1",
-    title: "Database Normalization Report",
-    course: "Database Systems",
-    dueDate: "2026-08-02",
-    status: "Upcoming",
-    priority: "High",
-  },
-  {
-    key: "2",
-    title: "AI Model Reflection Journal",
-    course: "AI Fundamentals",
-    dueDate: "2026-08-06",
-    status: "Upcoming",
-    priority: "Medium",
-  },
-  {
-    key: "3",
-    title: "SRS Final Submission",
-    course: "Software Engineering",
-    dueDate: "2026-07-22",
-    status: "Completed",
-    priority: "High",
-  },
-  {
-    key: "4",
-    title: "Responsive Interface Audit",
-    course: "Advanced Web Engineering",
-    dueDate: "2026-07-26",
-    status: "Late",
-    priority: "Critical",
-  },
-];
-
-const quizItems = [
-  {
-    title: "AI Quiz 3",
-    course: "AI Fundamentals",
-    date: "2026-08-04",
-    status: "Upcoming",
-    score: null,
-  },
-  {
-    title: "DBMS Quiz 2",
-    course: "Database Systems",
-    date: "2026-07-24",
-    status: "Completed",
-    score: "18/20",
-  },
-  {
-    title: "SE Quiz 1",
-    course: "Software Engineering",
-    date: "2026-07-18",
-    status: "Completed",
-    score: "16/20",
-  },
-];
-
-const exams = [
-  {
-    title: "Mid Term: AI Fundamentals",
-    date: "2026-08-09T09:00:00",
-    venue: "Hall B-201",
-  },
-  {
-    title: "Final: Database Systems",
-    date: "2026-09-18T13:30:00",
-    venue: "Lab Complex",
-  },
-];
-
-const calendarItems = [
-  { title: "Capstone Proposal Review", type: "Event", date: "Aug 1" },
-  { title: "DBMS Report Due", type: "Assignment", date: "Aug 2" },
-  { title: "AI Quiz 3", type: "Quiz", date: "Aug 4" },
-  { title: "AI Mid Term", type: "Exam", date: "Aug 9" },
-];
-
-const assignmentPriorityIcon = (priority) => {
-  if (priority === "Critical")
-    return <ExclamationCircleOutlined style={{ color: "#f5222d" }} />;
-  if (priority === "High")
-    return <WarningOutlined style={{ color: "#fa8c16" }} />;
-  return <ClockCircleOutlined style={{ color: "#1890ff" }} />;
-};
-
-const calendarTypeIcon = (type) => {
-  if (type === "Assignment")
-    return <FileTextOutlined style={{ color: "#1890ff" }} />;
-  if (type === "Quiz")
-    return <QuestionCircleOutlined style={{ color: "#52c41a" }} />;
-  if (type === "Exam") return <ScheduleOutlined style={{ color: "#fa8c16" }} />;
-  return <CalendarOutlined style={{ color: "#1890ff" }} />;
-};
-
-const analytics = {
-  gpaTrend: [
-    { label: "Sem 2", value: 3.2 },
-    { label: "Sem 3", value: 3.35 },
-    { label: "Sem 4", value: 3.48 },
-    { label: "Sem 5", value: 3.61 },
-    { label: "Sem 6", value: 3.74 },
+  courses: [
+    {
+      id: "course-ai",
+      code: "CS-302",
+      title: "AI Fundamentals",
+      instructor: "Dr. Hina Rashid",
+      credits: 3,
+    },
+    {
+      id: "course-web",
+      code: "CS-318",
+      title: "Advanced Web Engineering",
+      instructor: "Prof. Ahmed Raza",
+      credits: 4,
+    },
+    {
+      id: "course-db",
+      code: "CS-305",
+      title: "Database Systems",
+      instructor: "Dr. Sana Qureshi",
+      credits: 3,
+    },
   ],
-  attendanceTrend: [
-    { label: "Mon", value: 86 },
-    { label: "Tue", value: 91 },
-    { label: "Wed", value: 94 },
-    { label: "Thu", value: 89 },
-    { label: "Fri", value: 96 },
+  assignments: [
+    {
+      id: "assignment-db",
+      title: "Database normalization report",
+      course: "Database Systems",
+      dueDate: "2026-08-12",
+      priority: "High",
+      status: "To do",
+    },
+    {
+      id: "assignment-ai",
+      title: "AI reflection journal",
+      course: "AI Fundamentals",
+      dueDate: "2026-08-16",
+      priority: "Medium",
+      status: "In progress",
+    },
   ],
-  assignmentProgress: [
-    { label: "Completed", value: 11, color: "#2563eb" },
-    { label: "Upcoming", value: 4, color: "#60a5fa" },
-    { label: "Late", value: 1, color: "#f97316" },
+  exams: [
+    {
+      id: "exam-ai",
+      title: "AI Fundamentals midterm",
+      course: "AI Fundamentals",
+      examDate: "2026-08-20",
+      venue: "Hall B-201",
+    },
   ],
-  subjectPerformance: [
-    { label: "AI", value: 87 },
-    { label: "DBMS", value: 92 },
-    { label: "Web", value: 89 },
-    { label: "SE", value: 84 },
+  attendance: [
+    {
+      id: "attendance-ai",
+      course: "AI Fundamentals",
+      attended: 17,
+      total: 18,
+    },
+    {
+      id: "attendance-web",
+      course: "Advanced Web Engineering",
+      attended: 15,
+      total: 17,
+    },
+    {
+      id: "attendance-db",
+      course: "Database Systems",
+      attended: 16,
+      total: 18,
+    },
   ],
-};
+  formValues: {
+    profile: {},
+    course: {},
+    assignment: {},
+    exam: {},
+    attendance: {},
+  },
+});
 
-function MiniChart({ title, items, formatValue = (value) => value }) {
-  const max = Math.max(...items.map((item) => item.value));
+function getSavedWorkspace() {
+  const defaults = createDefaultWorkspace();
 
-  return (
-    <Card className="academic-panel" title={title}>
-      <div className="academic-mini-chart">
-        {items.map((item) => (
-          <div key={item.label} className="academic-bar-row">
-            <div className="academic-bar-meta">
-              <Text>{item.label}</Text>
-              <Text strong>{formatValue(item.value)}</Text>
-            </div>
-            <div className="academic-bar-track">
-              <div
-                className="academic-bar-fill"
-                style={{
-                  width: `${(item.value / max) * 100}%`,
-                  background: item.color,
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return defaults;
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return defaults;
+
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== "object") return defaults;
+
+    return {
+      profile: { ...defaults.profile, ...(parsed.profile || {}) },
+      courses: Array.isArray(parsed.courses)
+        ? parsed.courses
+        : defaults.courses,
+      assignments: Array.isArray(parsed.assignments)
+        ? parsed.assignments
+        : defaults.assignments,
+      exams: Array.isArray(parsed.exams) ? parsed.exams : defaults.exams,
+      attendance: Array.isArray(parsed.attendance)
+        ? parsed.attendance
+        : defaults.attendance,
+      formValues: {
+        profile:
+          parsed.formValues?.profile &&
+          typeof parsed.formValues.profile === "object"
+            ? parsed.formValues.profile
+            : defaults.formValues.profile,
+        course:
+          parsed.formValues?.course &&
+          typeof parsed.formValues.course === "object"
+            ? parsed.formValues.course
+            : defaults.formValues.course,
+        assignment:
+          parsed.formValues?.assignment &&
+          typeof parsed.formValues.assignment === "object"
+            ? parsed.formValues.assignment
+            : defaults.formValues.assignment,
+        exam:
+          parsed.formValues?.exam && typeof parsed.formValues.exam === "object"
+            ? parsed.formValues.exam
+            : defaults.formValues.exam,
+        attendance:
+          parsed.formValues?.attendance &&
+          typeof parsed.formValues.attendance === "object"
+            ? parsed.formValues.attendance
+            : defaults.formValues.attendance,
+      },
+    };
+  } catch {
+    return defaults;
+  }
 }
 
-function CountdownCard() {
-  const targetDate = new Date(exams[0].date).getTime();
-  const [timeLeft, setTimeLeft] = useState(targetDate - Date.now());
+function formatDate(value) {
+  if (!value) return "No date set";
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setTimeLeft(targetDate - Date.now());
-    }, 1000);
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+}
 
-    return () => window.clearInterval(timer);
-  }, [targetDate]);
+function getAssignmentStatus(assignment) {
+  if (assignment.status === "Completed") return "Completed";
+  if (
+    assignment.dueDate &&
+    assignment.dueDate < new Date().toISOString().slice(0, 10)
+  ) {
+    return "Overdue";
+  }
+  return assignment.status || "To do";
+}
 
-  const safeTime = Math.max(timeLeft, 0);
-  const days = Math.floor(safeTime / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((safeTime / (1000 * 60 * 60)) % 24);
-  const minutes = Math.floor((safeTime / (1000 * 60)) % 60);
-
-  return (
-    <Card className="academic-panel academic-countdown">
-      <Space direction="vertical" size={6}>
-        <Badge status="processing" text="Next Major Exam" />
-        <Title level={4}>{exams[0].title}</Title>
-        <Text type="secondary">
-          {new Date(exams[0].date).toLocaleString()} • {exams[0].venue}
-        </Text>
-        <div className="academic-countdown-grid">
-          <div>
-            <strong>{days}</strong>
-            <span>Days</span>
-          </div>
-          <div>
-            <strong>{hours}</strong>
-            <span>Hours</span>
-          </div>
-          <div>
-            <strong>{minutes}</strong>
-            <span>Minutes</span>
-          </div>
-        </div>
-      </Space>
-    </Card>
-  );
+function statusColor(status) {
+  if (status === "Completed") return "green";
+  if (status === "Overdue") return "red";
+  if (status === "In progress") return "blue";
+  return "gold";
 }
 
 function Academic() {
-  const [stats, setStats] = useState([]);
-  const [attendanceState, setAttendanceState] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
-  const [AttendanceModal, setAttendanceModal] = useState(false);
-  const [editingAttendanceItem, setEditingAttendanceItem] = useState(null);
-  const [form] = Form.useForm();
+  const [workspace, setWorkspace] = useState(createDefaultWorkspace);
+  const [storageReady, setStorageReady] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [messageApi, contextHolder] = message.useMessage();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [courseEditor, setCourseEditor] = useState(null);
+  const [assignmentEditor, setAssignmentEditor] = useState(null);
+  const [examEditor, setExamEditor] = useState(null);
+  const [attendanceEditor, setAttendanceEditor] = useState(null);
+  const [profileForm] = Form.useForm();
+  const [courseForm] = Form.useForm();
+  const [assignmentForm] = Form.useForm();
+  const [examForm] = Form.useForm();
   const [attendanceForm] = Form.useForm();
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("academicStats");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.stats) setStats(parsed.stats);
-        if (parsed.attendanceState) setAttendanceState(parsed.attendanceState);
-      }
-    } catch (e) {}
+    if (typeof window !== "undefined" && window.localStorage) {
+      setWorkspace(getSavedWorkspace());
+    }
+    setStorageReady(true);
   }, []);
 
-  const openModal = () => {
-    const currentGpa = stats.find((s) => s.title === "Current GPA")?.value || 0;
-    const cgpa = stats.find((s) => s.title === "CGPA")?.value || 0;
-    const currentsemester =
-      stats.find((s) => s.title === "Current Semester")?.value || 0;
-    form.setFieldsValue({
-      currentGpa,
-      gpa: cgpa,
-      currentsemester,
-    });
-    setIsModalOpen(true);
+  useEffect(() => {
+    if (
+      !storageReady ||
+      typeof window === "undefined" ||
+      !window.localStorage
+    ) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
+      setLastSavedAt(new Date());
+    } catch {
+      messageApi.error("Your changes could not be saved in this browser.");
+    }
+  }, [messageApi, storageReady, workspace]);
+
+  const attendanceRate = useMemo(() => {
+    const attended = workspace.attendance.reduce(
+      (total, record) => total + Number(record.attended || 0),
+      0,
+    );
+    const classes = workspace.attendance.reduce(
+      (total, record) => total + Number(record.total || 0),
+      0,
+    );
+
+    return classes ? Math.round((attended / classes) * 100) : 0;
+  }, [workspace.attendance]);
+
+  const outstandingAssignments = useMemo(
+    () =>
+      workspace.assignments.filter(
+        (assignment) => getAssignmentStatus(assignment) !== "Completed",
+      ),
+    [workspace.assignments],
+  );
+
+  const nextExam = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return [...workspace.exams]
+      .filter((exam) => exam.examDate >= today)
+      .sort((first, second) =>
+        first.examDate.localeCompare(second.examDate),
+      )[0];
+  }, [workspace.exams]);
+
+  const updateCollection = (collection, nextValue) => {
+    setWorkspace((current) => ({ ...current, [collection]: nextValue }));
   };
 
-  const openAttendanceModal = () => {
+  const updateFormValues = (section, nextValues) => {
+    setWorkspace((current) => ({
+      ...current,
+      formValues: { ...current.formValues, [section]: nextValues },
+    }));
+  };
+
+  const clearFormValues = (section) => updateFormValues(section, {});
+
+  const getFormValues = (section) => workspace.formValues?.[section] || {};
+  const hasFormValues = (section) =>
+    Object.keys(getFormValues(section)).length > 0;
+
+  const openProfileModal = () => {
+    profileForm.resetFields();
+    profileForm.setFieldsValue(
+      hasFormValues("profile") ? getFormValues("profile") : workspace.profile,
+    );
+    setProfileModalOpen(true);
+  };
+
+  const openCourseEditor = (course) => {
+    courseForm.resetFields();
+    courseForm.setFieldsValue(
+      course
+        ? course
+        : hasFormValues("course")
+          ? getFormValues("course")
+          : { credits: 3 },
+    );
+    setCourseEditor(course || {});
+  };
+
+  const openAssignmentEditor = (assignment) => {
+    assignmentForm.resetFields();
+    assignmentForm.setFieldsValue(
+      assignment
+        ? assignment
+        : hasFormValues("assignment")
+          ? getFormValues("assignment")
+          : { priority: "Medium", status: "To do" },
+    );
+    setAssignmentEditor(assignment || {});
+  };
+
+  const openExamEditor = (exam) => {
+    examForm.resetFields();
+    examForm.setFieldsValue(
+      exam ? exam : hasFormValues("exam") ? getFormValues("exam") : {},
+    );
+    setExamEditor(exam || {});
+  };
+
+  const openAttendanceEditor = (record) => {
     attendanceForm.resetFields();
-    setEditingAttendanceItem(null);
-    setIsAttendanceModalOpen(true);
+    attendanceForm.setFieldsValue(
+      record
+        ? record
+        : hasFormValues("attendance")
+          ? getFormValues("attendance")
+          : {},
+    );
+    setAttendanceEditor(record || {});
   };
 
-  const openAttendanceEditModal = (record) => {
-    attendanceForm.resetFields();
-    attendanceForm.setFieldsValue({
-      subject: record.subject,
-      attended: record.attended,
-      total: record.total,
-    });
-    setEditingAttendanceItem(record);
-    setAttendanceModal(true);
+  const saveProfile = (values) => {
+    setWorkspace((current) => ({
+      ...current,
+      profile: {
+        program: (values.program || "").trim(),
+        semester: values.semester,
+        cgpa: values.cgpa,
+      },
+    }));
+    clearFormValues("profile");
+    setProfileModalOpen(false);
+    messageApi.success("Academic profile updated.");
   };
 
-  const handleAttendanceSubmit = (values) => {
-    const percent =
-      values.total > 0 ? Math.round((values.attended / values.total) * 100) : 0;
-    const newItem = {
-      key: `${Date.now()}-${values.subject}`,
-      subject: values.subject,
+  const saveCourse = (values) => {
+    const courseId = courseEditor?.id;
+    const course = {
+      id: courseId || `course-${Date.now()}`,
+      code: (values.code || "").trim(),
+      title: (values.title || "").trim(),
+      instructor: (values.instructor || "").trim(),
+      credits: values.credits,
+    };
+
+    updateCollection(
+      "courses",
+      courseId
+        ? workspace.courses.map((item) =>
+            item.id === courseId ? course : item,
+          )
+        : [...workspace.courses, course],
+    );
+    clearFormValues("course");
+    setCourseEditor(null);
+    courseForm.resetFields();
+    messageApi.success(courseId ? "Course updated." : "Course added.");
+  };
+
+  const saveAssignment = (values) => {
+    const assignmentId = assignmentEditor?.id;
+    const assignment = {
+      id: assignmentId || `assignment-${Date.now()}`,
+      title: (values.title || "").trim(),
+      course: (values.course || "").trim(),
+      dueDate: values.dueDate,
+      priority: values.priority,
+      status: values.status,
+    };
+
+    updateCollection(
+      "assignments",
+      assignmentId
+        ? workspace.assignments.map((item) =>
+            item.id === assignmentId ? assignment : item,
+          )
+        : [assignment, ...workspace.assignments],
+    );
+    clearFormValues("assignment");
+    setAssignmentEditor(null);
+    assignmentForm.resetFields();
+    messageApi.success(
+      assignmentId ? "Assignment updated." : "Assignment added.",
+    );
+  };
+
+  const saveExam = (values) => {
+    const examId = examEditor?.id;
+    const exam = {
+      id: examId || `exam-${Date.now()}`,
+      title: (values.title || "").trim(),
+      course: (values.course || "").trim(),
+      examDate: values.examDate,
+      venue: (values.venue || "").trim(),
+    };
+
+    updateCollection(
+      "exams",
+      examId
+        ? workspace.exams.map((item) => (item.id === examId ? exam : item))
+        : [...workspace.exams, exam],
+    );
+    clearFormValues("exam");
+    setExamEditor(null);
+    examForm.resetFields();
+    messageApi.success(examId ? "Exam updated." : "Exam added.");
+  };
+
+  const saveAttendance = (values) => {
+    const attendanceId = attendanceEditor?.id;
+    const attendance = {
+      id: attendanceId || `attendance-${Date.now()}`,
+      course: (values.course || "").trim(),
       attended: values.attended,
       total: values.total,
-      percent,
     };
-    const newAttendanceState = [...attendanceState, newItem];
-    setAttendanceState(newAttendanceState);
 
-    const updatedStats = stats.map((s) =>
-      s.title === "Attendance"
-        ? {
-            ...s,
-            value: Math.round(
-              newAttendanceState.reduce((sum, item) => sum + item.percent, 0) /
-                newAttendanceState.length,
-            ),
-          }
-        : s,
+    updateCollection(
+      "attendance",
+      attendanceId
+        ? workspace.attendance.map((item) =>
+            item.id === attendanceId ? attendance : item,
+          )
+        : [...workspace.attendance, attendance],
     );
-    setStats(updatedStats);
-
-    try {
-      localStorage.setItem(
-        "academicStats",
-        JSON.stringify({
-          stats: updatedStats,
-          attendanceState: newAttendanceState,
-        }),
-      );
-    } catch (e) {}
-    setIsAttendanceModalOpen(false);
-  };
-
-  const handleAttendanceEditSubmit = (values) => {
-    if (!editingAttendanceItem) return;
-
-    const percent =
-      values.total > 0 ? Math.round((values.attended / values.total) * 100) : 0;
-    const updatedAttendanceState = attendanceState.map((item) =>
-      item.key === editingAttendanceItem.key
-        ? {
-            ...item,
-            subject: values.subject,
-            attended: values.attended,
-            total: values.total,
-            percent,
-          }
-        : item,
-    );
-
-    setAttendanceState(updatedAttendanceState);
-
-    const updatedStats = stats.map((s) =>
-      s.title === "Attendance"
-        ? {
-            ...s,
-            value: updatedAttendanceState.length
-              ? Math.round(
-                  updatedAttendanceState.reduce(
-                    (sum, item) => sum + item.percent,
-                    0,
-                  ) / updatedAttendanceState.length,
-                )
-              : 0,
-          }
-        : s,
-    );
-    setStats(updatedStats);
-
-    try {
-      localStorage.setItem(
-        "academicStats",
-        JSON.stringify({
-          stats: updatedStats,
-          attendanceState: updatedAttendanceState,
-        }),
-      );
-    } catch (e) {}
-    setAttendanceModal(false);
-    setEditingAttendanceItem(null);
+    clearFormValues("attendance");
+    setAttendanceEditor(null);
     attendanceForm.resetFields();
-  };
-
-  const handleAttendanceDelete = (record) => {
-    const updatedAttendanceState = attendanceState.filter(
-      (item) => item.key !== record.key,
+    messageApi.success(
+      attendanceId ? "Attendance updated." : "Attendance added.",
     );
-    setAttendanceState(updatedAttendanceState);
+  };
 
-    const updatedStats = stats.map((s) =>
-      s.title === "Attendance"
-        ? {
-            ...s,
-            value: updatedAttendanceState.length
-              ? Math.round(
-                  updatedAttendanceState.reduce(
-                    (sum, item) => sum + item.percent,
-                    0,
-                  ) / updatedAttendanceState.length,
-                )
-              : 0,
-          }
-        : s,
+  const removeItem = (collection, id, label) => {
+    updateCollection(
+      collection,
+      workspace[collection].filter((item) => item.id !== id),
     );
-    setStats(updatedStats);
-
-    try {
-      localStorage.setItem(
-        "academicStats",
-        JSON.stringify({
-          stats: updatedStats,
-          attendanceState: updatedAttendanceState,
-        }),
-      );
-    } catch (e) {}
+    messageApi.success(`${label} removed.`);
   };
 
-  const handleModalSubmit = (vals) => {
-    const newStats = stats.map((s) => {
-      if (s.title === "Current GPA") return { ...s, value: vals.currentGpa };
-      if (s.title === "Attendance") return { ...s, value: vals.percentage };
-      if (s.title === "CGPA") return { ...s, value: vals.gpa };
-      if (s.title === "Current Semester")
-        return { ...s, value: vals.currentsemester };
-      return s;
-    });
-    setStats(newStats);
-
-    try {
-      localStorage.setItem(
-        "academicStats",
-        JSON.stringify({ stats: newStats, attendanceState: attendanceState }),
-      );
-    } catch (e) {}
-    setIsModalOpen(false);
+  const markAssignmentComplete = (assignment) => {
+    updateCollection(
+      "assignments",
+      workspace.assignments.map((item) =>
+        item.id === assignment.id ? { ...item, status: "Completed" } : item,
+      ),
+    );
+    messageApi.success("Assignment marked as completed.");
   };
-  const assignmentSummary = useMemo(
-    () => ({
-      upcoming: assignments.filter((item) => item.status === "Upcoming").length,
-      completed: assignments.filter((item) => item.status === "Completed")
-        .length,
-      late: assignments.filter((item) => item.status === "Late").length,
-    }),
-    [],
-  );
 
   const assignmentColumns = [
     {
       title: "Assignment",
       dataIndex: "title",
-      key: "title",
-      render: (text, record) => (
-        <Space>
-          {assignmentPriorityIcon(record.priority)}
-          <Text>{text}</Text>
+      render: (title, record) => (
+        <div className="academic-task-title">
+          <Text strong>{title}</Text>
+          <Text type="secondary">
+            <BookOutlined /> {record.course}
+          </Text>
+        </div>
+      ),
+    },
+    {
+      title: "Due",
+      dataIndex: "dueDate",
+      render: (date) => (
+        <Space size={6}>
+          <CalendarOutlined />
+          <span>{formatDate(date)}</span>
         </Space>
       ),
     },
-    { title: "Course", dataIndex: "course", key: "course" },
-    { title: "Due Date", dataIndex: "dueDate", key: "dueDate" },
     {
       title: "Priority",
       dataIndex: "priority",
-      key: "priority",
-      render: (value) => (
-        <Tag
-          color={
-            value === "Critical" ? "red" : value === "High" ? "volcano" : "blue"
-          }
-        >
-          {value}
-        </Tag>
+      render: (priority) => (
+        <Tag color={priority === "High" ? "volcano" : "blue"}>{priority}</Tag>
       ),
     },
     {
       title: "Status",
-      dataIndex: "status",
-      key: "status",
-      render: (value) => (
-        <Badge
-          status={
-            value === "Completed"
-              ? "success"
-              : value === "Late"
-                ? "error"
-                : "processing"
-          }
-          text={value}
-        />
+      render: (_, record) => {
+        const status = getAssignmentStatus(record);
+        return <Tag color={statusColor(status)}>{status}</Tag>;
+      },
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      render: (_, record) => (
+        <Space size="small">
+          {getAssignmentStatus(record) !== "Completed" && (
+            <Button
+              type="text"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={() => markAssignmentComplete(record)}
+              aria-label={`Mark ${record.title} as completed`}
+            />
+          )}
+          <Button
+            type="text"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openAssignmentEditor(record)}
+            aria-label={`Edit ${record.title}`}
+          />
+          <Popconfirm
+            title="Delete this assignment?"
+            okText="Delete"
+            okButtonProps={{ danger: true }}
+            onConfirm={() => removeItem("assignments", record.id, "Assignment")}
+          >
+            <Button
+              danger
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              aria-label={`Delete ${record.title}`}
+            />
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
 
   const attendanceColumns = [
-    { title: "Subject", dataIndex: "subject", key: "subject" },
-    { title: "Attended", dataIndex: "attended", key: "attended" },
-    { title: "Total", dataIndex: "total", key: "total" },
     {
-      title: "Progress",
-      dataIndex: "percent",
-      key: "percent",
-      render: (value) => (
-        <Progress percent={value} size="small" strokeColor="#2563eb" />
+      title: "Course",
+      dataIndex: "course",
+      render: (course) => (
+        <Space size={6}>
+          <BookOutlined />
+          <Text>{course}</Text>
+        </Space>
       ),
     },
     {
-      title: "Action",
-      key: "action",
+      title: "Classes",
+      render: (_, record) => (
+        <Space size={6}>
+          <ReadOutlined />
+          <span>{`${record.attended} / ${record.total}`}</span>
+        </Space>
+      ),
+    },
+    {
+      title: "Attendance",
+      render: (_, record) => {
+        const percentage = record.total
+          ? Math.round((record.attended / record.total) * 100)
+          : 0;
+        return <Progress percent={percentage} size="small" />;
+      },
+    },
+    {
+      title: "Actions",
+      key: "actions",
       render: (_, record) => (
         <Space size="small">
-          <Button size="small" onClick={() => openAttendanceEditModal(record)}>
-            Edit
-          </Button>
           <Button
+            type="text"
             size="small"
-            danger
-            onClick={() => handleAttendanceDelete(record)}
+            icon={<EditOutlined />}
+            onClick={() => openAttendanceEditor(record)}
+            aria-label={`Edit ${record.course} attendance`}
+          />
+          <Popconfirm
+            title="Delete this attendance record?"
+            okText="Delete"
+            okButtonProps={{ danger: true }}
+            onConfirm={() =>
+              removeItem("attendance", record.id, "Attendance record")
+            }
           >
-            Delete
-          </Button>
+            <Button
+              danger
+              type="text"
+              size="small"
+              icon={<DeleteOutlined />}
+              aria-label={`Delete ${record.course} attendance`}
+            />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -547,415 +617,620 @@ function Academic() {
 
   return (
     <div className="academic-page">
-      <div className="academic-hero">
-        <div>
-          <Tag color="blue" className="academic-pill">
-            Academic Dashboard
-          </Tag>
-          <Title level={2}>Your semester performance at a glance</Title>
+      {contextHolder}
+      <section className="academic-hero" aria-labelledby="academic-title">
+        <div className="academic-hero-copy">
+          <Tag className="academic-pill">Academic workspace</Tag>
+          <Title id="academic-title" level={2}>
+            Manage your semester in one place
+          </Title>
           <Paragraph>
-            Track GPA, attendance, upcoming exams, quizzes, and coursework in
-            one focused academic workspace.
+            Keep your courses, deadlines, exams, and attendance up to date.
+            Everything on this page is saved on this device.
           </Paragraph>
+          <Space direction="vertical" size={2}></Space>
         </div>
         <Card className="academic-hero-card">
-          <Space align="start">
+          <Space align="start" size={14}>
             <Avatar
-              size={56}
-              icon={<RiseOutlined />}
+              size={52}
+              icon={<UserOutlined />}
               className="academic-avatar"
             />
             <div>
-              <Text type="secondary">Current Standing</Text>
-              <Title level={3}>Dean’s List Eligible</Title>
-              <Text>
-                Keep attendance above 90% to protect scholarship priority.
-              </Text>
-              <Button
-                type="primary"
-                style={{ marginLeft: 8 }}
-                onClick={openModal}
-              >
-                + Academic Data
+              <Text type="secondary">{workspace.profile.program}</Text>
+              <Title level={4}>Semester {workspace.profile.semester}</Title>
+              <Text>CGPA {Number(workspace.profile.cgpa || 0).toFixed(2)}</Text>
+              <Button type="primary" size="small" onClick={openProfileModal}>
+                Edit profile
               </Button>
             </div>
           </Space>
         </Card>
-      </div>
+      </section>
 
       <Row gutter={[16, 16]}>
-        {stats.map((card) => (
-          <Col xs={24} sm={12} lg={8} xl={4} key={card.title}>
-            <Card className="academic-stat-card">
-              <Statistic {...card} />
-            </Card>
-          </Col>
-        ))}
-      </Row>
-
-      <Card
-        className="academic-panel"
-        title="Attendance Overview"
-        extra={
-          <>
-            <Tag color="blue">
-              Overall {stats.find((s) => s.title === "Attendance")?.value}%
-            </Tag>
-            <Button type="primary" onClick={openAttendanceModal}>
-              Add Attendance Data
-            </Button>
-          </>
-        }
-      >
-        <div className="academic-attendance-summary">
-          <div>
-            <Text type="secondary">Overall Attendance</Text>
-            <Progress
-              type="circle"
-              percent={stats.find((s) => s.title === "Attendance")?.value || 0}
-              size={120}
-              strokeColor={{ "0%": "#60a5fa", "100%": "#1d4ed8" }}
+        <Col xs={24} sm={12} xl={6}>
+          <Card className="academic-stat-card">
+            <Statistic
+              title="Current courses"
+              value={workspace.courses.length}
+              prefix={<BookOutlined />}
             />
-          </div>
-          <div className="academic-attendance-list">
-            {attendanceState.map((item) => (
-              <div key={item.subject} className="academic-inline-progress">
-                <div className="academic-inline-header">
-                  <Text>{item.subject}</Text>
-                  <Text strong>{item.percent}%</Text>
-                </div>
-                <Progress
-                  percent={item.percent}
-                  showInfo={false}
-                  strokeColor="#2563eb"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-        <Table
-          className="academic-table"
-          columns={attendanceColumns}
-          dataSource={attendanceState}
-          pagination={true}
-          scroll={{ x: 600 }}
-        />
-      </Card>
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={12}>
-          <CountdownCard />
+          </Card>
         </Col>
-        <Col xs={24} md={12}>
-          <Card className="academic-panel" title="Upcoming Exams">
-            <List
-              dataSource={exams}
-              renderItem={(item) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar
-                        icon={<ScheduleOutlined />}
-                        className="academic-list-avatar"
-                      />
-                    }
-                    title={item.title}
-                    description={`${new Date(item.date).toLocaleString()} • ${item.venue}`}
-                  />
-                </List.Item>
-              )}
+        <Col xs={24} sm={12} xl={6}>
+          <Card className="academic-stat-card">
+            <Statistic
+              title="Open assignments"
+              value={outstandingAssignments.length}
+              prefix={<FileTextOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <Card className="academic-stat-card">
+            <Statistic
+              title="Overall attendance"
+              value={attendanceRate}
+              suffix="%"
+              prefix={<CheckCircleOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} xl={6}>
+          <Card className="academic-stat-card">
+            <Statistic
+              title="Scheduled exams"
+              value={workspace.exams.length}
+              prefix={<CalendarOutlined />}
             />
           </Card>
         </Col>
       </Row>
 
-      <div className="academic-section">
-        <Title level={4}>Current Courses</Title>
-        <div className="academic-course-grid">
-          {courseCards.map((course) => (
-            <Card key={course.code} className="academic-course-card">
-              <Space direction="vertical" size={10}>
-                <Space>
-                  <Avatar
-                    icon={<BookOutlined />}
-                    className="academic-list-avatar"
-                  />
-                  <div>
-                    <Text type="secondary">{course.code}</Text>
-                    <Title level={5}>{course.title}</Title>
-                  </div>
-                </Space>
-                <Text>Instructor: {course.instructor}</Text>
-                <Tag color="cyan">{course.status}</Tag>
-              </Space>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      <Row gutter={[16, 16]} className="academic-section">
-        <Col xs={24} xl={14}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={24}>
           <Card
             className="academic-panel"
             title="Assignments"
             extra={
-              <Space size="small">
-                <Tag color="blue">Upcoming {assignmentSummary.upcoming}</Tag>
-                <Tag color="green">Completed {assignmentSummary.completed}</Tag>
-                <Tag color="red">Late {assignmentSummary.late}</Tag>
-              </Space>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => openAssignmentEditor()}
+              >
+                Add assignment
+              </Button>
             }
           >
             <Table
               className="academic-table"
+              rowKey="id"
               columns={assignmentColumns}
-              dataSource={assignments}
-              pagination={true}
-              scroll={{ x: 640 }}
+              dataSource={workspace.assignments}
+              pagination={false}
+              locale={{
+                emptyText: (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="No assignments yet"
+                  />
+                ),
+              }}
+              scroll={{ x: 680 }}
             />
           </Card>
         </Col>
-        <Col xs={24} xl={10}>
-          <Card className="academic-panel" title="Quiz Center">
+        <Col xs={24} xl={24}>
+          <Card
+            className="academic-panel"
+            title="Exams"
+            extra={
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => openExamEditor()}
+              >
+                Add exam
+              </Button>
+            }
+          >
+            {nextExam && (
+              <div className="academic-next-exam">
+                <ScheduleOutlined />
+                <div>
+                  <Text type="secondary">Next exam</Text>
+                  <Text strong>{nextExam.title}</Text>
+                  <Space size={10} wrap>
+                    <Text type="secondary">
+                      <CalendarOutlined /> {formatDate(nextExam.examDate)}
+                    </Text>
+                    <Text type="secondary">
+                      <EnvironmentOutlined /> {nextExam.venue}
+                    </Text>
+                  </Space>
+                </div>
+              </div>
+            )}
             <List
-              dataSource={quizItems}
-              renderItem={(item) => (
+              className="academic-exam-list"
+              dataSource={[...workspace.exams].sort((a, b) =>
+                a.examDate.localeCompare(b.examDate),
+              )}
+              locale={{
+                emptyText: (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="No exams scheduled"
+                  />
+                ),
+              }}
+              renderItem={(exam) => (
                 <List.Item
                   actions={[
-                    item.score ? (
-                      <Tag color="green" key="score">
-                        {item.score}
-                      </Tag>
-                    ) : (
-                      <Tag color="gold" key="status">
-                        Prepare
-                      </Tag>
-                    ),
+                    <Button
+                      key="edit"
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => openExamEditor(exam)}
+                      aria-label={`Edit ${exam.title}`}
+                    />,
+                    <Popconfirm
+                      key="delete"
+                      title="Delete this exam?"
+                      okText="Delete"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => removeItem("exams", exam.id, "Exam")}
+                    >
+                      <Button
+                        danger
+                        type="text"
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        aria-label={`Delete ${exam.title}`}
+                      />
+                    </Popconfirm>,
                   ]}
                 >
                   <List.Item.Meta
                     avatar={
                       <Avatar
-                        icon={
-                          item.status === "Completed" ? (
-                            <CheckCircleOutlined />
-                          ) : (
-                            <ClockCircleOutlined />
-                          )
-                        }
+                        icon={<CalendarOutlined />}
                         className="academic-list-avatar"
                       />
                     }
-                    title={item.title}
-                    description={`${item.course} • ${item.date} • ${item.status}`}
+                    title={exam.title}
+                    description={
+                      <Space size={10} wrap>
+                        <Text type="secondary">
+                          <BookOutlined /> {exam.course}
+                        </Text>
+                        <Text type="secondary">
+                          <CalendarOutlined /> {formatDate(exam.examDate)}
+                        </Text>
+                        <Text type="secondary">
+                          <EnvironmentOutlined /> {exam.venue}
+                        </Text>
+                      </Space>
+                    }
                   />
                 </List.Item>
               )}
             />
           </Card>
-          <Alert
-            className="academic-alert"
-            type="info"
-            showIcon
-            message="Study Planner Insight"
-            description="Focus on AI Fundamentals this week. It has the nearest assessment and the largest impact on your current GPA."
-          />
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} className="academic-section">
-        <Col xs={24} xl={10}>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={24}>
           <Card
             className="academic-panel"
-            title="Academic Calendar"
-            extra={<CalendarOutlined />}
+            title="Attendance"
+            extra={
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => openAttendanceEditor()}
+              >
+                Add record
+              </Button>
+            }
           >
-            <div className="academic-calendar-card">
-              <Calendar fullscreen={false} />
+            <div className="academic-attendance-summary">
+              <div>
+                <Progress
+                  type="circle"
+                  percent={attendanceRate}
+                  size={106}
+                  strokeColor={{ "0%": "#60a5fa", "100%": "#1d4ed8" }}
+                />
+              </div>
+              <div>
+                <Title level={4}>{attendanceRate}% overall attendance</Title>
+                <Paragraph>
+                  Keep this above your programme requirement. Update each course
+                  after classes are held.
+                </Paragraph>
+              </div>
             </div>
-            <List
-              className="academic-calendar-list"
-              dataSource={calendarItems}
-              renderItem={(item) => (
-                <List.Item>
-                  <List.Item.Meta
-                    avatar={
-                      <Avatar
-                        icon={calendarTypeIcon(item.type)}
-                        className="academic-list-avatar"
-                      />
-                    }
-                    title={item.title}
-                    description={`${item.type} • ${item.date}`}
+            <Table
+              className="academic-table"
+              rowKey="id"
+              columns={attendanceColumns}
+              dataSource={workspace.attendance}
+              pagination={false}
+              locale={{
+                emptyText: (
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description="No attendance records yet"
                   />
-                </List.Item>
-              )}
+                ),
+              }}
+              scroll={{ x: 600 }}
             />
           </Card>
         </Col>
-        <Col xs={24} xl={14}>
-          <Title level={4}>Performance Analytics</Title>
-          <div className="academic-analytics-grid">
-            <MiniChart
-              title="GPA Trend"
-              items={analytics.gpaTrend}
-              formatValue={(value) => value.toFixed(2)}
-            />
-            <MiniChart
-              title="Attendance Trend"
-              items={analytics.attendanceTrend}
-              formatValue={(value) => `${value}%`}
-            />
-            <MiniChart
-              title="Assignment Progress"
-              items={analytics.assignmentProgress}
-            />
-            <MiniChart
-              title="Subject Performance"
-              items={analytics.subjectPerformance}
-              formatValue={(value) => `${value}%`}
-            />
-          </div>
+      </Row>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} xl={24}>
+          <section
+            className="academic-courses-section"
+            aria-labelledby="courses-title"
+          >
+            <div className="academic-section-heading">
+              <div>
+                <Title id="courses-title" level={4}>
+                  Courses
+                </Title>
+                <Text type="secondary">Your active semester subjects</Text>
+              </div>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => openCourseEditor()}
+              >
+                Add course
+              </Button>
+            </div>
+
+            {workspace.courses.length ? (
+              <div className="academic-course-grid">
+                {workspace.courses.map((course) => (
+                  <Card key={course.id} className="academic-course-card">
+                    <div className="academic-course-card-header">
+                      <Avatar
+                        icon={<ReadOutlined />}
+                        className="academic-list-avatar"
+                      />
+                      <Space size={4}>
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => openCourseEditor(course)}
+                          aria-label={`Edit ${course.title}`}
+                        />
+                        <Popconfirm
+                          title="Delete this course?"
+                          okText="Delete"
+                          okButtonProps={{ danger: true }}
+                          onConfirm={() =>
+                            removeItem("courses", course.id, "Course")
+                          }
+                        >
+                          <Button
+                            danger
+                            type="text"
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            aria-label={`Delete ${course.title}`}
+                          />
+                        </Popconfirm>
+                      </Space>
+                    </div>
+                    <Space size={6}>
+                      <BookOutlined />
+                      <Text type="secondary">{course.code}</Text>
+                    </Space>
+                    <Title level={5}>{course.title}</Title>
+                    <Space size={6}>
+                      <UserOutlined />
+                      <Text>{course.instructor}</Text>
+                    </Space>
+                    <Tag color="blue">
+                      <ReadOutlined /> {course.credits} credits
+                    </Tag>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card className="academic-panel academic-empty-card">
+                <Empty description="Add the courses for this semester" />
+              </Card>
+            )}
+          </section>
         </Col>
       </Row>
 
-      <Card className="academic-panel academic-footer-panel">
-        <Space align="start">
-          <Avatar icon={<TeamOutlined />} className="academic-list-avatar" />
-          <div>
-            <Title level={5}>Advisor Recommendation</Title>
-            <Paragraph>
-              Book a mentoring session before August 5 to review your capstone
-              workload, secure final exam preparation slots, and keep your
-              scholarship benchmarks safe.
-            </Paragraph>
-            <Button type="primary" icon={<ClockCircleOutlined />}>
-              Schedule Review
-            </Button>
-          </div>
-        </Space>
-      </Card>
+      <datalist id="course-options">
+        {workspace.courses.map((course) => (
+          <option key={course.id} value={course.title} />
+        ))}
+      </datalist>
 
       <Modal
-        title="Add Academic Data"
-        open={isModalOpen}
-        onCancel={() => setIsModalOpen(false)}
-        okText="Submit"
-        onOk={() => form.submit()}
-      >
-        <Form form={form} layout="vertical" onFinish={handleModalSubmit}>
-          <Form.Item
-            name="currentGpa"
-            label="Current GPA"
-            rules={[{ required: true }]}
-          >
-            <InputNumber
-              min={0}
-              max={4}
-              step={0.01}
-              style={{ width: "100%" }}
-            />
-          </Form.Item>
-          <Form.Item name="gpa" label="GPA" rules={[{ required: true }]}>
-            <InputNumber
-              min={0}
-              max={4}
-              step={0.01}
-              style={{ width: "100%" }}
-            />
-          </Form.Item>
-          <Form.Item
-            name="percentage"
-            label="Percentage"
-            rules={[{ required: true }]}
-          >
-            <InputNumber
-              min={0}
-              max={100}
-              step={0.01}
-              formatter={(value) =>
-                value !== undefined && value !== null ? `${value}%` : ""
-              }
-              parser={(value) => value.replace(/%\s?/, "")}
-              style={{ width: "100%" }}
-            ></InputNumber>
-          </Form.Item>
-          <Form.Item
-            name="currentsemester"
-            label="Current Semester"
-            rules={[{ required: true }]}
-          >
-            <InputNumber min={0} max={4} style={{ width: "100%" }} />
-          </Form.Item>
-        </Form>
-      </Modal>
-      <Modal
-        title="Add Attendance Data"
-        open={isAttendanceModalOpen}
-        onCancel={() => setIsAttendanceModalOpen(false)}
-        okText="Submit"
-        onOk={() => attendanceForm.submit()}
+        title="Academic profile"
+        open={profileModalOpen}
+        onCancel={() => setProfileModalOpen(false)}
+        onOk={() => profileForm.submit()}
+        okText="Save profile"
+        destroyOnClose
       >
         <Form
-          form={attendanceForm}
+          form={profileForm}
           layout="vertical"
-          onFinish={handleAttendanceSubmit}
+          onFinish={saveProfile}
+          onValuesChange={(_, values) => updateFormValues("profile", values)}
         >
           <Form.Item
-            name="subject"
-            label="Subject"
-            rules={[{ required: true, message: "Please enter subject" }]}
+            name="program"
+            label="Programme"
+            rules={[{ required: true, message: "Enter your programme" }]}
           >
-            <Input placeholder="Enter subject name" />
+            <Input placeholder="e.g. BS Computer Science" />
           </Form.Item>
           <Form.Item
-            name="total"
-            label="Total"
-            rules={[{ required: true, message: "Please enter total classes" }]}
+            name="semester"
+            label="Current semester"
+            rules={[{ required: true }]}
           >
-            <InputNumber min={1} max={100} style={{ width: "100%" }} />
+            <InputNumber min={1} max={12} className="academic-full-width" />
+          </Form.Item>
+          <Form.Item name="cgpa" label="CGPA" rules={[{ required: true }]}>
+            <InputNumber
+              min={0}
+              max={4}
+              step={0.01}
+              className="academic-full-width"
+            />
           </Form.Item>
         </Form>
       </Modal>
+
       <Modal
-        title="Edit Attendance Data"
-        open={AttendanceModal}
+        title={courseEditor?.id ? "Edit course" : "Add course"}
+        open={courseEditor !== null}
         onCancel={() => {
-          setAttendanceModal(false);
-          setEditingAttendanceItem(null);
+          setCourseEditor(null);
+          courseForm.resetFields();
+        }}
+        onOk={() => courseForm.submit()}
+        okText={courseEditor?.id ? "Save changes" : "Add course"}
+        destroyOnClose
+      >
+        <Form
+          form={courseForm}
+          layout="vertical"
+          onFinish={saveCourse}
+          onValuesChange={(_, values) => updateFormValues("course", values)}
+        >
+          <Form.Item
+            name="code"
+            label="Course code"
+            rules={[{ required: true, message: "Enter a course code" }]}
+          >
+            <Input placeholder="e.g. CS-302" />
+          </Form.Item>
+          <Form.Item
+            name="title"
+            label="Course title"
+            rules={[{ required: true, message: "Enter a course title" }]}
+          >
+            <Input placeholder="e.g. AI Fundamentals" />
+          </Form.Item>
+          <Form.Item
+            name="instructor"
+            label="Instructor"
+            rules={[{ required: true, message: "Enter the instructor name" }]}
+          >
+            <Input placeholder="e.g. Dr. Ayesha Khan" />
+          </Form.Item>
+          <Form.Item
+            name="credits"
+            label="Credit hours"
+            rules={[{ required: true }]}
+          >
+            <InputNumber min={1} max={8} className="academic-full-width" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={assignmentEditor?.id ? "Edit assignment" : "Add assignment"}
+        open={assignmentEditor !== null}
+        onCancel={() => {
+          setAssignmentEditor(null);
+          assignmentForm.resetFields();
+        }}
+        onOk={() => assignmentForm.submit()}
+        okText={assignmentEditor?.id ? "Save changes" : "Add assignment"}
+        destroyOnClose
+      >
+        <Form
+          form={assignmentForm}
+          layout="vertical"
+          onFinish={saveAssignment}
+          onValuesChange={(_, values) => updateFormValues("assignment", values)}
+        >
+          <Form.Item
+            name="title"
+            label="Assignment"
+            rules={[{ required: true, message: "Enter an assignment title" }]}
+          >
+            <Input placeholder="e.g. Research report" />
+          </Form.Item>
+          <Form.Item
+            name="course"
+            label="Course"
+            rules={[{ required: true, message: "Enter the course" }]}
+          >
+            <Input
+              list="course-options"
+              placeholder="Select or type a course"
+            />
+          </Form.Item>
+          <Form.Item
+            name="dueDate"
+            label="Due date"
+            rules={[{ required: true, message: "Choose a due date" }]}
+          >
+            <Input type="date" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                name="priority"
+                label="Priority"
+                rules={[{ required: true }]}
+              >
+                <select className="academic-native-select">
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="status"
+                label="Progress"
+                rules={[{ required: true }]}
+              >
+                <select className="academic-native-select">
+                  <option value="To do">To do</option>
+                  <option value="In progress">In progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={examEditor?.id ? "Edit exam" : "Add exam"}
+        open={examEditor !== null}
+        onCancel={() => {
+          setExamEditor(null);
+          examForm.resetFields();
+        }}
+        onOk={() => examForm.submit()}
+        okText={examEditor?.id ? "Save changes" : "Add exam"}
+        destroyOnClose
+      >
+        <Form
+          form={examForm}
+          layout="vertical"
+          onFinish={saveExam}
+          onValuesChange={(_, values) => updateFormValues("exam", values)}
+        >
+          <Form.Item
+            name="title"
+            label="Exam title"
+            rules={[{ required: true, message: "Enter an exam title" }]}
+          >
+            <Input placeholder="e.g. Midterm examination" />
+          </Form.Item>
+          <Form.Item
+            name="course"
+            label="Course"
+            rules={[{ required: true, message: "Enter the course" }]}
+          >
+            <Input
+              list="course-options"
+              placeholder="Select or type a course"
+            />
+          </Form.Item>
+          <Form.Item
+            name="examDate"
+            label="Exam date"
+            rules={[{ required: true, message: "Choose an exam date" }]}
+          >
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item
+            name="venue"
+            label="Venue"
+            rules={[{ required: true, message: "Enter the venue" }]}
+          >
+            <Input placeholder="e.g. Hall B-201" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={attendanceEditor?.id ? "Edit attendance" : "Add attendance"}
+        open={attendanceEditor !== null}
+        onCancel={() => {
+          setAttendanceEditor(null);
           attendanceForm.resetFields();
         }}
-        okText="Update"
         onOk={() => attendanceForm.submit()}
+        okText={attendanceEditor?.id ? "Save changes" : "Add record"}
+        destroyOnClose
       >
         <Form
           form={attendanceForm}
           layout="vertical"
-          onFinish={handleAttendanceEditSubmit}
+          onFinish={saveAttendance}
+          onValuesChange={(_, values) => updateFormValues("attendance", values)}
         >
           <Form.Item
-            name="subject"
-            label="Subject"
-            rules={[{ required: true, message: "Please enter subject" }]}
+            name="course"
+            label="Course"
+            rules={[{ required: true, message: "Enter the course" }]}
           >
-            <Input placeholder="Enter subject name" />
+            <Input
+              list="course-options"
+              placeholder="Select or type a course"
+            />
           </Form.Item>
-          <Form.Item
-            name="attended"
-            label="Attendance"
-            rules={[
-              { required: true, message: "Please enter attended classes" },
-            ]}
-          >
-            <InputNumber min={0} max={100} style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item
-            name="total"
-            label="Total"
-            rules={[{ required: true, message: "Please enter total classes" }]}
-          >
-            <InputNumber min={1} max={100} style={{ width: "100%" }} />
-          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item
+                name="attended"
+                label="Classes attended"
+                dependencies={["total"]}
+                rules={[
+                  { required: true, message: "Enter classes attended" },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      const total = getFieldValue("total");
+                      return !total || value <= total
+                        ? Promise.resolve()
+                        : Promise.reject(
+                            new Error("Cannot exceed total classes"),
+                          );
+                    },
+                  }),
+                ]}
+              >
+                <InputNumber min={0} className="academic-full-width" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="total"
+                label="Total classes"
+                rules={[{ required: true }]}
+              >
+                <InputNumber min={1} className="academic-full-width" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
       </Modal>
     </div>

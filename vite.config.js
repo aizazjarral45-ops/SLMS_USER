@@ -8,4 +8,21 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor",
+              test: /node_modules/,
+              minSize: 100000,
+              maxSize: 250000,
+              priority: 10,
+            },
+          ],
+        },
+      },
+    },
+  },
 })

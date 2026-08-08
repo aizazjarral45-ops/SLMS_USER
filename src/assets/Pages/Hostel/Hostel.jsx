@@ -15,7 +15,6 @@ import {
   Row,
   Select,
   Space,
-  Statistic,
   Table,
   Tag,
   Tooltip,
@@ -61,29 +60,12 @@ function Hostel() {
   const [applications, setApplications] = useState(getSavedApplications);
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [feesData, setFeesData] = useState([]);
   const [editingKey, setEditingKey] = useState(null);
 
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
     } catch {}
-  }, [applications]);
-
-  useEffect(() => {
-    setFeesData(
-      applications.map((application) => ({
-        key: application.key,
-        studentName: application.fullName,
-        studentId: application.studentId,
-        applicationNo: application.applicationNo,
-        feesAmount: application.feesPerSemester || 0,
-        feesPaidThisMonth: application.feesPaidThisMonth || 0,
-        feesStatus: application.feesStatus || "Pending",
-        paymentDueDate: application.paymentDueDate || "",
-        recordDate: application.submittedAt || "",
-      })),
-    );
   }, [applications]);
 
   const filteredApplications = useMemo(() => {
@@ -110,12 +92,21 @@ function Hostel() {
     });
   }, [applications, searchText, statusFilter]);
 
-  const pendingApplications = applications.filter(
-    (application) => application.status === "Submitted",
-  ).length;
-  const uniquePrograms = new Set(
-    applications.map((application) => application.program),
-  ).size;
+  const feesData = useMemo(
+    () =>
+      applications.map((application) => ({
+        key: application.key,
+        studentName: application.fullName,
+        studentId: application.studentId,
+        applicationNo: application.applicationNo,
+        feesAmount: application.feesPerSemester || 0,
+        feesPaidThisMonth: application.feesPaidThisMonth || 0,
+        feesStatus: application.feesStatus || "Pending",
+        paymentDueDate: application.paymentDueDate || "",
+        recordDate: application.submittedAt || "",
+      })),
+    [applications],
+  );
 
   const submitApplication = (values) => {
     if (editingKey) {
@@ -143,21 +134,6 @@ function Hostel() {
       setApplications((current) =>
         current.map((item) =>
           item.key === editingKey ? updatedApplication : item,
-        ),
-      );
-      setFeesData((current) =>
-        current.map((item) =>
-          item.key === editingKey
-            ? {
-                ...item,
-                studentName: updatedApplication.fullName,
-                studentId: updatedApplication.studentId,
-                feesAmount: updatedApplication.feesPerSemester,
-                feesPaidThisMonth: updatedApplication.feesPaidThisMonth,
-                feesStatus: updatedApplication.feesStatus,
-                paymentDueDate: updatedApplication.paymentDueDate,
-              }
-            : item,
         ),
       );
 
@@ -192,26 +168,12 @@ function Hostel() {
 
     setApplications((current) => [application, ...current]);
 
-    const feesRecord = {
-      key: String(timestamp),
-      studentName: values.fullName.trim(),
-      studentId: values.studentId.trim(),
-      applicationNo: `HST-${String(timestamp).slice(-6)}`,
-      feesAmount: values.feesPerSemester || 0,
-      feesPaidThisMonth: values.feesPaidThisMonth || 0,
-      feesStatus: values.feesStatus || "Pending",
-      paymentDueDate: values.paymentDueDate || "",
-      recordDate: new Date().toLocaleDateString(),
-    };
-    setFeesData((current) => [feesRecord, ...current]);
-
     form.resetFields();
     messageApi.success("Your hostel application has been saved.");
   };
 
   const removeApplication = (key) => {
     setApplications((current) => current.filter((item) => item.key !== key));
-    setFeesData((current) => current.filter((item) => item.key !== key));
     messageApi.success("Hostel application removed.");
   };
 
