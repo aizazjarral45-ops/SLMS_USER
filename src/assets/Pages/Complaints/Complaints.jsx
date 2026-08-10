@@ -172,8 +172,8 @@ function Complaints() {
       {contextHolder}
       <div className="complaints-hero">
         <div>
-          <Tag color="blue" className="complaints-pill">
-            Complaint Center
+           <Tag icon={<InfoCircleOutlined/>} className="hostel-eyebrow">
+            Complaints Portal
           </Tag>
           <Title level={2}>Raise concerns and follow their resolution</Title>
           <Paragraph>

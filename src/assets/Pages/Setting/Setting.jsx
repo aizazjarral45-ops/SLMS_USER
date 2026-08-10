@@ -27,6 +27,7 @@ import {
   SkinOutlined,
 } from "@ant-design/icons";
 import "./Setting.css";
+import { useNavigate } from "react-router-dom";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -85,6 +86,7 @@ const SwitchRow = ({ label, checked, onChange }) => (
 );
 
 function Settings() {
+  const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [reminderForm] = Form.useForm();
   const [theme, setTheme] = useState(() => {
@@ -194,7 +196,9 @@ function Settings() {
                 Keep your student identity, personalization, and account-facing
                 preferences aligned across the SLMS experience.
               </Paragraph>
-              <Button type="primary">Open Profile</Button>
+              <Button type="primary" onClick={() => navigate("/profile")}>
+                Open Profile
+              </Button>
             </div>
           </Space>
         </Card>
@@ -408,8 +412,8 @@ function Settings() {
       {contextHolder}
       <div className="setting-hero">
         <div>
-          <Tag color="blue" className="setting-pill">
-            Settings
+          <Tag icon={<SettingOutlined />} className="hostel-eyebrow">
+            Setting Page
           </Tag>
           <Title level={2}>Personalize the SLMS experience</Title>
           <Paragraph>

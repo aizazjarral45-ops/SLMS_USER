@@ -12,6 +12,7 @@ import Hostel from "./assets/Pages/Hostel/Hostel";
 import Expense from "./assets/Pages/Expense/Expense";
 import Academic from "./assets/Pages/Academic/Academic";
 import { Routes, Route } from "react-router-dom";
+import Copilot from "./assets/Pages/Ai-chatbot/aicopilot";
 
 function App() {
   const [collapsed, setCollapsed] = useState(false);
@@ -31,6 +32,8 @@ function App() {
         </Sider>
         <Content className="app-content">
           <Routes>
+            
+            <Route path="/aicopilot" element={<Copilot />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/expense" element={<Expense />} />
             <Route path="/complaints" element={<Complaints />} />

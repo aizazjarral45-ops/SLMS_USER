@@ -301,9 +301,9 @@ function Expense() {
       {contextHolder}
       <div className="expense-hero">
         <div>
-          <tag color="blue" className="expense-pill">
-            Expense Management
-          </tag>
+           <Tag icon={<WalletOutlined />} className="hostel-eyebrow">
+            Expense Portal
+          </Tag>
           <Title level={2}>Control student spending with clarity</Title>
           <Paragraph>
             Track daily university expenses, monitor your budget, and get quick
@@ -372,85 +372,90 @@ function Expense() {
           onChange={(value) => setNewMonthlyBudget(Number(value) || 0)}
         />
       </Modal>
-      <Row gutter={[25, 25]} style={{ width: "100%" }}>
-        {[
-          {
-            title: "Today's Expense",
-            value: todaySpent,
-            icon: (
-              <CalendarOutlined
-                style={{ fontSize: "24px", color: "#1890ff" }}
-              />
-            ),
-          },
-          {
-            title: "Weekly Expense",
-            value: weeklySpent,
-            icon: (
-              <LineChartOutlined
-                style={{ fontSize: "24px", color: "#52c41a" }}
-              />
-            ),
-          },
-          {
-            title: "Monthly Expense",
-            value: totalSpent,
-            icon: (
-              <BarChartOutlined
-                style={{ fontSize: "24px", color: "#faad14" }}
-              />
-            ),
-          },
-          {
-            title: "Highest Expense",
-            value: highestExpense.amount || 0,
-            icon: (
-              <ArrowUpOutlined style={{ fontSize: "24px", color: "#f5222d" }} />
-            ),
-          },
-        ].map((item) => (
-          <Col key={item.title} xs={24} md={12} xl={6}>
-            <Card
-              className="expense-panel"
-              hoverable
-              style={{
-                border: "none",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-                borderRadius: "8px",
-              }}
-            >
-              <Space
-                direction="vertical"
-                size="middle"
-                style={{ width: "100%" }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Text type="secondary" strong>
-                    {item.title}
-                  </Text>
-                  {item.icon}
-                </div>
-                <Statistic
-                  value={item.value}
-                  prefix="$"
-                  precision={2}
-                  valueStyle={{
-                    color: "#1890ff",
-                    fontSize: "20px",
-                    fontWeight: "600",
-                  }}
+      <Card
+        className="expense-panel"
+        title="Expense Overview"
+        style={{ borderRadius: "8px", marginBottom: 24 }}
+      >
+        <Row gutter={[25, 25]} style={{ width: "100%" }}>
+          {[
+            {
+              title: "Today's Expense",
+              value: todaySpent,
+              icon: (
+                <CalendarOutlined
+                  style={{ fontSize: "24px", color: "#1890ff" }}
                 />
-              </Space>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+              ),
+            },
+            {
+              title: "Weekly Expense",
+              value: weeklySpent,
+              icon: (
+                <LineChartOutlined
+                  style={{ fontSize: "24px", color: "#52c41a" }}
+                />
+              ),
+            },
+            {
+              title: "Monthly Expense",
+              value: totalSpent,
+              icon: (
+                <BarChartOutlined
+                  style={{ fontSize: "24px", color: "#faad14" }}
+                />
+              ),
+            },
+            {
+              title: "Highest Expense",
+              value: highestExpense.amount || 0,
+              icon: (
+                <ArrowUpOutlined style={{ fontSize: "24px", color: "#f5222d" }} />
+              ),
+            },
+          ].map((item) => (
+            <Col key={item.title} xs={24} md={12} xl={6}>
+              <Card
+                bordered={false}
+                style={{
+                  background: "#fff",
+                  borderRadius: "8px",
+                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.08)",
+                }}
+              >
+                <Space
+                  direction="vertical"
+                  size="middle"
+                  style={{ width: "100%" }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text type="secondary" strong>
+                      {item.title}
+                    </Text>
+                    {item.icon}
+                  </div>
+                  <Statistic
+                    value={item.value}
+                    prefix="$"
+                    precision={2}
+                    valueStyle={{
+                      color: "#1890ff",
+                      fontSize: "20px",
+                      fontWeight: "600",
+                    }}
+                  />
+                </Space>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </Card>
       <Card
         className="expense-panel"
         title="Expense Table"

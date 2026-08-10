@@ -620,7 +620,9 @@ function Academic() {
       {contextHolder}
       <section className="academic-hero" aria-labelledby="academic-title">
         <div className="academic-hero-copy">
-          <Tag className="academic-pill">Academic workspace</Tag>
+          <Tag icon={<BookOutlined />} className="hostel-eyebrow">
+            Academic Portal
+          </Tag>
           <Title id="academic-title" level={2}>
             Manage your semester in one place
           </Title>

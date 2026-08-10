@@ -49,7 +49,7 @@ function Sidebar() {
           {
             key: "2",
             icon: <RobotOutlined />,
-            label: <Link to="/">AI Copilot</Link>,
+            label: <Link to="/aicopilot">AI Copilot</Link>,
           },
           {
             key: "3",

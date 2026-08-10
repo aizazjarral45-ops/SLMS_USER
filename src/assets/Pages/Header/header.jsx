@@ -1,14 +1,13 @@
 import logo from "../../Images/slms.png";
-import {
-  BellOutlined,
-  RobotOutlined,
-} from "@ant-design/icons";
+import { BellOutlined, LogoutOutlined, RobotOutlined } from "@ant-design/icons";
 import "./header.css";
 import { Button } from "antd";
 import { useEffect, useState } from "react";
 import Search from "antd/es/transfer/search.js";
+import { useNavigate } from "react-router-dom";
 
 function Header() {
+  const navigate = useNavigate();
   const [profileData, setProfile] = useState({});
   useEffect(() => {
     try {
@@ -27,6 +26,7 @@ function Header() {
       </div>
       <div className="icons">
         <Button
+          onClick={() => navigate("/aicopilot")}
           style={{
             color: "#fff",
             fontSize: 25,
@@ -42,25 +42,31 @@ function Header() {
           type="text"
           icon={<BellOutlined />}
         />
-
         <div className="profile-parent">
           {profileData.profileImage ? (
             <img
               className="profile-avatar"
               src={profileData.profileImage}
               alt="profile"
+              onClick={() => navigate("/profile")}
             />
           ) : (
             <div className="profile-avatar profile-avatar-placeholder" />
           )}
           <div>
-            <div className="student-name">
+            <div className="student-name"   onClick={() => navigate("/profile")}>
               {profileData.name || "student name"}
             </div>
-            <div className="student-dept">
+            <div className="student-dept"   onClick={() => navigate("/profile")}>
               {profileData.department || "department"}
             </div>
           </div>
+          <Button type="text" icon={<LogoutOutlined />} 
+           style={{
+            color: "#fff",
+            fontSize: 25,
+          }}>
+          </Button>
         </div>
       </div>
     </div>
