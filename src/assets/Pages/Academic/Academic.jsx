@@ -39,81 +39,11 @@ const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-academic-workspace";
 
 const createDefaultWorkspace = () => ({
-  profile: {
-    program: "BS Computer Science",
-    semester: 6,
-    cgpa: 3.62,
-  },
-  courses: [
-    {
-      id: "course-ai",
-      code: "CS-302",
-      title: "AI Fundamentals",
-      instructor: "Dr. Hina Rashid",
-      credits: 3,
-    },
-    {
-      id: "course-web",
-      code: "CS-318",
-      title: "Advanced Web Engineering",
-      instructor: "Prof. Ahmed Raza",
-      credits: 4,
-    },
-    {
-      id: "course-db",
-      code: "CS-305",
-      title: "Database Systems",
-      instructor: "Dr. Sana Qureshi",
-      credits: 3,
-    },
-  ],
-  assignments: [
-    {
-      id: "assignment-db",
-      title: "Database normalization report",
-      course: "Database Systems",
-      dueDate: "2026-08-12",
-      priority: "High",
-      status: "To do",
-    },
-    {
-      id: "assignment-ai",
-      title: "AI reflection journal",
-      course: "AI Fundamentals",
-      dueDate: "2026-08-16",
-      priority: "Medium",
-      status: "In progress",
-    },
-  ],
-  exams: [
-    {
-      id: "exam-ai",
-      title: "AI Fundamentals midterm",
-      course: "AI Fundamentals",
-      examDate: "2026-08-20",
-      venue: "Hall B-201",
-    },
-  ],
-  attendance: [
-    {
-      id: "attendance-ai",
-      course: "AI Fundamentals",
-      attended: 17,
-      total: 18,
-    },
-    {
-      id: "attendance-web",
-      course: "Advanced Web Engineering",
-      attended: 15,
-      total: 17,
-    },
-    {
-      id: "attendance-db",
-      course: "Database Systems",
-      attended: 16,
-      total: 18,
-    },
-  ],
+  profile: {},
+  courses: [],
+  assignments: [],
+  exams: [],
+  attendance: [],
   formValues: {
     profile: {},
     course: {},
@@ -690,7 +620,6 @@ function Academic() {
           </Card>
         </Col>
       </Row>
-
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={24}>
           <Card
@@ -824,7 +753,6 @@ function Academic() {
           </Card>
         </Col>
       </Row>
-
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={24}>
           <Card
@@ -897,7 +825,6 @@ function Academic() {
                 Add course
               </Button>
             </div>
-
             {workspace.courses.length ? (
               <div className="academic-course-grid">
                 {workspace.courses.map((course) => (
@@ -956,7 +883,6 @@ function Academic() {
           </section>
         </Col>
       </Row>
-
       <datalist id="course-options">
         {workspace.courses.map((course) => (
           <option key={course.id} value={course.title} />

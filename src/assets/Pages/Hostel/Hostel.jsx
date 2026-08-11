@@ -932,14 +932,6 @@ function Hostel() {
         }
         extra={
           <Space wrap>
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              placeholder="Search student or application"
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              className="hostel-search"
-            />
             <Select
               value={statusFilter}
               onChange={setStatusFilter}

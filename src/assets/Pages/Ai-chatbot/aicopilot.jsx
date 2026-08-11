@@ -11,6 +11,7 @@ import {
   Space,
   Tag,
   Typography,
+  // Row and Col removed - using plain divs for layout
 } from "antd";
 import {
   AudioOutlined,
@@ -138,7 +139,7 @@ function Copilot() {
 
   return (
     <>
-   <div className="first-section">
+  <div className="first-section">
       <Card className="copilot-header-card">
         <Space align="start">
           <div>
@@ -157,8 +158,10 @@ function Copilot() {
         </Space>
       </Card>
       </div>
-      <div className="copilot-page" style={{ display: "flex", gap: "16px", minHeight: "calc(100vh - 280px)" }}>
-        <aside className="copilot-sidebar" style={{ flex: "0 0 280px", display: "flex", flexDirection: "column" }}>
+
+      <div className="copilot-page">
+        <div>
+          <aside className="copilot-sidebar" style={{ display: "flex", flexDirection: "column" }}>
           <Card className="copilot-sidebar-card" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "visible" }}>
             <Title level={4}>Recent Chats</Title>
             <List
@@ -195,9 +198,11 @@ function Copilot() {
               </div>
             </Card>
           </Card>
-        </aside>
+          </aside>
+        </div>
 
-        <section className="copilot-main" style={{ flex: "1 1 auto", minWidth: 0, width: "100%" }}>
+        <div>
+          <section className="copilot-main" style={{ flex: "1 1 auto", minWidth: 0, width: "100%" }}>
           <Card className="copilot-chat-card" style={{ width: "100%" }}>
             {messages.length === 0 && !typing && !error ? (
               <Empty
@@ -322,8 +327,8 @@ function Copilot() {
             ) : null}
           </Card>
 
-          <Card className="copilot-input-card" style={{ width: "100%" }}>
-            <Space className="copilot-input-wrap" style={{ width: "100%" }}>
+          <Card style={{ width: "100%" ,alignItems:"center",justifyContent:"center",display:"flex"}}>
+            <Space className="copilot-input-wra" style={{ width: "100%" }}>
               <Input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
@@ -331,7 +336,7 @@ function Copilot() {
                 placeholder="Ask about assignments, hostel, budget, exams, or campus rules"
                 style={{ flex: 1, minWidth: 0 }}
               />
-              <Button icon={<AudioOutlined />} />
+             
               <Button onClick={undoLastPrompt} disabled={messages.length === 0}>
                 Undo
               </Button>
@@ -344,7 +349,8 @@ function Copilot() {
               </Button>
             </Space>
           </Card>
-        </section>
+          </section>
+        </div>
       </div>
     </>
   );

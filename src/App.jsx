@@ -1,6 +1,7 @@
 import "./App.css";
-import React, { useState } from "react";
-import { Layout } from "antd";
+import React, { useCallback, useEffect, useState } from "react";
+import { Drawer, Layout } from "antd";
+import { CloseOutlined } from "@ant-design/icons";
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import Header from "./assets/Pages/Header/header";
@@ -13,36 +14,219 @@ import Expense from "./assets/Pages/Expense/Expense";
 import Academic from "./assets/Pages/Academic/Academic";
 import { Routes, Route } from "react-router-dom";
 import Copilot from "./assets/Pages/Ai-chatbot/aicopilot";
+import Dashboard from "./assets/Pages/Dashboard/Dashboard";
+import {
+  SHARED_DATA_STORAGE_KEY,
+  loadSharedData,
+  persistSharedData,
+} from "./data/sharedData";
+
+const MOBILE_BREAKPOINT = 768;
+const TABLET_BREAKPOINT = 1024;
 
 function App() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => window.innerWidth < MOBILE_BREAKPOINT,
+  );
+  const [isTablet, setIsTablet] = useState(
+    () =>
+      window.innerWidth >= MOBILE_BREAKPOINT &&
+      window.innerWidth < TABLET_BREAKPOINT,
+  );
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sharedData, setSharedData] = useState(loadSharedData);
+
+  useEffect(() => {
+    persistSharedData(sharedData);
+  }, [sharedData]);
+
+  useEffect(() => {
+    const syncFromAnotherTab = (event) => {
+      if (event.key === SHARED_DATA_STORAGE_KEY && event.newValue) {
+        setSharedData(loadSharedData());
+      }
+    };
+
+    window.addEventListener("storage", syncFromAnotherTab);
+    return () => window.removeEventListener("storage", syncFromAnotherTab);
+  }, []);
+
+  useEffect(() => {
+    const updateViewport = () => {
+      const width = window.innerWidth;
+      setIsMobile(width < MOBILE_BREAKPOINT);
+      setIsTablet(width >= MOBILE_BREAKPOINT && width < TABLET_BREAKPOINT);
+    };
+
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+    return () => window.removeEventListener("resize", updateViewport);
+  }, []);
+
+  useEffect(() => {
+    if (isTablet) {
+      setCollapsed(true);
+    } else if (!isMobile) {
+      setCollapsed(false);
+    }
+
+    if (!isMobile) {
+      setMobileSidebarOpen(false);
+    }
+  }, [isMobile, isTablet]);
+
+  const updateSection = useCallback((section, nextValue) => {
+    setSharedData((current) => ({
+      ...current,
+      [section]:
+        typeof nextValue === "function"
+          ? nextValue(current[section])
+          : nextValue,
+    }));
+  }, []);
+
+  const updateMonthlyBudget = useCallback((value) => {
+    const budget = Math.max(0, Number(value) || 0);
+    setSharedData((current) => ({
+      ...current,
+      monthlyBudget: budget,
+      budgetHistory: [...current.budgetHistory, budget],
+    }));
+  }, []);
+
+  const resetProfile = useCallback(() => {
+    updateSection("profile", {
+      personalData: {},
+      profileData: {},
+      contactData: {},
+    });
+  }, [updateSection]);
+
   return (
-    <div className="app-shell">
-      <Header />
+    <div
+      className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}
+    >
+      <Header
+        profileData={sharedData.profile.profileData}
+        onToggleSidebar={() => setMobileSidebarOpen(true)}
+      />
       <Layout className="app-body">
-        <Sider
-          collapsible
-          collapsed={collapsed}
-          onCollapse={(value) => setCollapsed(value)}
-          width={220}
-          theme="dark"
-          className="app-sidebar"
-        >
-          <Sidebar />
-        </Sider>
+        {!isMobile ? (
+          <Sider
+            collapsible
+            collapsed={collapsed}
+            onCollapse={setCollapsed}
+            width={220}
+            theme="dark"
+            className="app-sidebar app-desktop-sidebar"
+          >
+            <Sidebar />
+          </Sider>
+        ) : null}
         <Content className="app-content">
           <Routes>
-            
-            <Route path="/aicopilot" element={<Copilot />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/expense" element={<Expense />} />
-            <Route path="/complaints" element={<Complaints />} />
-            <Route path="/setting" element={<Settings />} />
-            <Route path="/hostel" element={<Hostel />} />
-            <Route path="/academic" element={<Academic />} />
+            <Route path="/" element={<Dashboard data={sharedData} />} />
+            <Route
+              path="/aicopilot"
+              element={
+                <Copilot
+                  messages={sharedData.copilotMessages}
+                  onMessagesChange={(nextValue) =>
+                    updateSection("copilotMessages", nextValue)
+                  }
+                />
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <Profile
+                  profile={sharedData.profile}
+                  onProfileChange={(nextValue) =>
+                    updateSection("profile", nextValue)
+                  }
+                  onResetProfile={resetProfile}
+                />
+              }
+            />
+            <Route
+              path="/expense"
+              element={
+                <Expense
+                  expenses={sharedData.expenses}
+                  monthlyBudget={sharedData.monthlyBudget}
+                  onExpensesChange={(nextValue) =>
+                    updateSection("expenses", nextValue)
+                  }
+                  onMonthlyBudgetChange={updateMonthlyBudget}
+                />
+              }
+            />
+            <Route
+              path="/complaints"
+              element={
+                <Complaints
+                  complaints={sharedData.complaints}
+                  onComplaintsChange={(nextValue) =>
+                    updateSection("complaints", nextValue)
+                  }
+                />
+              }
+            />
+            <Route
+              path="/setting"
+              element={
+                <Settings
+                  settings={sharedData.settings}
+                  onSettingsChange={(nextValue) =>
+                    updateSection("settings", nextValue)
+                  }
+                />
+              }
+            />
+            <Route
+              path="/hostel"
+              element={
+                <Hostel
+                  applications={sharedData.hostelApplications}
+                  onApplicationsChange={(nextValue) =>
+                    updateSection("hostelApplications", nextValue)
+                  }
+                />
+              }
+            />
+            <Route
+              path="/academic"
+              element={
+                <Academic
+                  workspace={sharedData.academic}
+                  onWorkspaceChange={(nextValue) =>
+                    updateSection("academic", nextValue)
+                  }
+                />
+              }
+            />
           </Routes>
         </Content>
       </Layout>
+      <Drawer
+        className="mobile-sidebar-drawer"
+        rootClassName="mobile-sidebar-drawer-root"
+        title="Navigation"
+        placement="left"
+        width={260}
+        closable
+        closeIcon={<CloseOutlined />}
+        open={isMobile && mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+        styles={{
+          header: { background: "#1e3a8a", color: "#ffffff" },
+          body: { padding: 0, background: "#1e3a8a" },
+        }}
+      >
+        <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
+      </Drawer>
     </div>
   );
 }

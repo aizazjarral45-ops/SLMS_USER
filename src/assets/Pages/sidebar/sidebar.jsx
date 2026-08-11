@@ -11,7 +11,9 @@ import {
 } from "@ant-design/icons";
 import { Link, useLocation } from "react-router-dom";
 import { Menu } from "antd";
-function Sidebar() {
+
+
+function Sidebar({ onNavigate }) {
   const location = useLocation();
   const path = location.pathname;
   const selectedKey = (() => {
@@ -27,18 +29,14 @@ function Sidebar() {
     return "1";
   })();
 
-  const openKeys = (() => {
-    if (selectedKey.startsWith("2")) return ["2"];
-    if (selectedKey.startsWith("3")) return ["3"];
-    return [];
-  })();
   return (
-    <>
+    <nav className="sidebar-navigation" aria-label="Main navigation">
+      <div className="sidebar-menu-label">MENU</div>
       <Menu
         theme="dark"
-        defaultSelectedKeys={[selectedKey]}
-        defaultOpenKeys={openKeys}
+        selectedKeys={[selectedKey]}
         mode="inline"
+        onClick={onNavigate}
         style={{ background: "#1E3A8A" }}
         items={[
           {
@@ -83,7 +81,8 @@ function Sidebar() {
           },
         ]}
       />
-    </>
+    </nav>
   );
 }
+
 export default Sidebar;
