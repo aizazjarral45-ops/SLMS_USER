@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -54,19 +54,28 @@ function getSavedApplications() {
   }
 }
 
-function Hostel() {
+function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const [applications, setApplications] = useState(getSavedApplications);
+  const [fallbackApplications, setFallbackApplications] = useState(
+    getSavedApplications,
+  );
+  const applications = Array.isArray(applicationsProp)
+    ? applicationsProp
+    : fallbackApplications;
+  const setApplications = (nextValue) => {
+    if (onApplicationsChange) {
+      onApplicationsChange(nextValue);
+      return;
+    }
+
+    setFallbackApplications((current) =>
+      typeof nextValue === "function" ? nextValue(current) : nextValue,
+    );
+  };
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [editingKey, setEditingKey] = useState(null);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(applications));
-    } catch {}
-  }, [applications]);
 
   const filteredApplications = useMemo(() => {
     const query = searchText.trim().toLowerCase();

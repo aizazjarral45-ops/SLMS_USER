@@ -72,13 +72,15 @@ const defaultSettings = {
     assignment: true,
     quiz: true,
     exam: true,
-    attendance: false,
+    attendance: true,
     expense: true,
     complaints: true,
     hostel: true,
+    reminder: true,
     ai: false,
   },
   reminders: [],
+  readNotificationIds: [],
   aiSettings: {
     studyPlanner: true,
     budgetWarnings: true,
@@ -173,6 +175,9 @@ export const normalizeSharedData = (value) => {
         ...asObject(settings.notifications),
       },
       reminders: asArray(settings.reminders),
+      readNotificationIds: asArray(settings.readNotificationIds).filter(
+        (item) => typeof item === "string",
+      ),
       aiSettings: {
         ...defaultSettings.aiSettings,
         ...asObject(settings.aiSettings),
@@ -267,6 +272,5 @@ export const persistSharedData = (data) => {
       JSON.stringify(normalized.copilotMessages),
     );
   } catch {
-    // A full or unavailable browser storage should never prevent the UI updating.
   }
 };

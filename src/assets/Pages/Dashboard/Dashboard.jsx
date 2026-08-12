@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Avatar,
   Button,
@@ -76,26 +76,34 @@ function formatShortDate(value) {
   }).format(parsedDate);
 }
 
-function getDashboardSnapshot() {
-  const academicWorkspace = readStoredJSON(ACADEMIC_STORAGE_KEY, {
-    profile: { cgpa: 3.62 },
-    assignments: [],
-    exams: [],
-    attendance: [],
-  });
-  const expenses = Array.isArray(readStoredJSON(EXPENSE_STORAGE_KEY, []))
-    ? readStoredJSON(EXPENSE_STORAGE_KEY, [])
-    : [];
+function getDashboardSnapshot(data) {
+  const academicWorkspace =
+    data?.academic ||
+    readStoredJSON(ACADEMIC_STORAGE_KEY, {
+      profile: { cgpa: 3.62 },
+      assignments: [],
+      exams: [],
+      attendance: [],
+    });
+  const expenses = Array.isArray(data?.expenses)
+    ? data.expenses
+    : Array.isArray(readStoredJSON(EXPENSE_STORAGE_KEY, []))
+      ? readStoredJSON(EXPENSE_STORAGE_KEY, [])
+      : [];
   const budgetEntries = Array.isArray(readStoredJSON(BUDGET_STORAGE_KEY, []))
     ? readStoredJSON(BUDGET_STORAGE_KEY, [])
     : [];
-  const complaints = Array.isArray(readStoredJSON(COMPLAINTS_STORAGE_KEY, []))
-    ? readStoredJSON(COMPLAINTS_STORAGE_KEY, [])
-    : [];
+  const complaints = Array.isArray(data?.complaints)
+    ? data.complaints
+    : Array.isArray(readStoredJSON(COMPLAINTS_STORAGE_KEY, []))
+      ? readStoredJSON(COMPLAINTS_STORAGE_KEY, [])
+      : [];
 
-  const monthlyBudget = budgetEntries.length
-    ? Number(budgetEntries[budgetEntries.length - 1]) || 0
-    : 0;
+  const monthlyBudget = Number.isFinite(Number(data?.monthlyBudget))
+    ? Number(data.monthlyBudget)
+    : budgetEntries.length
+      ? Number(budgetEntries[budgetEntries.length - 1]) || 0
+      : 0;
   const totalSpent = expenses.reduce(
     (sum, expense) => sum + Number(expense.amount || 0),
     0,
@@ -263,29 +271,9 @@ function DeadlineList({ deadlines }) {
   );
 }
 
-function Dashboard() {
+function Dashboard({ data }) {
   const navigate = useNavigate();
-  const [dashboardData, setDashboardData] = useState(() =>
-    getDashboardSnapshot(),
-  );
-
-  useEffect(() => {
-    const refreshDashboard = () => {
-      setDashboardData(getDashboardSnapshot());
-    };
-
-    refreshDashboard();
-
-    const intervalId = window.setInterval(refreshDashboard, 1200);
-    window.addEventListener("focus", refreshDashboard);
-    window.addEventListener("storage", refreshDashboard);
-
-    return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener("focus", refreshDashboard);
-      window.removeEventListener("storage", refreshDashboard);
-    };
-  }, []);
+  const dashboardData = useMemo(() => getDashboardSnapshot(data), [data]);
 
   const focusText = dashboardData.deadlines[0]
     ? "Focus on " +
@@ -317,6 +305,9 @@ function Dashboard() {
             </Col>
             <Col xs={24} lg={8}>
               <Card className="dashboard-hero-panel">
+                <div className="Dashboard-hero-card-icon">
+                  <SafetyCertificateOutlined />
+                </div>
                 <Space
                   direction="vertical"
                   size="medium"
@@ -399,8 +390,10 @@ function Dashboard() {
                   <div className="dashboard-mini-card">
                     <Space align="start">
                       <Avatar
-                      style={{background:"#fff"}}
-                        icon={<BookOutlined style={{background:"#52C41A"}} />}
+                        style={{ background: "#fff" }}
+                        icon={
+                          <BookOutlined style={{ background: "#52C41A" }} />
+                        }
                         className="dashboard-mini-avatar"
                       />
                       <div>
@@ -417,9 +410,10 @@ function Dashboard() {
                   <div className="dashboard-mini-card">
                     <Space align="start">
                       <Avatar
-                        style={{background:"#fff"}}
-                        icon={<HomeOutlined 
-                         style={{background:"#FAAD14"}}/>}
+                        style={{ background: "#fff" }}
+                        icon={
+                          <HomeOutlined style={{ background: "#FAAD14" }} />
+                        }
                         className="dashboard-mini-avatar"
                       />
                       <div>
@@ -436,9 +430,10 @@ function Dashboard() {
                   <div className="dashboard-mini-card">
                     <Space align="start">
                       <Avatar
-                        style={{background:"#fff"}}
-                        icon={<MessageOutlined
-                            style={{background:"#2452C7"}} />}
+                        style={{ background: "#fff" }}
+                        icon={
+                          <MessageOutlined style={{ background: "#2452C7" }} />
+                        }
                         className="dashboard-mini-avatar"
                       />
                       <div>

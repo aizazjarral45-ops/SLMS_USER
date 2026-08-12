@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Avatar,
   Button,
@@ -36,8 +36,6 @@ import {
 import "./Academic.css";
 
 const { Title, Paragraph, Text } = Typography;
-const STORAGE_KEY = "slms-academic-workspace";
-
 const createDefaultWorkspace = () => ({
   profile: {},
   courses: [],
@@ -52,63 +50,6 @@ const createDefaultWorkspace = () => ({
     attendance: {},
   },
 });
-
-function getSavedWorkspace() {
-  const defaults = createDefaultWorkspace();
-
-  try {
-    if (typeof window === "undefined" || !window.localStorage) return defaults;
-
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (!saved) return defaults;
-
-    const parsed = JSON.parse(saved);
-    if (!parsed || typeof parsed !== "object") return defaults;
-
-    return {
-      profile: { ...defaults.profile, ...(parsed.profile || {}) },
-      courses: Array.isArray(parsed.courses)
-        ? parsed.courses
-        : defaults.courses,
-      assignments: Array.isArray(parsed.assignments)
-        ? parsed.assignments
-        : defaults.assignments,
-      exams: Array.isArray(parsed.exams) ? parsed.exams : defaults.exams,
-      attendance: Array.isArray(parsed.attendance)
-        ? parsed.attendance
-        : defaults.attendance,
-      formValues: {
-        profile:
-          parsed.formValues?.profile &&
-          typeof parsed.formValues.profile === "object"
-            ? parsed.formValues.profile
-            : defaults.formValues.profile,
-        course:
-          parsed.formValues?.course &&
-          typeof parsed.formValues.course === "object"
-            ? parsed.formValues.course
-            : defaults.formValues.course,
-        assignment:
-          parsed.formValues?.assignment &&
-          typeof parsed.formValues.assignment === "object"
-            ? parsed.formValues.assignment
-            : defaults.formValues.assignment,
-        exam:
-          parsed.formValues?.exam && typeof parsed.formValues.exam === "object"
-            ? parsed.formValues.exam
-            : defaults.formValues.exam,
-        attendance:
-          parsed.formValues?.attendance &&
-          typeof parsed.formValues.attendance === "object"
-            ? parsed.formValues.attendance
-            : defaults.formValues.attendance,
-      },
-    };
-  } catch {
-    return defaults;
-  }
-}
-
 function formatDate(value) {
   if (!value) return "No date set";
 
@@ -137,10 +78,7 @@ function statusColor(status) {
   return "gold";
 }
 
-function Academic() {
-  const [workspace, setWorkspace] = useState(createDefaultWorkspace);
-  const [storageReady, setStorageReady] = useState(false);
-  const [lastSavedAt, setLastSavedAt] = useState(null);
+function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   const [messageApi, contextHolder] = message.useMessage();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [courseEditor, setCourseEditor] = useState(null);
@@ -153,30 +91,23 @@ function Academic() {
   const [examForm] = Form.useForm();
   const [attendanceForm] = Form.useForm();
 
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      setWorkspace(getSavedWorkspace());
-    }
-    setStorageReady(true);
-  }, []);
-
-  useEffect(() => {
-    if (
-      !storageReady ||
-      typeof window === "undefined" ||
-      !window.localStorage
-    ) {
+  const [fallbackWorkspace, setFallbackWorkspace] = useState(
+    createDefaultWorkspace,
+  );
+  const workspace = workspaceProp || fallbackWorkspace;
+  const setWorkspace = (nextValue) => {
+    if (onWorkspaceChange) {
+      onWorkspaceChange((current) => {
+        const base = current || createDefaultWorkspace();
+        return typeof nextValue === "function" ? nextValue(base) : nextValue;
+      });
       return;
     }
 
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace));
-      setLastSavedAt(new Date());
-    } catch {
-      messageApi.error("Your changes could not be saved in this browser.");
-    }
-  }, [messageApi, storageReady, workspace]);
-
+    setFallbackWorkspace((current) =>
+      typeof nextValue === "function" ? nextValue(current) : nextValue,
+    );
+  };
   const attendanceRate = useMemo(() => {
     const attended = workspace.attendance.reduce(
       (total, record) => total + Number(record.attended || 0),

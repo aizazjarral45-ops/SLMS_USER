@@ -224,3 +224,19 @@
     height: 32px;
   }
 }
+
+.header-notification-badge .ant-badge-count {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  line-height: 17px;
+  box-shadow: 0 0 0 2px #1e3a8a;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.header-notification-badge .header-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

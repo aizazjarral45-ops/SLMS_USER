@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Avatar,
@@ -39,7 +39,8 @@ const notificationDefaults = {
   expense: true,
   complaints: true,
   hostel: true,
-  ai: false,
+    reminder: true,
+    ai: false,
 };
 
 const reminderTypeOptions = [
@@ -60,6 +61,7 @@ const notificationItems = [
   ["expense", "Expense Reminder"],
   ["complaints", "Complaint Updates"],
   ["hostel", "Hostel Updates"],
+  ["reminder", "Personal Reminders"],
   ["ai", "AI Suggestions"],
 ];
 
@@ -85,64 +87,40 @@ const SwitchRow = ({ label, checked, onChange }) => (
   </div>
 );
 
-function Settings() {
+function Settings({ settings = {}, onSettingsChange }) {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [reminderForm] = Form.useForm();
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem("theme");
-    return saved || "Light";
-  });
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem("notifications");
-    return saved ? JSON.parse(saved) : notificationDefaults;
-  });
-  const [reminders, setReminders] = useState(() => {
-    const saved = localStorage.getItem("reminders");
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [modalOpen, setModalOpen] = useState(false);
-  const [aiSettings, setAiSettings] = useState(() => {
-    const saved = localStorage.getItem("aiSettings");
-    return saved
-      ? JSON.parse(saved)
-      : { studyPlanner: true, budgetWarnings: true, complaintDrafting: false };
-  });
-
-  const pendingReminders = useMemo(
-    () => reminders.filter((item) => !item.done).length,
-    [reminders],
-  );
-
-  const saveLocalStorage = (key, value) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {}
+  const theme = settings.theme || "Light";
+  const notifications = {
+    ...notificationDefaults,
+    ...(settings.notifications || {}),
   };
+  const reminders = Array.isArray(settings.reminders) ? settings.reminders : [];
+  const aiSettings = {
+    studyPlanner: true,
+    budgetWarnings: true,
+    complaintDrafting: false,
+    ...(settings.aiSettings || {}),
+  };
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const updateSettings = (updates) => {
+    onSettingsChange?.({ ...settings, ...updates });
+  };
+  const pendingReminders = reminders.filter((item) => !item.done).length;
 
   const toggleNotification = (key, value) => {
-    setNotifications((current) => {
-      const updated = { ...current, [key]: value };
-      saveLocalStorage("notifications", updated);
-      return updated;
-    });
+    updateSettings({ notifications: { ...notifications, [key]: value } });
   };
 
   const toggleAiSetting = (key, value) => {
-    setAiSettings((current) => {
-      const updated = { ...current, [key]: value };
-      saveLocalStorage("aiSettings", updated);
-      return updated;
-    });
+    updateSettings({ aiSettings: { ...aiSettings, [key]: value } });
   };
 
   const addReminder = (values) => {
-    setReminders((current) => {
-      const next = [
+    updateSettings({
+      reminders: [
         {
           id: `${Date.now()}`,
           title: values.title,
@@ -150,10 +128,8 @@ function Settings() {
           when: values.when,
           done: false,
         },
-        ...current,
-      ];
-      saveLocalStorage("reminders", next);
-      return next;
+        ...reminders,
+      ],
     });
     reminderForm.resetFields();
     setModalOpen(false);
@@ -161,23 +137,16 @@ function Settings() {
   };
 
   const completeReminder = (id) => {
-    setReminders((current) => {
-      const next = current.map((item) =>
+    updateSettings({
+      reminders: reminders.map((item) =>
         item.id === id ? { ...item, done: true } : item,
-      );
-      saveLocalStorage("reminders", next);
-      return next;
+      ),
     });
   };
 
   const deleteReminder = (id) => {
-    setReminders((current) => {
-      const next = current.filter((item) => item.id !== id);
-      saveLocalStorage("reminders", next);
-      return next;
-    });
+    updateSettings({ reminders: reminders.filter((item) => item.id !== id) });
   };
-
   const tabItems = [
     {
       key: "profile",
@@ -226,8 +195,8 @@ function Settings() {
           <Alert
             type="info"
             showIcon
-            message="Quiet timing suggestion"
-            description="Keep AI suggestions off during class hours if you want a less distracting experience."
+            message="Your bell follows these settings"
+            description="Only enabled categories appear in Notifications. Assignment, quiz, exam, and payment deadlines are shown when two days or less remain; opening the bell marks its current alerts as read."
           />
         </div>
       ),
@@ -315,8 +284,7 @@ function Settings() {
                 key={mode}
                 type={theme === mode ? "primary" : "default"}
                 onClick={() => {
-                  setTheme(mode);
-                  saveLocalStorage("theme", mode);
+                  updateSettings({ theme: mode });
                 }}
               >
                 {mode} Mode
@@ -470,7 +438,8 @@ function Settings() {
               { required: true, message: "Enter the reminder schedule." },
             ]}
           >
-            <Input placeholder="e.g. Aug 7, 6:00 PM" />
+            <Input  type="date"
+            placeholder="e.g. Aug 7 2026, 6:00 PM" />
           </Form.Item>
           <div className="setting-modal-actions">
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>

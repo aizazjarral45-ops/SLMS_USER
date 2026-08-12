@@ -1,7 +1,7 @@
 import "./App.css";
-import React, { useCallback, useEffect, useState } from "react";
-import { Drawer, Layout } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Drawer, Layout, Button } from "antd";
+import { CloseOutlined, LogoutOutlined } from "@ant-design/icons";
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import Header from "./assets/Pages/Header/header";
@@ -15,16 +15,20 @@ import Academic from "./assets/Pages/Academic/Academic";
 import { Routes, Route } from "react-router-dom";
 import Copilot from "./assets/Pages/Ai-chatbot/aicopilot";
 import Dashboard from "./assets/Pages/Dashboard/Dashboard";
+import BellIcon from "./assets/Pages/Header/bellicon";
 import {
   SHARED_DATA_STORAGE_KEY,
   loadSharedData,
   persistSharedData,
 } from "./data/sharedData";
+import { getNotifications } from "./data/notifications";
+import { useNavigate } from "react-router-dom";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
 
-function App() {
+function App({ profileData = {}, onToggleSidebar }) {
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => window.innerWidth < MOBILE_BREAKPOINT,
@@ -103,12 +107,37 @@ function App() {
     });
   }, [updateSection]);
 
+  const notifications = useMemo(
+    () => getNotifications(sharedData),
+    [sharedData],
+  );
+  const unreadNotificationCount = notifications.filter(
+    (item) => !item.read,
+  ).length;
+
+  const markNotificationsRead = useCallback(
+    (notificationIds) => {
+      if (!notificationIds?.length) return;
+
+      updateSection("settings", (settings) => ({
+        ...settings,
+        readNotificationIds: Array.from(
+          new Set([
+            ...(settings?.readNotificationIds || []),
+            ...notificationIds,
+          ]),
+        ).slice(-500),
+      }));
+    },
+    [updateSection],
+  );
   return (
     <div
       className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}
     >
       <Header
         profileData={sharedData.profile.profileData}
+        unreadNotificationCount={unreadNotificationCount}
         onToggleSidebar={() => setMobileSidebarOpen(true)}
       />
       <Layout className="app-body">
@@ -127,6 +156,15 @@ function App() {
         <Content className="app-content">
           <Routes>
             <Route path="/" element={<Dashboard data={sharedData} />} />
+            <Route
+              path="/notifications"
+              element={
+                <BellIcon
+                  notifications={notifications}
+                  onMarkNotificationsRead={markNotificationsRead}
+                />
+              }
+            />
             <Route
               path="/aicopilot"
               element={

@@ -145,15 +145,31 @@ function ChartCard({ title, items, formatValue, budget }) {
     </Card>
   );
 }
-function Expense() {
+function Expense({
+  expenses: expensesProp,
+  monthlyBudget: monthlyBudgetProp,
+  onExpensesChange,
+  onMonthlyBudgetChange,
+}) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const [expenses, setExpenses] = useState(getInitialExpenses);
+  const [fallbackExpenses, setFallbackExpenses] = useState(getInitialExpenses);
+  const expenses = Array.isArray(expensesProp) ? expensesProp : fallbackExpenses;
+  const setExpenses = (nextValue) => {
+    if (onExpensesChange) {
+      onExpensesChange(nextValue);
+      return;
+    }
+
+    setFallbackExpenses((current) =>
+      typeof nextValue === "function" ? nextValue(current) : nextValue,
+    );
+  };
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [open, setOpen] = useState(false);
   const [budgetModal, setBudgetModal] = useState(false);
-  const [monthlyBudget, setMonthlyBudget] = useState(() => {
+  const [fallbackMonthlyBudget, setFallbackMonthlyBudget] = useState(() => {
     try {
       const stored = JSON.parse(
         localStorage.getItem(BUDGET_STORAGE_KEY) || "[]",
@@ -163,12 +179,22 @@ function Expense() {
       return 0;
     }
   });
+  const monthlyBudget = Number.isFinite(Number(monthlyBudgetProp))
+    ? Number(monthlyBudgetProp)
+    : fallbackMonthlyBudget;
+  const setMonthlyBudget = (value) => {
+    if (onMonthlyBudgetChange) {
+      onMonthlyBudgetChange(value);
+      return;
+    }
+
+    setFallbackMonthlyBudget(value);
+  };
   const [newMonthlyBudget, setNewMonthlyBudget] = useState(monthlyBudget);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-  }, [expenses]);
-
+    setNewMonthlyBudget(monthlyBudget);
+  }, [monthlyBudget]);
   const filteredExpenses = useMemo(() => {
     return expenses.filter((item) => {
       const matchesQuery =
@@ -346,15 +372,7 @@ function Expense() {
         onOk={() => {
           const val = Number(newMonthlyBudget) || 0;
           setMonthlyBudget(val);
-          try {
-            const arr = JSON.parse(
-              localStorage.getItem(BUDGET_STORAGE_KEY) || "[]",
-            );
-            arr.push(val);
-            localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify(arr));
-          } catch {
-            localStorage.setItem(BUDGET_STORAGE_KEY, JSON.stringify([val]));
-          }
+          setNewMonthlyBudget(val);
           setBudgetModal(false);
         }}
       >
@@ -461,11 +479,6 @@ function Expense() {
         title="Expense Table"
         extra={
           <Space wrap>
-            <Input.Search
-              allowClear
-              placeholder="Search expenses"
-              onChange={(event) => setQuery(event.target.value)}
-            />
             <Select
               value={categoryFilter}
               onChange={setCategoryFilter}

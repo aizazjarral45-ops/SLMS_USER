@@ -6,11 +6,14 @@ import {
   RobotOutlined,
 } from "@ant-design/icons";
 import "./header.css";
-import { Button } from "antd";
-import Search from "antd/es/transfer/search.js";
+import { Badge, Button } from "antd";
 import { useNavigate } from "react-router-dom";
 
-function Header({ profileData = {}, onToggleSidebar }) {
+function Header({
+  profileData = {},
+  unreadNotificationCount = 0,
+  onToggleSidebar,
+}) {
   const navigate = useNavigate();
 
   return (
@@ -27,9 +30,7 @@ function Header({ profileData = {}, onToggleSidebar }) {
           <img src={logo} alt="SLMS" />
         </div>
       </div>
-      <div className="search">
-        <Search placeholder="Search here" />
-      </div>
+    
       <div className="icons">
         <Button
           onClick={() => navigate("/aicopilot")}
@@ -38,12 +39,24 @@ function Header({ profileData = {}, onToggleSidebar }) {
           icon={<RobotOutlined />}
           aria-label="Open AI Copilot"
         />
-        <Button
-          className="header-icon-button"
-          type="text"
-          icon={<BellOutlined />}
-          aria-label="Notifications"
-        />
+        <Badge
+          className="header-notification-badge"
+          count={unreadNotificationCount}
+          overflowCount={99}
+          size="small"
+        >
+          <Button
+            className="header-icon-button"
+            type="text"
+            icon={<BellOutlined />}
+            aria-label={
+              unreadNotificationCount
+                ? `${unreadNotificationCount} unread notifications`
+                : "Notifications"
+            }
+            onClick={() => navigate("/notifications")}
+          />
+        </Badge>
         <div className="profile-parent">
           {profileData.profileImage ? (
             <img

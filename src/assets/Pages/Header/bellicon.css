@@ -1,0 +1,340 @@
+.bell-page {
+  --bell-blue: #1e3a8a;
+  --bell-navy: #102a43;
+  --bell-muted: #64748b;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: 100%;
+  padding: 12px 10px 32px;
+  color: #0f172a;
+  background: linear-gradient(180deg, #f8fbff 0%, #edf4ff 100%);
+}
+
+.bell-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 270px;
+  padding: 38px 46px;
+  overflow: hidden;
+  border-radius: 24px;
+  color: #fff;
+  background: linear-gradient(125deg, #102a43 0%, #1e3a8a 55%, #2563eb 100%);
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+}
+
+.bell-hero::before,
+.bell-hero::after {
+  position: absolute;
+  content: "";
+  border: 1px solid rgba(219, 234, 254, 0.25);
+  border-radius: 50%;
+}
+
+.bell-hero::before {
+  right: -80px;
+  bottom: -130px;
+  width: 390px;
+  height: 390px;
+}
+
+.bell-hero::after {
+  right: 100px;
+  top: -150px;
+  width: 280px;
+  height: 280px;
+}
+
+.bell-hero-copy,
+.bell-hero-orb {
+  position: relative;
+  z-index: 1;
+}
+
+.bell-hero-copy {
+  max-width: 690px;
+}
+
+.bell-eyebrow.ant-tag {
+  margin-bottom: 16px;
+  padding: 7px 13px;
+  color: #dbeafe;
+  border: 1px solid rgba(219, 234, 254, 0.35);
+  background: rgba(15, 23, 42, 0.18);
+  font-weight: 600;
+}
+
+.bell-hero h1.ant-typography {
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1.07;
+  letter-spacing: -0.04em;
+}
+
+.bell-hero-copy > .ant-typography {
+  margin-bottom: 16px;
+  color: rgba(226, 232, 255, 0.92);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.bell-hero-meta {
+  color: #dbeafe;
+  font-weight: 600;
+}
+
+.bell-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.bell-hero-orb {
+  display: grid;
+  flex: 0 0 auto;
+  width: 134px;
+  height: 134px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.36);
+  border-radius: 50%;
+  background: rgba(219, 234, 254, 0.13);
+  box-shadow: 0 0 0 16px rgba(219, 234, 254, 0.07), 0 16px 34px rgba(15, 23, 42, 0.18);
+}
+
+.bell-hero-orb .anticon {
+  font-size: 54px;
+}
+
+.bell-hero-orb span {
+  position: absolute;
+  right: 9px;
+  top: 10px;
+  display: grid;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  place-items: center;
+  border: 3px solid #1e3a8a;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.bell-read-alert.ant-alert,
+.bell-feed-card.ant-card {
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+ 
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.bell-read-alert.ant-alert {
+  padding: 14px 18px;
+}
+
+.bell-feed-card .ant-card-head {
+  min-height: 68px;
+  border-bottom-color: #edf2f7;
+  background: linear-gradient(90deg, rgba(239, 246, 255, 0.8), rgba(255, 255, 255, 0));
+}
+
+.bell-feed-card .ant-card-head-title {
+  color: var(--bell-navy);
+  font-size: 17px;
+}
+
+.bell-notification-list {
+  display: grid;
+
+  gap: 12px;
+}
+
+.bell-notification-list .ant-list-item {
+  padding: 17px 18px;
+  border: 1px solid #e5edf8;
+  border-radius: 16px;
+  background: #fff;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.bell-notification-list .ant-list-item:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 12px 24px rgba(30, 64, 175, 0.09);
+  transform: translateY(-2px);
+}
+
+.bell-notification-item.critical {
+  border-left: 4px solid #ef4444 !important;
+  margin:30px 0px;
+}
+
+.bell-notification-item.soon {
+  border-left: 4px solid #f59e0b !important;
+   margin:30px 0px;
+}
+
+.bell-notification-item.upcoming {
+  border-left: 4px solid #3b82f6 !important;
+   margin:30px 0px;
+}
+
+.bell-notification-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.bell-notification-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 20px;
+}
+
+.bell-notification-icon.critical {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.bell-notification-icon.soon {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.bell-notification-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bell-notification-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bell-notification-heading .ant-typography {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bell-notification-heading .ant-tag {
+  flex: 0 0 auto;
+  margin: 0;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.bell-notification-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: var(--bell-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.bell-notification-time.critical {
+  color: #dc2626;
+}
+
+.bell-notification-time.soon {
+  color: #b45309;
+}
+
+.bell-open-button.ant-btn {
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+.bell-feed-card .ant-empty {
+  margin: 28px 0 12px;
+}
+
+.bell-feed-card .ant-empty-description .ant-space {
+  max-width: 340px;
+}
+
+@media (max-width: 700px) {
+  .bell-page {
+    gap: 18px;
+    padding: 0 0 24px;
+  }
+
+  .bell-hero {
+    min-height: 0;
+    padding: 28px 24px;
+    border-radius: 18px;
+  }
+
+  .bell-hero-orb {
+    display: none;
+  }
+
+  .bell-feed-card .ant-card-head {
+    min-height: auto;
+    padding-top: 15px;
+    padding-bottom: 15px;
+  }
+
+  .bell-feed-card .ant-card-head-wrapper {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .bell-notification-list .ant-list-item {
+    align-items: flex-start;
+    padding: 15px;
+  }
+
+  .bell-notification-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .bell-notification-heading .ant-typography {
+    white-space: normal;
+  }
+
+  .bell-open-button.ant-btn {
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 430px) {
+  .bell-notification-list .ant-list-item {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bell-open-button.ant-btn {
+    align-self: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bell-page *,
+  .bell-page *::before,
+  .bell-page *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

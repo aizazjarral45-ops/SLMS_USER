@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -57,16 +57,27 @@ function getInitialComplaints() {
   }
 }
 
-function Complaints() {
+function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const [complaints, setComplaints] = useState(getInitialComplaints);
+  const [fallbackComplaints, setFallbackComplaints] = useState(
+    getInitialComplaints,
+  );
+  const complaints = Array.isArray(complaintsProp)
+    ? complaintsProp
+    : fallbackComplaints;
+  const setComplaints = (nextValue) => {
+    if (onComplaintsChange) {
+      onComplaintsChange(nextValue);
+      return;
+    }
+
+    setFallbackComplaints((current) =>
+      typeof nextValue === "function" ? nextValue(current) : nextValue,
+    );
+  };
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(complaints));
-  }, [complaints]);
 
   const filteredComplaints = useMemo(() => {
     return complaints.filter((item) => {
