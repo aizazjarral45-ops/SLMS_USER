@@ -69,7 +69,10 @@ function Profile() {
   };
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState(
-    () => profileData.profileImage || localStorage.getItem("profileImageUrl") || null,
+    () =>
+      profileData.profileImage ||
+      localStorage.getItem("profileImageUrl") ||
+      null,
   );
   const beforeUpload = (file) => {
     const isJpgOrPng = file.type === "image/jpeg" || file.type === "image/png";
@@ -404,15 +407,23 @@ function Profile() {
       <Card className="danger-card">
         <div className="danger-title">Danger Zone</div>
         <div className="danger-content">
-          If you no longer wish to use your account, you can permanently delete<br/>
-          it along with all associated data, including your profile, settings,<br/>
-          uploaded content, and activity history. Once deletion is confirmed,<br/>
-          the process will begin immediately and cannot be reversed. Please make<br/>
+          If you no longer wish to use your account, you can permanently delete
+          <br />
+          it along with all associated data, including your profile, settings,
+          <br />
+          uploaded content, and activity history. Once deletion is confirmed,
+          <br />
+          the process will begin immediately and cannot be reversed. Please make
+          <br />
           sure you've saved any information you'd like to keep before
           proceeding.
         </div>
         <div className="resetbutton">
-          <Button danger onClick={resetAllProfileData} icon={<DeleteOutlined />}>
+          <Button
+            danger
+            onClick={resetAllProfileData}
+            icon={<DeleteOutlined />}
+          >
             Reset All Data
           </Button>
         </div>

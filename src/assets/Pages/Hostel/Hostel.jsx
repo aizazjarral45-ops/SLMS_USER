@@ -57,9 +57,8 @@ function getSavedApplications() {
 function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const [fallbackApplications, setFallbackApplications] = useState(
-    getSavedApplications,
-  );
+  const [fallbackApplications, setFallbackApplications] =
+    useState(getSavedApplications);
   const applications = Array.isArray(applicationsProp)
     ? applicationsProp
     : fallbackApplications;

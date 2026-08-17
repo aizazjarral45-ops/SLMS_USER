@@ -39,8 +39,8 @@ const notificationDefaults = {
   expense: true,
   complaints: true,
   hostel: true,
-    reminder: true,
-    ai: false,
+  reminder: true,
+  ai: false,
 };
 
 const reminderTypeOptions = [
@@ -438,8 +438,7 @@ function Settings({ settings = {}, onSettingsChange }) {
               { required: true, message: "Enter the reminder schedule." },
             ]}
           >
-            <Input  type="date"
-            placeholder="e.g. Aug 7 2026, 6:00 PM" />
+            <Input type="date" placeholder="e.g. Aug 7 2026, 6:00 PM" />
           </Form.Item>
           <div className="setting-modal-actions">
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>

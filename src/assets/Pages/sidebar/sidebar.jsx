@@ -12,7 +12,6 @@ import {
 import { Link, useLocation } from "react-router-dom";
 import { Menu } from "antd";
 
-
 function Sidebar({ onNavigate }) {
   const location = useLocation();
   const path = location.pathname;
@@ -79,6 +78,7 @@ function Sidebar({ onNavigate }) {
             icon: <SettingOutlined />,
             label: <Link to="/setting">Settings</Link>,
           },
+
         ]}
       />
     </nav>

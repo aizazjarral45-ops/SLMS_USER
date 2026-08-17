@@ -29,16 +29,20 @@ function Header({
         <div className="logo">
           <img src={logo} alt="SLMS" />
         </div>
+        
+        
       </div>
-    
+
+      
       <div className="icons">
-        <Button
+         <Button
           onClick={() => navigate("/aicopilot")}
           className="header-icon-button"
           type="text"
           icon={<RobotOutlined />}
           aria-label="Open AI Copilot"
         />
+       
         <Badge
           className="header-notification-badge"
           count={unreadNotificationCount}
@@ -56,6 +60,7 @@ function Header({
             }
             onClick={() => navigate("/notifications")}
           />
+           
         </Badge>
         <div className="profile-parent">
           {profileData.profileImage ? (

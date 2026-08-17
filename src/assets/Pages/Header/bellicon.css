@@ -101,7 +101,9 @@
   border: 1px solid rgba(255, 255, 255, 0.36);
   border-radius: 50%;
   background: rgba(219, 234, 254, 0.13);
-  box-shadow: 0 0 0 16px rgba(219, 234, 254, 0.07), 0 16px 34px rgba(15, 23, 42, 0.18);
+  box-shadow:
+    0 0 0 16px rgba(219, 234, 254, 0.07),
+    0 16px 34px rgba(15, 23, 42, 0.18);
 }
 
 .bell-hero-orb .anticon {
@@ -129,7 +131,7 @@
 .bell-feed-card.ant-card {
   border: 1px solid #dbeafe;
   border-radius: 18px;
- 
+
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
@@ -141,7 +143,11 @@
 .bell-feed-card .ant-card-head {
   min-height: 68px;
   border-bottom-color: #edf2f7;
-  background: linear-gradient(90deg, rgba(239, 246, 255, 0.8), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(239, 246, 255, 0.8),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 .bell-feed-card .ant-card-head-title {
@@ -160,7 +166,10 @@
   border: 1px solid #e5edf8;
   border-radius: 16px;
   background: #fff;
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
 .bell-notification-list .ant-list-item:hover {
@@ -171,17 +180,17 @@
 
 .bell-notification-item.critical {
   border-left: 4px solid #ef4444 !important;
-  margin:30px 0px;
+  margin: 30px 0px;
 }
 
 .bell-notification-item.soon {
   border-left: 4px solid #f59e0b !important;
-   margin:30px 0px;
+  margin: 30px 0px;
 }
 
 .bell-notification-item.upcoming {
   border-left: 4px solid #3b82f6 !important;
-   margin:30px 0px;
+  margin: 30px 0px;
 }
 
 .bell-notification-content {

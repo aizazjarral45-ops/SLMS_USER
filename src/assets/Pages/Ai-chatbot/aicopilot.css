@@ -14,7 +14,7 @@
   color: var(--copilot-ink);
   background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
 }
-.first-section{
+.first-section {
   --copilot-blue: #1e3a8a;
   --copilot-blue-dark: #1d4ed8;
   --copilot-navy: #0f172a;
@@ -29,7 +29,7 @@
   background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
 }
 .copilot-header-card {
-background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
   color: #fff;
   border-radius: 24px;
   padding: 20px;
@@ -45,13 +45,15 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
   content: "";
   border: 1px solid rgba(219, 234, 254, 0.32);
   border-radius: 50%;
-  box-shadow: 0 0 0 24px rgba(219, 234, 254, 0.08), 0 0 0 60px rgba(219, 234, 254, 0.05);
+  box-shadow:
+    0 0 0 24px rgba(219, 234, 254, 0.08),
+    0 0 0 60px rgba(219, 234, 254, 0.05);
 }
 
 .copilot-page .copilot-sidebar-card {
   overflow: visible;
 }
- 
+
 .copilot-page .copilot-sidebar-card,
 .copilot-page .copilot-panel,
 .copilot-page .copilot-chat-card,
@@ -60,7 +62,10 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
   border-radius: 18px;
   background: var(--copilot-surface);
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
   backdrop-filter: blur(12px);
 }
 
@@ -81,7 +86,6 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
   min-width: 0;
   width: 100%;
 }
-
 
 .copilot-grid {
   display: grid;
@@ -113,7 +117,10 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
   background: #fff;
   border: 1px solid #e6f0ff;
   color: var(--copilot-navy);
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    border-color 140ms ease;
 }
 
 .copilot-chip-group .ant-btn:hover {
@@ -190,7 +197,11 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
 }
 
 .user-bubble {
-  background: linear-gradient(135deg, var(--copilot-blue), var(--copilot-blue-dark));
+  background: linear-gradient(
+    135deg,
+    var(--copilot-blue),
+    var(--copilot-blue-dark)
+  );
   color: #fff;
 }
 
@@ -217,7 +228,10 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
   border-color: #dbe4f0 !important;
   box-shadow: none !important;
   background: #fff !important;
-  transition: border-color 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
 }
 
 .copilot-page .ant-input:hover,
@@ -244,11 +258,14 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
 }
 
 .copilot-page .ant-btn-primary:hover {
-  background: linear-gradient(115deg, var(--copilot-blue-dark), var(--copilot-blue)) !important;
+  background: linear-gradient(
+    115deg,
+    var(--copilot-blue-dark),
+    var(--copilot-blue)
+  ) !important;
   box-shadow: 0 12px 28px rgba(37, 99, 235, 0.28);
   transform: translateY(-1px);
 }
-
 
 .copilot-panel .ant-typography,
 .copilot-sidebar-card .ant-typography {
@@ -259,7 +276,11 @@ background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
 .copilot-sidebar-card .ant-card-head {
   min-height: 64px;
   border-bottom-color: #edf2f7;
-  background: linear-gradient(90deg, rgba(239, 246, 255, 0.75), rgba(255,255,255,0));
+  background: linear-gradient(
+    90deg,
+    rgba(239, 246, 255, 0.75),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 .copilot-page .feature-list > div {

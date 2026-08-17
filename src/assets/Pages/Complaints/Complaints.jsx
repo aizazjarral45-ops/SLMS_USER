@@ -60,9 +60,8 @@ function getInitialComplaints() {
 function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const [fallbackComplaints, setFallbackComplaints] = useState(
-    getInitialComplaints,
-  );
+  const [fallbackComplaints, setFallbackComplaints] =
+    useState(getInitialComplaints);
   const complaints = Array.isArray(complaintsProp)
     ? complaintsProp
     : fallbackComplaints;
@@ -183,7 +182,7 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
       {contextHolder}
       <div className="complaints-hero">
         <div>
-           <Tag icon={<InfoCircleOutlined/>} className="hostel-eyebrow">
+          <Tag icon={<InfoCircleOutlined />} className="hostel-eyebrow">
             Complaints Portal
           </Tag>
           <Title level={2}>Raise concerns and follow their resolution</Title>

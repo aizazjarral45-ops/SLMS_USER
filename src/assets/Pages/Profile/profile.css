@@ -33,7 +33,9 @@
   content: "";
   border: 1px solid rgba(219, 234, 254, 0.32);
   border-radius: 50%;
-  box-shadow: 0 0 0 24px rgba(219, 234, 254, 0.08), 0 0 0 60px rgba(219, 234, 254, 0.05);
+  box-shadow:
+    0 0 0 24px rgba(219, 234, 254, 0.08),
+    0 0 0 60px rgba(219, 234, 254, 0.05);
 }
 
 .gradient .ant-btn {
@@ -42,7 +44,9 @@
   border-radius: 10px;
   color: #fff !important;
   background: rgba(15, 23, 42, 0.16) !important;
-  transition: transform 180ms ease, background-color 180ms ease;
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
 }
 
 .gradient .ant-btn:hover {
@@ -110,7 +114,10 @@
   border-radius: 16px;
   background: #f8fbff;
   box-shadow: none;
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .card:hover {
@@ -141,7 +148,10 @@
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
 }
 
 .personal-card.ant-card:hover,
@@ -156,7 +166,11 @@
 .contact-card .ant-card-head {
   min-height: 64px;
   border-bottom-color: #edf2f7;
-  background: linear-gradient(90deg, rgba(239, 246, 255, 0.75), rgba(255, 255, 255, 0));
+  background: linear-gradient(
+    90deg,
+    rgba(239, 246, 255, 0.75),
+    rgba(255, 255, 255, 0)
+  );
 }
 
 .personal-card .ant-card-head-title,

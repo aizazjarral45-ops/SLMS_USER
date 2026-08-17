@@ -13,6 +13,8 @@ import Hostel from "./assets/Pages/Hostel/Hostel";
 import Expense from "./assets/Pages/Expense/Expense";
 import Academic from "./assets/Pages/Academic/Academic";
 import { Routes, Route } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
+import { AuthProvider } from "./context/AuthContext";
 import Copilot from "./assets/Pages/Ai-chatbot/aicopilot";
 import Dashboard from "./assets/Pages/Dashboard/Dashboard";
 import BellIcon from "./assets/Pages/Header/bellicon";
@@ -23,6 +25,10 @@ import {
 } from "./data/sharedData";
 import { getNotifications } from "./data/notifications";
 import { useNavigate } from "react-router-dom";
+import Login from "./assets/Pages/Login/login";
+import Forgot from "./assets/Pages/Login/forgot";
+import ProtectedRoute from "./assets/Pages/Login/protectedRoute";
+import Signup from "./assets/Pages/Sign Up/signup";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
@@ -132,140 +138,159 @@ function App({ profileData = {}, onToggleSidebar }) {
     [updateSection],
   );
   return (
-    <div
-      className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}
-    >
-      <Header
-        profileData={sharedData.profile.profileData}
-        unreadNotificationCount={unreadNotificationCount}
-        onToggleSidebar={() => setMobileSidebarOpen(true)}
-      />
-      <Layout className="app-body">
-        {!isMobile ? (
-          <Sider
-            collapsible
-            collapsed={collapsed}
-            onCollapse={setCollapsed}
-            width={220}
-            theme="dark"
-            className="app-sidebar app-desktop-sidebar"
-          >
-            <Sidebar />
-          </Sider>
-        ) : null}
-        <Content className="app-content">
+    <>
+      <div
+        className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}
+      >
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<Dashboard data={sharedData} />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/forgot" element={<Forgot />} />
+            <Route path="/register" element={<Signup />} />
             <Route
-              path="/notifications"
+              path="/"
               element={
-                <BellIcon
-                  notifications={notifications}
-                  onMarkNotificationsRead={markNotificationsRead}
-                />
-              }
-            />
-            <Route
-              path="/aicopilot"
-              element={
-                <Copilot
-                  messages={sharedData.copilotMessages}
-                  onMessagesChange={(nextValue) =>
-                    updateSection("copilotMessages", nextValue)
-                  }
-                />
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <Profile
-                  profile={sharedData.profile}
-                  onProfileChange={(nextValue) =>
-                    updateSection("profile", nextValue)
-                  }
-                  onResetProfile={resetProfile}
-                />
-              }
-            />
-            <Route
-              path="/expense"
-              element={
-                <Expense
-                  expenses={sharedData.expenses}
-                  monthlyBudget={sharedData.monthlyBudget}
-                  onExpensesChange={(nextValue) =>
-                    updateSection("expenses", nextValue)
-                  }
-                  onMonthlyBudgetChange={updateMonthlyBudget}
-                />
-              }
-            />
-            <Route
-              path="/complaints"
-              element={
-                <Complaints
-                  complaints={sharedData.complaints}
-                  onComplaintsChange={(nextValue) =>
-                    updateSection("complaints", nextValue)
-                  }
-                />
-              }
-            />
-            <Route
-              path="/setting"
-              element={
-                <Settings
-                  settings={sharedData.settings}
-                  onSettingsChange={(nextValue) =>
-                    updateSection("settings", nextValue)
-                  }
-                />
-              }
-            />
-            <Route
-              path="/hostel"
-              element={
-                <Hostel
-                  applications={sharedData.hostelApplications}
-                  onApplicationsChange={(nextValue) =>
-                    updateSection("hostelApplications", nextValue)
-                  }
-                />
-              }
-            />
-            <Route
-              path="/academic"
-              element={
-                <Academic
-                  workspace={sharedData.academic}
-                  onWorkspaceChange={(nextValue) =>
-                    updateSection("academic", nextValue)
-                  }
-                />
+                <ProtectedRoute>
+                  <Header
+                    profileData={sharedData.profile.profileData}
+                    unreadNotificationCount={unreadNotificationCount}
+                    onToggleSidebar={() => setMobileSidebarOpen(true)}
+                  />
+                  <Layout className="app-body">
+                    {!isMobile ? (
+                      <Sider
+                        collapsible
+                        collapsed={collapsed}
+                        onCollapse={setCollapsed}
+                        width={220}
+                        theme="dark"
+                        className="app-sidebar app-desktop-sidebar"
+                      >
+                        <Sidebar />
+                      </Sider>
+                    ) : null}
+
+                    <Content className="app-content">
+                      <Route
+                        path="/"
+                        element={<Dashboard data={sharedData} />}
+                      />
+
+                      <Route
+                        path="/notifications"
+                        element={
+                          <BellIcon
+                            notifications={notifications}
+                            onMarkNotificationsRead={markNotificationsRead}
+                          />
+                        }
+                      />
+                      <Route
+                        path="/aicopilot"
+                        element={
+                          <Copilot
+                            messages={sharedData.copilotMessages}
+                            onMessagesChange={(nextValue) =>
+                              updateSection("copilotMessages", nextValue)
+                            }
+                          />
+                        }
+                      />
+                      <Route
+                        path="/profile"
+                        element={
+                          <Profile
+                            profile={sharedData.profile}
+                            onProfileChange={(nextValue) =>
+                              updateSection("profile", nextValue)
+                            }
+                            onResetProfile={resetProfile}
+                          />
+                        }
+                      />
+                      <Route
+                        path="/expense"
+                        element={
+                          <Expense
+                            expenses={sharedData.expenses}
+                            monthlyBudget={sharedData.monthlyBudget}
+                            onExpensesChange={(nextValue) =>
+                              updateSection("expenses", nextValue)
+                            }
+                            onMonthlyBudgetChange={updateMonthlyBudget}
+                          />
+                        }
+                      />
+                      <Route
+                        path="/complaints"
+                        element={
+                          <Complaints
+                            complaints={sharedData.complaints}
+                            onComplaintsChange={(nextValue) =>
+                              updateSection("complaints", nextValue)
+                            }
+                          />
+                        }
+                      />
+                      <Route
+                        path="/setting"
+                        element={
+                          <Settings
+                            settings={sharedData.settings}
+                            onSettingsChange={(nextValue) =>
+                              updateSection("settings", nextValue)
+                            }
+                          />
+                        }
+                      />
+                      <Route
+                        path="/hostel"
+                        element={
+                          <Hostel
+                            applications={sharedData.hostelApplications}
+                            onApplicationsChange={(nextValue) =>
+                              updateSection("hostelApplications", nextValue)
+                            }
+                          />
+                        }
+                      />
+                      <Route
+                        path="/academic"
+                        element={
+                          <Academic
+                            workspace={sharedData.academic}
+                            onWorkspaceChange={(nextValue) =>
+                              updateSection("academic", nextValue)
+                            }
+                          />
+                        }
+                      />
+                    </Content>
+                  </Layout>
+                </ProtectedRoute>
               }
             />
           </Routes>
-        </Content>
-      </Layout>
-      <Drawer
-        className="mobile-sidebar-drawer"
-        rootClassName="mobile-sidebar-drawer-root"
-        title="Navigation"
-        placement="left"
-        width={260}
-        closable
-        closeIcon={<CloseOutlined />}
-        open={isMobile && mobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
-        styles={{
-          header: { background: "#1e3a8a", color: "#ffffff" },
-          body: { padding: 0, background: "#1e3a8a" },
-        }}
-      >
-        <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
-      </Drawer>
-    </div>
+        </AuthProvider>
+        <Drawer
+          className="mobile-sidebar-drawer"
+          rootClassName="mobile-sidebar-drawer-root"
+          title="Navigation"
+          placement="left"
+          width={260}
+          closable
+          closeIcon={<CloseOutlined />}
+          open={isMobile && mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          styles={{
+            header: { background: "#1e3a8a", color: "#ffffff" },
+            body: { padding: 0, background: "#1e3a8a" },
+          }}
+        >
+          <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
+        </Drawer>
+      </div>
+    </>
   );
 }
 

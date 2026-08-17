@@ -94,9 +94,10 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
   }, [notifications]);
 
   const visibleNotifications = useMemo(
-    () => notificationData
-      .filter((item) => !item.deleted)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
+    () =>
+      notificationData
+        .filter((item) => !item.deleted)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     [notificationData],
   );
 
@@ -132,9 +133,7 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
       if (e.key === "slms_notifications") {
         try {
           const data = e.newValue ? JSON.parse(e.newValue) : [];
-          setNotificationData((prev) =>
-            mergeNotificationArrays(prev, data),
-          );
+          setNotificationData((prev) => mergeNotificationArrays(prev, data));
         } catch (err) {
           // ignore
         }
@@ -176,7 +175,9 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
   const handleDeleteNotification = (id) => {
     setNotificationData((prev) => {
       const next = prev.map((notification) =>
-        notification.id === id ? { ...notification, deleted: true } : notification,
+        notification.id === id
+          ? { ...notification, deleted: true }
+          : notification,
       );
       try {
         localStorage.setItem("slms_notifications", JSON.stringify(next));
@@ -262,7 +263,9 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
                   </span>
                   <div className="bell-notification-copy">
                     {item.createdAt && (
-                      <div style={{ marginBottom: 6, fontSize: 12, color: "#999" }}>
+                      <div
+                        style={{ marginBottom: 6, fontSize: 12, color: "#999" }}
+                      >
                         Created at: {new Date(item.createdAt).toLocaleString()}
                       </div>
                     )}
@@ -282,7 +285,9 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
                     </div>
                     <Text type="secondary">{item.description}</Text>
                     <div style={{ marginTop: 6 }}>
-                      <span className={`bell-notification-time ${item.urgency}`}>
+                      <span
+                        className={`bell-notification-time ${item.urgency}`}
+                      >
                         <ClockCircleOutlined /> {item.relativeTime}
                       </span>
                     </div>

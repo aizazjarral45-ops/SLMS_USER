@@ -1,7 +1,13 @@
 import React from "react";
 import { Button, Form, Input, Modal } from "antd";
 
-export const ContactModal = ({ visible, onClose, form, initialValues, onFinish }) => (
+export const ContactModal = ({
+  visible,
+  onClose,
+  form,
+  initialValues,
+  onFinish,
+}) => (
   <Modal
     title="Edit Contact Info"
     open={visible}
@@ -9,7 +15,12 @@ export const ContactModal = ({ visible, onClose, form, initialValues, onFinish }
     onCancel={onClose}
     footer={null}
   >
-    <Form form={form} onFinish={onFinish} layout="vertical" initialValues={initialValues}>
+    <Form
+      form={form}
+      onFinish={onFinish}
+      layout="vertical"
+      initialValues={initialValues}
+    >
       <Form.Item label="University Email" name="universityEmail">
         <Input type="email" placeholder="Enter Your University Email" />
       </Form.Item>

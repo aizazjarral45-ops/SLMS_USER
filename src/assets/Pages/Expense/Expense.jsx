@@ -154,7 +154,9 @@ function Expense({
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [fallbackExpenses, setFallbackExpenses] = useState(getInitialExpenses);
-  const expenses = Array.isArray(expensesProp) ? expensesProp : fallbackExpenses;
+  const expenses = Array.isArray(expensesProp)
+    ? expensesProp
+    : fallbackExpenses;
   const setExpenses = (nextValue) => {
     if (onExpensesChange) {
       onExpensesChange(nextValue);
@@ -327,7 +329,7 @@ function Expense({
       {contextHolder}
       <div className="expense-hero">
         <div>
-           <Tag icon={<WalletOutlined />} className="hostel-eyebrow">
+          <Tag icon={<WalletOutlined />} className="hostel-eyebrow">
             Expense Portal
           </Tag>
           <Title level={2}>Control student spending with clarity</Title>
@@ -340,7 +342,7 @@ function Expense({
           <Space align="start">
             <WalletOutlined className="expense-highlight-icon" />
             <div>
-              <Text type="secondary">Total Budget</Text>             
+              <Text type="secondary">Total Budget</Text>
               <Title level={3}>${monthlyBudget.toFixed(2)}</Title>
               <Progress
                 percent={Math.round((remainingBudget / monthlyBudget) * 100)}
@@ -354,7 +356,8 @@ function Expense({
                   setNewMonthlyBudget(monthlyBudget);
                   setBudgetModal(true);
                 }}
-              >Add Budget
+              >
+                Add Budget
               </Button>
             </div>
           </Space>
@@ -428,7 +431,9 @@ function Expense({
               title: "Highest Expense",
               value: highestExpense.amount || 0,
               icon: (
-                <ArrowUpOutlined style={{ fontSize: "24px", color: "#f5222d" }} />
+                <ArrowUpOutlined
+                  style={{ fontSize: "24px", color: "#f5222d" }}
+                />
               ),
             },
           ].map((item) => (
@@ -564,9 +569,9 @@ function Expense({
           <Card className="expense-panel" title="Budget Remaining">
             <div className="expense-budget-ring">
               <Paragraph>
-                Budget warning
-                ${Math.round((totalSpent / monthlyBudget) * 100)}% of your
-                monthly budget has been used <br/>in this month.
+                Budget warning ${Math.round((totalSpent / monthlyBudget) * 100)}
+                % of your monthly budget has been used <br />
+                in this month.
                 <hr></hr>
               </Paragraph>
               <Progress

@@ -169,7 +169,9 @@ export const normalizeSharedData = (value) => {
     complaints: asArray(data.complaints),
     settings: {
       theme:
-        typeof settings.theme === "string" ? settings.theme : defaultSettings.theme,
+        typeof settings.theme === "string"
+          ? settings.theme
+          : defaultSettings.theme,
       notifications: {
         ...defaultSettings.notifications,
         ...asObject(settings.notifications),
@@ -201,7 +203,10 @@ export const loadSharedData = () => {
       profileData: readJSON("profileData", {}),
       contactData: readJSON("contactData", {}),
     },
-    academic: readJSON("slms-academic-workspace", createDefaultAcademicWorkspace()),
+    academic: readJSON(
+      "slms-academic-workspace",
+      createDefaultAcademicWorkspace(),
+    ),
     expenses: readJSON("slms-expenses", cloneDefaultExpenses()),
     monthlyBudget: Number(budgetHistory.at(-1)) || 0,
     budgetHistory,
@@ -222,7 +227,10 @@ export const persistSharedData = (data) => {
 
   try {
     const normalized = normalizeSharedData(data);
-    window.localStorage.setItem(SHARED_DATA_STORAGE_KEY, JSON.stringify(normalized));
+    window.localStorage.setItem(
+      SHARED_DATA_STORAGE_KEY,
+      JSON.stringify(normalized),
+    );
 
     // Keep the original keys in sync so previously stored browser data remains usable.
     window.localStorage.setItem(
@@ -241,7 +249,10 @@ export const persistSharedData = (data) => {
       "slms-academic-workspace",
       JSON.stringify(normalized.academic),
     );
-    window.localStorage.setItem("slms-expenses", JSON.stringify(normalized.expenses));
+    window.localStorage.setItem(
+      "slms-expenses",
+      JSON.stringify(normalized.expenses),
+    );
     window.localStorage.setItem(
       "slms-monthly-budgets",
       JSON.stringify(normalized.budgetHistory),
@@ -271,6 +282,5 @@ export const persistSharedData = (data) => {
       "slms-copilot-messages",
       JSON.stringify(normalized.copilotMessages),
     );
-  } catch {
-  }
+  } catch {}
 };

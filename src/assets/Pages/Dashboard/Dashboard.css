@@ -19,14 +19,12 @@
   background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
 }
 
-
 [class*="card"] {
   margin: 10px 0px !important;
 }
 
 /* Hero - mimic academic hero */
 .dashboard-hero-card {
-
   grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
   gap: 28px;
   align-items: center;
