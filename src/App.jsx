@@ -142,15 +142,15 @@ function App({ profileData = {}, onToggleSidebar }) {
       <div
         className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}
       >
-        <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<Login />} />
+        {/* <AuthProvider> */}
+        
+            {/* <Route path="/login" element={<Login />} />
             <Route path="/forgot" element={<Forgot />} />
-            <Route path="/register" element={<Signup />} />
-            <Route
+            <Route path="/register" element={<Signup />} /> */}
+            {/* <Route
               path="/"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute> */}
                   <Header
                     profileData={sharedData.profile.profileData}
                     unreadNotificationCount={unreadNotificationCount}
@@ -171,6 +171,7 @@ function App({ profileData = {}, onToggleSidebar }) {
                     ) : null}
 
                     <Content className="app-content">
+                        <Routes>
                       <Route
                         path="/"
                         element={<Dashboard data={sharedData} />}
@@ -265,13 +266,15 @@ function App({ profileData = {}, onToggleSidebar }) {
                           />
                         }
                       />
+                      </Routes>
                     </Content>
+
                   </Layout>
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </AuthProvider>
+                {/* </ProtectedRoute> */}
+              {/* }
+            /> */}
+          
+        {/* </AuthProvider> */}
         <Drawer
           className="mobile-sidebar-drawer"
           rootClassName="mobile-sidebar-drawer-root"
