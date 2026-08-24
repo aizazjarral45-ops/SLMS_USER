@@ -13,8 +13,14 @@ function Header({
   profileData = {},
   unreadNotificationCount = 0,
   onToggleSidebar,
+  onLogout,
 }) {
   const navigate = useNavigate();
+
+  const handleLogout = () => {
+    onLogout?.();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <header className="header">
@@ -29,20 +35,15 @@ function Header({
         <div className="logo">
           <img src={logo} alt="SLMS" />
         </div>
-        
-        
       </div>
-
-      
       <div className="icons">
-         <Button
+        <Button
           onClick={() => navigate("/aicopilot")}
           className="header-icon-button"
           type="text"
           icon={<RobotOutlined />}
           aria-label="Open AI Copilot"
         />
-       
         <Badge
           className="header-notification-badge"
           count={unreadNotificationCount}
@@ -60,7 +61,6 @@ function Header({
             }
             onClick={() => navigate("/notifications")}
           />
-           
         </Badge>
         <div className="profile-parent">
           {profileData.profileImage ? (
@@ -75,10 +75,10 @@ function Header({
           )}
           <div className="header-profile-copy">
             <div className="student-name" onClick={() => navigate("/profile")}>
-              {profileData.name || "student name"}
+              {profileData.name || "Student"}
             </div>
             <div className="student-dept" onClick={() => navigate("/profile")}>
-              {profileData.department || "department"}
+              {profileData.department || "Profile not completed"}
             </div>
           </div>
           <Button
@@ -86,6 +86,7 @@ function Header({
             icon={<LogoutOutlined />}
             className="header-icon-button header-logout-button"
             aria-label="Log out"
+            onClick={handleLogout}
           />
         </div>
       </div>

@@ -246,8 +246,29 @@ export const getNotifications = (data) => {
       });
     });
 
+  // Include any ad-hoc/custom notifications saved in settings so that they
+  // appear immediately and persist across refreshes. Each custom notification
+  // may include createdAt, timestamp, or date fields; prefer createdAt when present.
+  asArray(settings.customNotifications).forEach((item) => {
+    if (!item) return;
+    const id = item.id || `custom:${item.createdAt || item.timestamp || Date.now()}:${Math.random()}`;
+    const dateValue = item.createdAt || item.timestamp || item.date || "";
+    add({
+      id,
+      type: item.type || "reminder",
+      title: item.title || "Notification",
+      description: item.description || "",
+      relativeTime: item.relativeTime || "",
+      date: dateValue,
+      route: item.route || "",
+      urgency: item.urgency || "upcoming",
+    });
+  });
+
   const readIds = new Set(asArray(settings.readNotificationIds));
+  const dismissedIds = new Set(asArray(settings.dismissedNotificationIds));
   return notifications
+    .filter((item) => !dismissedIds.has(item.id))
     .map((item) => ({ ...item, read: readIds.has(item.id) }))
     .sort((first, second) => {
       const urgencyOrder = { critical: 0, soon: 1, upcoming: 2 };

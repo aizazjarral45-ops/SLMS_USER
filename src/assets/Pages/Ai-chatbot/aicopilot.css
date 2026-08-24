@@ -169,12 +169,25 @@
   gap: 12px;
   align-items: flex-start;
   width: 100%;
+  max-width: min(100%, 760px);
+}
+
+.copilot-message-wrapper.is-user {
+  width: 100%;
+}
+
+.copilot-message-wrapper.is-assistant {
+  width: 100%;
 }
 
 .copilot-bubble-row.is-user {
   justify-content: flex-end;
-  /* place avatar on the right side for user messages */
+  margin-left: auto;
   flex-direction: row-reverse;
+}
+
+.copilot-bubble-row.is-assistant {
+  margin-right: auto;
 }
 
 /* slightly smaller user avatar when shown on the right */

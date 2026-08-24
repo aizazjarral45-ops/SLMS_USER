@@ -484,6 +484,13 @@ function Expense({
         title="Expense Table"
         extra={
           <Space wrap>
+            <Input.Search
+              allowClear
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search expenses"
+              style={{ width: 210 }}
+            />
             <Select
               value={categoryFilter}
               onChange={setCategoryFilter}

@@ -20,14 +20,18 @@ import {
 import {
   BellOutlined,
   LockOutlined,
-  MoonOutlined,
   PlusOutlined,
   RobotOutlined,
   SettingOutlined,
-  SkinOutlined,
+  KeyOutlined,
+  HistoryOutlined,
+  LogoutOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import "./Setting.css";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
+import { deleteAccount as deleteAccountService } from "../../../services/authService";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -72,13 +76,11 @@ const aiSettingItems = [
 ];
 
 const securityItems = [
-  "Change Password",
-  "Two Factor Authentication",
-  "Login History",
-  "Active Devices",
+  { key: "change-password", title: "Change Password", icon: <KeyOutlined />, },
+  { key: "login-history", title: "Login History", icon: <HistoryOutlined /> },
+  { key: "logout", title: "Logout", icon: <LogoutOutlined /> },
+  { key: "delete-account", title: "Delete Account", icon: <DeleteOutlined /> },
 ];
-
-const privacyItems = ["Download My Data", "Delete Account", "Data Permissions"];
 
 const SwitchRow = ({ label, checked, onChange }) => (
   <div className="setting-toggle-row">
@@ -91,7 +93,6 @@ function Settings({ settings = {}, onSettingsChange }) {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [reminderForm] = Form.useForm();
-  const theme = settings.theme || "Light";
   const notifications = {
     ...notificationDefaults,
     ...(settings.notifications || {}),
@@ -104,6 +105,11 @@ function Settings({ settings = {}, onSettingsChange }) {
     ...(settings.aiSettings || {}),
   };
   const [modalOpen, setModalOpen] = useState(false);
+  const { logout, user } = useAuth();
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [processingDelete, setProcessingDelete] = useState(false);
 
   const updateSettings = (updates) => {
     onSettingsChange?.({ ...settings, ...updates });
@@ -147,6 +153,60 @@ function Settings({ settings = {}, onSettingsChange }) {
   const deleteReminder = (id) => {
     updateSettings({ reminders: reminders.filter((item) => item.id !== id) });
   };
+
+  const handleLogout = () => {
+    Modal.confirm({
+      title: "Confirm logout",
+      content: "Are you sure you want to logout from this session?",
+      okText: "Logout",
+      onOk() {
+        logout();
+        messageApi.success("You have been logged out.");
+        navigate("/login");
+      },
+    });
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.email) return;
+    if (!deletePassword.trim()) {
+      messageApi.error("Enter your account password to confirm deletion.");
+      return;
+    }
+
+    setProcessingDelete(true);
+    try {
+      await deleteAccountService({
+        email: user.email,
+        password: deletePassword,
+      });
+      messageApi.success("Account deleted permanently.");
+      logout();
+      navigate("/login");
+    } catch (e) {
+      messageApi.error(
+        e?.message || "Incorrect password. Account was not deleted.",
+      );
+    } finally {
+      setProcessingDelete(false);
+      setDeleteModalOpen(false);
+      setDeletePassword("");
+      setShowDeletePassword(false);
+    }
+  };
+
+  const handleSecurityItemClick = (key) => {
+    if (key === "change-password") {
+      navigate("/setting/change-password");
+    } else if (key === "login-history") {
+      navigate("/setting/login-history");
+    } else if (key === "logout") {
+      handleLogout();
+    } else if (key === "delete-account") {
+      setDeleteModalOpen(true);
+    }
+  };
+
   const tabItems = [
     {
       key: "profile",
@@ -270,34 +330,6 @@ function Settings({ settings = {}, onSettingsChange }) {
       ),
     },
     {
-      key: "appearance",
-      label: "Appearance",
-      children: (
-        <Card
-          className="setting-inner-card"
-          title="Appearance"
-          extra={<SkinOutlined />}
-        >
-          <Space wrap>
-            {["Light", "Dark", "System"].map((mode) => (
-              <Button
-                key={mode}
-                type={theme === mode ? "primary" : "default"}
-                onClick={() => {
-                  updateSettings({ theme: mode });
-                }}
-              >
-                {mode} Mode
-              </Button>
-            ))}
-          </Space>
-          <Paragraph className="setting-block-text">
-            Current theme preference: <strong>{theme}</strong>
-          </Paragraph>
-        </Card>
-      ),
-    },
-    {
       key: "security",
       label: "Security",
       children: (
@@ -309,39 +341,88 @@ function Settings({ settings = {}, onSettingsChange }) {
           <List
             dataSource={securityItems}
             renderItem={(item) => (
-              <List.Item>
+              <List.Item
+                actions={[
+                  item.key === "change-password" ? (
+                    <Button
+                      key="open"
+                      onClick={() => navigate("/setting/change-password")}
+                    >
+                      Open
+                    </Button>
+                  ) : item.key === "login-history" ? (
+                    <Button
+                      key="open"
+                      onClick={() => navigate("/setting/login-history")}
+                    >
+                      Open
+                    </Button>
+                  ) : item.key === "logout" ? (
+                    <Button key="logout" danger onClick={handleLogout}>
+                      Logout
+                    </Button>
+                  ) : (
+                    <Button
+                      key="delete"
+                      danger
+                      onClick={() => setDeleteModalOpen(true)}
+                    >
+                      Delete
+                    </Button>
+                  ),
+                ]}
+              >
                 <List.Item.Meta
                   avatar={
-                    <Avatar
-                      icon={<LockOutlined />}
-                      className="setting-avatar"
-                    />
+                    <Avatar icon={item.icon} className="setting-avatar" />
                   }
-                  title={item}
+                  title={
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => handleSecurityItemClick(item.key)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          handleSecurityItemClick(item.key);
+                        }
+                      }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      {item.title}
+                    </span>
+                  }
                   description="Manage this security control from your student account center."
                 />
               </List.Item>
             )}
           />
-        </Card>
-      ),
-    },
-    {
-      key: "privacy",
-      label: "Privacy",
-      children: (
-        <Card className="setting-inner-card" title="Privacy & Data">
-          <List
-            dataSource={privacyItems}
-            renderItem={(item) => (
-              <List.Item>
-                <List.Item.Meta
-                  title={item}
-                  description="Available as a protected account action."
-                />
-              </List.Item>
-            )}
-          />
+
+          <Modal
+            title="Delete account — permanent"
+            open={deleteModalOpen}
+            onCancel={() => {
+              setDeleteModalOpen(false);
+              setDeletePassword("");
+              setShowDeletePassword(false);
+            }}
+            onOk={handleDeleteAccount}
+            okButtonProps={{ danger: true, loading: processingDelete }}
+            okText="Delete account"
+          >
+            <p style={{ color: "#a00", fontWeight: 600 }}>
+              This action is permanent and cannot be undone.
+            </p>
+            <p>Enter your account password to confirm deletion.</p>
+            <Input.Password
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder="Enter your account password to confirm deletion."
+              visibilityToggle={{
+                visible: showDeletePassword,
+                onVisibleChange: setShowDeletePassword,
+              }}
+            />
+          </Modal>
         </Card>
       ),
     },
@@ -394,12 +475,12 @@ function Settings({ settings = {}, onSettingsChange }) {
           <Space align="start">
             <Avatar
               size={100}
-              icon={<MoonOutlined />}
+              icon={<SettingOutlined />}
               className="setting-avatar"
             />
             <div>
               <Text type="secondary">Current profile mode</Text>
-              <Title level={3}>{theme} Theme</Title>
+              <Title level={3}>Student Mode</Title>
               <Text>{pendingReminders} reminders still need attention.</Text>
             </div>
           </Space>

@@ -67,7 +67,6 @@ export const createDefaultAcademicWorkspace = () => ({
 });
 
 const defaultSettings = {
-  theme: "Light",
   notifications: {
     assignment: true,
     quiz: true,
@@ -80,7 +79,11 @@ const defaultSettings = {
     ai: false,
   },
   reminders: [],
+  // customNotifications allows ad-hoc notifications to be added programmatically
+  // and persisted so they appear immediately and after page refresh.
+  customNotifications: [],
   readNotificationIds: [],
+  dismissedNotificationIds: [],
   aiSettings: {
     studyPlanner: true,
     budgetWarnings: true,
@@ -168,16 +171,28 @@ export const normalizeSharedData = (value) => {
     hostelApplications: asArray(data.hostelApplications),
     complaints: asArray(data.complaints),
     settings: {
-      theme:
-        typeof settings.theme === "string"
-          ? settings.theme
-          : defaultSettings.theme,
       notifications: {
         ...defaultSettings.notifications,
         ...asObject(settings.notifications),
       },
       reminders: asArray(settings.reminders),
+      // restore any previously saved ad-hoc notifications
+      customNotifications: asArray(settings.customNotifications).map((item) => {
+      const sourceDate = item?.createdAt || item?.timestamp || item?.date || null;
+      return {
+        ...item,
+        // preserve an id for consistent deduping and read/dismiss tracking
+        id:
+          typeof item?.id === "string" && item.id.trim()
+            ? item.id
+            : `custom:${sourceDate || Date.now()}:${Math.random()}`,
+        createdAt: sourceDate,
+      };
+    }),
       readNotificationIds: asArray(settings.readNotificationIds).filter(
+        (item) => typeof item === "string",
+      ),
+      dismissedNotificationIds: asArray(settings.dismissedNotificationIds).filter(
         (item) => typeof item === "string",
       ),
       aiSettings: {
@@ -194,8 +209,6 @@ export const loadSharedData = () => {
   if (savedData) return normalizeSharedData(savedData);
 
   const budgetHistory = asArray(readJSON("slms-monthly-budgets", []));
-  const legacyTheme =
-    typeof window === "undefined" ? null : window.localStorage.getItem("theme");
 
   return normalizeSharedData({
     profile: {
@@ -213,9 +226,10 @@ export const loadSharedData = () => {
     hostelApplications: readJSON("slms-hostel-applications", []),
     complaints: readJSON("slms-complaints", []),
     settings: {
-      theme: legacyTheme || defaultSettings.theme,
       notifications: readJSON("notifications", defaultSettings.notifications),
       reminders: readJSON("reminders", []),
+      // load previously saved custom (ad-hoc) notifications
+      customNotifications: readJSON("customNotifications", []),
       aiSettings: readJSON("aiSettings", defaultSettings.aiSettings),
     },
     copilotMessages: readJSON("slms-copilot-messages", []),
@@ -265,7 +279,6 @@ export const persistSharedData = (data) => {
       "slms-complaints",
       JSON.stringify(normalized.complaints),
     );
-    window.localStorage.setItem("theme", normalized.settings.theme);
     window.localStorage.setItem(
       "notifications",
       JSON.stringify(normalized.settings.notifications),
@@ -273,6 +286,11 @@ export const persistSharedData = (data) => {
     window.localStorage.setItem(
       "reminders",
       JSON.stringify(normalized.settings.reminders),
+    );
+    // persist any ad-hoc/custom notifications so they survive refresh
+    window.localStorage.setItem(
+      "customNotifications",
+      JSON.stringify(normalized.settings.customNotifications || []),
     );
     window.localStorage.setItem(
       "aiSettings",

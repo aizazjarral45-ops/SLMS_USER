@@ -32,7 +32,6 @@ import {
   HomeOutlined,
   PhoneOutlined,
   SafetyCertificateOutlined,
-  SearchOutlined,
   SendOutlined,
   TeamOutlined,
   WifiOutlined,
@@ -940,6 +939,13 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         }
         extra={
           <Space wrap>
+            <Input.Search
+              allowClear
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search applications"
+              style={{ width: 210 }}
+            />
             <Select
               value={statusFilter}
               onChange={setStatusFilter}

@@ -1,0 +1,15 @@
+.setting-content-header {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.setting-back-button {
+  border-radius: 10px;
+}
+
+.login-history-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}

@@ -1,27 +1,44 @@
-import { createContext, useContext, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { AuthContext } from "./authContext";
+import {
+  clearStoredSession,
+  getStoredSession,
+  login as loginWithService,
+  register as registerWithService,
+} from "../services/authService";
 
-const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = () => {
-    setIsAuthenticated(true);
-  };
+  useEffect(() => {
+    setSession(getStoredSession());
+    setLoading(false);
+  }, []);
 
-  const logout = () => {
-    setIsAuthenticated(false);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, login, logout }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      loading,
+      isAuthenticated: Boolean(session?.token),
+      user: session?.user || null,
+      async login(credentials) {
+        const nextSession = await loginWithService(credentials);
+        setSession(nextSession);
+        return nextSession;
+      },
+      async register(details) {
+        const result = await registerWithService(details);
+        if (result?.token) setSession(result);
+        return result;
+      },
+      logout() {
+        clearStoredSession();
+        setSession(null);
+      },
+    }),
+    [loading, session],
   );
-};
 
-export const useAuth = () => {
-  return useContext(AuthContext);
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

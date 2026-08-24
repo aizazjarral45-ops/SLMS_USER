@@ -84,3 +84,12 @@ body {
     padding: 8px;
   }
 }
+
+
+.app-route-loading {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  color: #1e3a8a;
+  font-weight: 600;
+}

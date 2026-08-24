@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { Alert, Button, Card, Empty, List, Space, Tag, Typography } from "antd";
 import {
   ArrowRightOutlined,
@@ -21,30 +21,6 @@ import "./bellicon.css";
 
 const { Title, Paragraph, Text } = Typography;
 
-const assignCreatedAt = (notification) => ({
-  ...notification,
-  createdAt: notification?.createdAt || new Date().toISOString(),
-});
-
-const mergeNotificationArrays = (base = [], updates = []) => {
-  const map = new Map();
-  [...base, ...updates].forEach((item) => {
-    if (!item || !item.id) return;
-    const existing = map.get(item.id);
-    if (existing) {
-      map.set(item.id, {
-        ...existing,
-        ...item,
-        createdAt:
-          existing.createdAt || item.createdAt || new Date().toISOString(),
-      });
-    } else {
-      map.set(item.id, assignCreatedAt(item));
-    }
-  });
-  return Array.from(map.values());
-};
-
 const typeIcons = {
   assignment: <BookOutlined />,
   quiz: <BookOutlined />,
@@ -57,136 +33,110 @@ const typeIcons = {
   ai: <NotificationOutlined />,
 };
 
-function BellIcon({ notifications = [], onMarkNotificationsRead }) {
+const getNotificationDate = (notification) => {
+  const value =
+    notification.createdAt ||
+    notification.timestamp ||
+    notification.dateTime ||
+    notification.date;
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+};
+
+const formatNotificationDateTime = (date) =>
+  date
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date)
+    : "Date and time unavailable";
+
+// Format only the time (e.g., 11:10 AM) for use inside grouped lists
+const formatNotificationTimeOnly = (date) =>
+  date
+    ? new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(date)
+    : "Time unavailable";
+
+const getDateGroupLabel = (date) => {
+  if (!date) return "Date unavailable";
+  const today = new Date();
+  const startOfDay = (value) =>
+    new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  const daysAgo = Math.round(
+    (startOfDay(today) - startOfDay(date)) / (24 * 60 * 60 * 1000),
+  );
+  if (daysAgo === 0) return "Today";
+  if (daysAgo === 1) return "Yesterday";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "long",
+  }).format(date);
+};
+
+function BellIcon({
+  notifications = [],
+  onMarkNotificationsRead,
+  onDismissNotifications,
+}) {
   const navigate = useNavigate();
-  const [notificationData, setNotificationData] = useState(() => {
-    const stored = localStorage.getItem("slms_notifications");
-    try {
-      const base = stored ? JSON.parse(stored) : notifications || [];
-      return base.map(assignCreatedAt);
-    } catch (e) {
-      return (notifications || []).map(assignCreatedAt);
-    }
-  });
-
-  const saveNotifications = (data) => {
-    try {
-      localStorage.setItem("slms_notifications", JSON.stringify(data));
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  useEffect(() => {
-    // Merge incoming notifications with stored ones without duplicating by id
-    const stored = localStorage.getItem("slms_notifications");
-    let storedData = [];
-    try {
-      storedData = stored ? JSON.parse(stored) : [];
-    } catch (e) {
-      storedData = [];
-    }
-
-    const incoming = (notifications || []).map(assignCreatedAt);
-    const merged = mergeNotificationArrays(storedData, incoming);
-    setNotificationData(merged);
-    saveNotifications(merged);
-  }, [notifications]);
-
   const visibleNotifications = useMemo(
     () =>
-      notificationData
-        .filter((item) => !item.deleted)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
-    [notificationData],
+      [...notifications].sort((first, second) => {
+        // Use the stored timestamp (createdAt/timestamp/date) for ordering
+        const firstDate = getNotificationDate(first)?.getTime() ?? 0;
+        const secondDate = getNotificationDate(second)?.getTime() ?? 0;
+        return secondDate - firstDate; // newest first
+      }),
+    [notifications],
   );
 
-  const unreadNotifications = useMemo(
-    () => visibleNotifications.filter((item) => !item.read),
+  const notificationGroups = useMemo(() => {
+    // Group by date string and ensure groups and items are ordered newest -> oldest
+    const groups = [];
+    visibleNotifications.forEach((item) => {
+      const date = getNotificationDate(item);
+      const key = date ? date.toDateString() : "unknown";
+      let group = groups.find((entry) => entry.key === key);
+      if (!group) {
+        group = { key, label: getDateGroupLabel(date), items: [] };
+        groups.push(group);
+      }
+      group.items.push(item);
+    });
+
+    // Ensure each group's items are sorted by time descending (newest to oldest)
+    groups.forEach((group) => {
+      group.items.sort((a, b) => {
+        const aTime = getNotificationDate(a)?.getTime() ?? 0;
+        const bTime = getNotificationDate(b)?.getTime() ?? 0;
+        return bTime - aTime;
+      });
+    });
+
+    // Ensure groups are sorted by their newest item's time (newest date group first)
+    groups.sort((a, b) => {
+      const aNewest = getNotificationDate(a.items[0])?.getTime() ?? 0;
+      const bNewest = getNotificationDate(b.items[0])?.getTime() ?? 0;
+      return bNewest - aNewest;
+    });
+
+    return groups;
+  }, [visibleNotifications]);
+  const unreadIds = useMemo(
+    () =>
+      visibleNotifications.filter((item) => !item.read).map((item) => item.id),
     [visibleNotifications],
   );
 
   useEffect(() => {
-    if (unreadNotifications.length) {
-      onMarkNotificationsRead?.(unreadNotifications.map((item) => item.id));
-      // mark them as read locally so the UI reflects that the page opened them
-      setNotificationData((prev) =>
-        prev.map((item) =>
-          unreadNotifications.find((u) => u.id === item.id)
-            ? { ...item, read: true }
-            : item,
-        ),
-      );
-    }
-  }, [onMarkNotificationsRead, unreadNotifications]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "slms_notifications",
-      JSON.stringify(notificationData),
-    );
-  }, [notificationData]);
-
-  // listen for new notifications added elsewhere in the app or other tabs
-  useEffect(() => {
-    const onStorage = (e) => {
-      if (e.key === "slms_notifications") {
-        try {
-          const data = e.newValue ? JSON.parse(e.newValue) : [];
-          setNotificationData((prev) => mergeNotificationArrays(prev, data));
-        } catch (err) {
-          // ignore
-        }
-      }
-    };
-
-    const onCustomAdd = (e) => {
-      const n = e.detail;
-      if (!n || !n.id) return;
-      setNotificationData((prev) => {
-        const exists = prev.find((p) => p.id === n.id);
-        if (exists) return prev;
-        return [assignCreatedAt(n), ...prev];
-      });
-    };
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("slms_notification_add", onCustomAdd);
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("slms_notification_add", onCustomAdd);
-    };
-  }, []);
+    if (unreadIds.length) onMarkNotificationsRead?.(unreadIds);
+  }, [onMarkNotificationsRead, unreadIds]);
 
   const urgentCount = visibleNotifications.filter(
     (item) => item.urgency === "critical" || item.urgency === "soon",
   ).length;
-
-  // latest createdAt timestamp for display above the card
-  const latestCreatedAt = useMemo(() => {
-    if (!visibleNotifications || !visibleNotifications.length) return null;
-    const dates = visibleNotifications
-      .map((n) => (n.createdAt ? new Date(n.createdAt) : null))
-      .filter(Boolean)
-      .sort((a, b) => b - a);
-    return dates.length ? dates[0] : null;
-  }, [visibleNotifications]);
-
-  const handleDeleteNotification = (id) => {
-    setNotificationData((prev) => {
-      const next = prev.map((notification) =>
-        notification.id === id
-          ? { ...notification, deleted: true }
-          : notification,
-      );
-      try {
-        localStorage.setItem("slms_notifications", JSON.stringify(next));
-      } catch (e) {
-        // ignore
-      }
-      return next;
-    });
-  };
 
   return (
     <main className="bell-page">
@@ -199,8 +149,9 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
             Keep your next step in view
           </Title>
           <Paragraph>
-            Deadlines appear here when two days or less remain. Opening this
-            page marks the current bell alerts as read.
+            Relevant academic, hostel, spending, complaint, and personal
+            reminder alerts appear here. Opening this page marks the current
+            alerts as read.
           </Paragraph>
           <Space wrap className="bell-hero-meta">
             <span>
@@ -216,15 +167,17 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
           <span>{visibleNotifications.length}</span>
         </div>
       </section>
-
       <Alert
         className="bell-read-alert"
         type="success"
         showIcon
-        message="Bell alerts are clear"
-        description="The notifications currently shown have been marked as read. New or changed records will appear here automatically when their reminder setting is enabled."
+        message={
+          unreadIds.length
+            ? "Your alerts are being marked as read"
+            : "Bell alerts are clear"
+        }
+        description="New deadlines and changes will appear automatically when their notification category is enabled."
       />
-
       <Card
         className="bell-feed-card"
         title={
@@ -234,41 +187,26 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
           </Space>
         }
         extra={
-          <div style={{ textAlign: "right" }}>
-            <div>
-              <Text type="secondary">{visibleNotifications.length} active</Text>
-            </div>
-            {latestCreatedAt && (
-              <div style={{ fontSize: 12, color: "#999" }}>
-                Last update: {latestCreatedAt.toLocaleString()}
-              </div>
-            )}
-          </div>
+          <Text type="secondary">{visibleNotifications.length} active</Text>
         }
       >
-        {latestCreatedAt && (
-          <div style={{ marginBottom: 8, fontSize: 13, color: "#666" }}>
-            Notifications last created at: {latestCreatedAt.toLocaleString()}
-          </div>
-        )}
         {visibleNotifications.length ? (
-          <List
-            className="bell-notification-list"
-            dataSource={visibleNotifications}
-            renderItem={(item) => (
-              <List.Item className={`bell-notification-item ${item.urgency}`}>
+          notificationGroups.map((group) => (
+            <section className="bell-notification-group" key={group.key}>
+              <Title level={4} className="bell-notification-group-title">
+                {group.label}
+              </Title>
+              <List
+                className="bell-notification-list"
+                dataSource={group.items}
+                rowKey="id"
+                renderItem={(item) => (
+                  <List.Item className={`bell-notification-item ${item.urgency}`}>
                 <div className="bell-notification-content">
                   <span className={`bell-notification-icon ${item.urgency}`}>
                     {typeIcons[item.type] || <BellOutlined />}
                   </span>
                   <div className="bell-notification-copy">
-                    {item.createdAt && (
-                      <div
-                        style={{ marginBottom: 6, fontSize: 12, color: "#999" }}
-                      >
-                        Created at: {new Date(item.createdAt).toLocaleString()}
-                      </div>
-                    )}
                     <div className="bell-notification-heading">
                       <Text strong>{item.title}</Text>
                       <Tag
@@ -288,7 +226,7 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
                       <span
                         className={`bell-notification-time ${item.urgency}`}
                       >
-                        <ClockCircleOutlined /> {item.relativeTime}
+                      <ClockCircleOutlined /> {formatNotificationTimeOnly(getNotificationDate(item))}
                       </span>
                     </div>
                   </div>
@@ -309,14 +247,16 @@ function BellIcon({ notifications = [], onMarkNotificationsRead }) {
                     icon={<DeleteOutlined />}
                     iconPosition="end"
                     danger
-                    onClick={() => handleDeleteNotification(item.id)}
+                    onClick={() => onDismissNotifications?.([item.id])}
                   >
                     Delete
                   </Button>
                 </Space>
-              </List.Item>
-            )}
-          />
+                  </List.Item>
+                )}
+              />
+            </section>
+          ))
         ) : (
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}

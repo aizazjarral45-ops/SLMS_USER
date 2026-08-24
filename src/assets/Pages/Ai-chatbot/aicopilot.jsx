@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Avatar,
   Button,
@@ -6,16 +6,13 @@ import {
   Empty,
   Input,
   List,
-  Result,
   Skeleton,
   Space,
   Tag,
   Typography,
-  // Row and Col removed - using plain divs for layout
 } from "antd";
 import {
-  AudioOutlined,
-  FontColorsOutlined,
+  DeleteOutlined,
   RobotOutlined,
   SendOutlined,
   UserOutlined,
@@ -25,154 +22,261 @@ import "./aicopilot.css";
 const { Title, Paragraph, Text } = Typography;
 
 const suggestedPrompts = [
-  "Is any assignments in this week?",
-  "How can I improve my attendance",
-  "Create a study plan for my exams.",
-  "Give me a hostel budget warning.",
+  "What assignments are still open?",
+  "How is my attendance?",
+  "Check my budget.",
+  "Summarize my hostel application.",
 ];
 
-const responseRules = [
-  {
-    keywords: ["assignment"],
-    response:
-      "You have two academic deadlines approaching: DBMS report on August 2, and AI reflection journal on August 6. Start with the DBMS report because it carries the heavier grade weight.",
-  },
-  {
-    keywords: ["attendance"],
-    response:
-      "Your attendance looks strongest in Database Systems and weakest in Software Engineering. Aim for perfect attendance this week and review missed lecture notes within 24 hours.",
-  },
-  {
-    keywords: ["budget", "expense"],
-    response:
-      "You are using your budget a little faster than planned. Reduce entertainment and transport spending for the next few days to stay within the monthly target.",
-  },
-  {
-    keywords: ["hostel"],
-    response:
-      "For hostel-related help, prioritize active maintenance requests, leave approvals, and fee dues. If you want, I can summarize your current hostel dashboard next.",
-  },
-  {
-    keywords: ["scholarship"],
-    response:
-      "Scholarship retention usually depends on GPA, attendance, and conduct. Based on your current academic snapshot, keeping attendance above 90% gives you the safest margin.",
-  },
-  {
-    keywords: ["quiz", "exam"],
-    response:
-      "Your nearest assessment is AI Quiz 3, followed by the AI mid term on August 9, 2026. Spend the next two study blocks on AI topics, then switch to DBMS revision.",
-  },
-];
+const createId = (prefix) =>
+  `${prefix}-${globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+const currency = (value) =>
+  new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+  }).format(Number(value) || 0);
 
-const defaultResponse =
-  "I can help with academics, attendance, assignments, quizzes, exams, budgets, hostel requests, complaints, scholarships, university rules, and student services. Ask me something specific and I’ll narrow it down.";
-
-function getResponse(prompt) {
+function buildResponse(prompt, data) {
   const text = prompt.toLowerCase();
-  const rule = responseRules.find((item) =>
-    item.keywords.some((keyword) => text.includes(keyword)),
+  const academic = data?.academic || {};
+  const assignments = (academic.assignments || []).filter(
+    (item) => item.status !== "Completed",
   );
+  const attendance = academic.attendance || [];
+  const expenses = data?.expenses || [];
+  const budget = Number(data?.monthlyBudget || 0);
+  const spent = expenses.reduce(
+    (total, item) => total + Number(item.amount || 0),
+    0,
+  );
+  const latestHostel = data?.hostelApplications?.[0];
+  const complaints = data?.complaints || [];
 
-  return rule?.response || defaultResponse;
+  if (text.includes("assignment") || text.includes("deadline")) {
+    return assignments.length
+      ? `You have ${assignments.length} open assignment${assignments.length === 1 ? "" : "s"}: ${assignments
+          .slice(0, 3)
+          .map(
+            (item) =>
+              `${item.title || "Untitled"}${item.dueDate ? ` (due ${item.dueDate})` : ""}`,
+          )
+          .join(", ")}.`
+      : "You have no open assignments recorded. Add assignments in Academic to track them here.";
+  }
+  if (text.includes("attendance")) {
+    if (!attendance.length)
+      return "No attendance records are available yet. Add course attendance in Academic to receive a summary.";
+    const attended = attendance.reduce(
+      (total, item) => total + Number(item.attended || 0),
+      0,
+    );
+    const classes = attendance.reduce(
+      (total, item) => total + Number(item.total || 0),
+      0,
+    );
+    const rate = classes ? Math.round((attended / classes) * 100) : 0;
+    return `Your overall recorded attendance is ${rate}% (${attended} of ${classes} classes). ${rate < 75 ? "Prioritize upcoming classes to improve it." : "Keep the current consistency going."}`;
+  }
+  if (
+    text.includes("budget") ||
+    text.includes("expense") ||
+    text.includes("spend")
+  ) {
+    if (!budget)
+      return `You have logged ${currency(spent)} in expenses but have not set a monthly budget yet. Set one in Expense to track remaining funds.`;
+    const remaining = budget - spent;
+    return `You have spent ${currency(spent)} of your ${currency(budget)} monthly budget. ${remaining >= 0 ? `${currency(remaining)} remains.` : `You are ${currency(Math.abs(remaining))} over budget.`}`;
+  }
+  if (text.includes("hostel")) {
+    return latestHostel
+      ? `Your latest hostel application ${latestHostel.applicationNo || ""} is ${latestHostel.status || "saved"}. Fees are marked ${latestHostel.feesStatus || "not set"}${latestHostel.paymentDueDate ? `, with a due date of ${latestHostel.paymentDueDate}` : ""}.`
+      : "You have no saved hostel application. Complete the Hostel form to create one.";
+  }
+  if (text.includes("complaint") || text.includes("support")) {
+    const active = complaints.filter(
+      (item) => !["Resolved", "Completed"].includes(item.status),
+    );
+    return active.length
+      ? `You have ${active.length} active complaint${active.length === 1 ? "" : "s"}. The latest is “${active[0].title || "Untitled"}” with status ${active[0].status || "Submitted"}.`
+      : "You have no active complaints recorded.";
+  }
+  if (text.includes("exam") || text.includes("quiz")) {
+    const exams = (academic.exams || [])
+      .slice()
+      .sort((first, second) =>
+        (first.examDate || "").localeCompare(second.examDate || ""),
+      );
+    return exams.length
+      ? `Your next recorded assessment is ${exams[0].title || "an exam"}${exams[0].examDate ? ` on ${exams[0].examDate}` : ""}${exams[0].course ? ` for ${exams[0].course}` : ""}.`
+      : "No exams or quizzes are scheduled in Academic yet.";
+  }
+  return "I can summarize your current assignments, attendance, budget, hostel application, complaints, or exams using the data saved in SLMS.";
 }
 
-function Copilot() {
+function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
+  const [fallbackMessages, setFallbackMessages] = useState(() => {
+    try {
+      const savedMessages = window.localStorage.getItem(
+        "slms-copilot-messages",
+      );
+      return savedMessages ? JSON.parse(savedMessages) : [];
+    } catch {
+      return [];
+    }
+  });
+  const messages = Array.isArray(messagesProp)
+    ? messagesProp
+    : fallbackMessages;
+  const setMessages = (nextValue) => {
+    if (onMessagesChange) {
+      onMessagesChange((current) =>
+        typeof nextValue === "function"
+          ? nextValue(Array.isArray(current) ? current : [])
+          : nextValue,
+      );
+      return;
+    }
+    setFallbackMessages((current) =>
+      typeof nextValue === "function" ? nextValue(current) : nextValue,
+    );
+  };
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        "slms-copilot-messages",
+        JSON.stringify(messages),
+      );
+    } catch {}
+  }, [messages]);
   const [draft, setDraft] = useState("");
-  const [messages, setMessages] = useState([]);
   const [typing, setTyping] = useState(false);
-  const [error, setError] = useState(false);
   const timeoutRef = useRef(null);
+  const recentTitle = useMemo(
+    () =>
+      messages
+        .filter((item) => item.role === "user")
+        .at(-1)
+        ?.content?.slice(0, 40) || "New conversation",
+    [messages],
+  );
+  const recentChats = useMemo(() => {
+    const userMessages = messages.filter((item) => item.role === "user");
+    return userMessages.length
+      ? userMessages
+          .slice(-3)
+          .reverse()
+          .map((item) => ({
+            id: item.id,
+            title: item.content.slice(0, 40),
+            preview: "Recent conversation",
+          }))
+      : [
+          {
+            id: "live",
+            title: recentTitle,
+            preview: `${messages.length} saved message${messages.length === 1 ? "" : "s"}`,
+          },
+        ];
+  }, [messages, recentTitle]);
 
-  const recentTitle = messages[0]?.content?.slice(0, 40) || "New conversation";
+  useEffect(() => () => window.clearTimeout(timeoutRef.current), []);
+
+  const submitPrompt = (value) => {
+    const content = value.trim();
+    if (!content || typing) return;
+    const userMessage = {
+      id: createId("message"),
+      role: "user",
+      content,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((current) => [...current, userMessage]);
+    setDraft("");
+    setTyping(true);
+    window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = window.setTimeout(() => {
+      const assistantMessage = {
+        id: createId("message"),
+        role: "assistant",
+        content: buildResponse(content, data),
+        createdAt: new Date().toISOString(),
+      };
+      setMessages((current) => [...current, assistantMessage]);
+      setTyping(false);
+      timeoutRef.current = null;
+    }, 350);
+  };
 
   const undoLastPrompt = () => {
-    setError(false);
+    window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
     setTyping(false);
-
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-
     setMessages((current) => {
-      if (current.length === 0) {
-        return current;
-      }
-
-      const lastMessage = current[current.length - 1];
-      const removeCount = lastMessage?.role === "assistant" ? 2 : 1;
+      const last = current.at(-1);
+      const removeCount = last?.role === "assistant" ? 2 : 1;
       return current.slice(0, Math.max(0, current.length - removeCount));
     });
   };
 
-  const submitPrompt = (value) => {
-    const content = value.trim();
-    if (!content) {
-      return;
-    }
-
-    setError(false);
-    setMessages((current) => [...current, { role: "user", content }]);
-    setDraft("");
-    setTyping(true);
-
-    if (timeoutRef.current) {
-      window.clearTimeout(timeoutRef.current);
-    }
-
-    timeoutRef.current = window.setTimeout(() => {
-      timeoutRef.current = null;
-      const shouldError = content.toLowerCase().includes("error state");
-      if (shouldError) {
-        setError(true);
-        setTyping(false);
-        return;
-      }
-
-      setMessages((current) => [
-        ...current,
-        { role: "assistant", content: getResponse(content) },
-      ]);
-      setTyping(false);
-    }, 900);
+  const clearChat = () => {
+    window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+    setTyping(false);
+    setMessages([]);
   };
 
   return (
     <>
-  <div className="first-section">
-      <Card className="copilot-header-card">
-        <Space align="start">
-          <div>
-            <Tag icon={<RobotOutlined />} className="eyebrow">
-              Student Copilot
-            </Tag>
-            <Title level={1} style={{color:"#fff",fontWeight:"bold"}}>
-              Your intelligent SLMS assistant
-            </Title>
-            <Paragraph  style={{color:"#CED7F3"}}>
-              Ask about academics, attendance, assignments, quizzes, exams,
-              study plans, hostel,<br/> expenses, campus services, scholarships, and
-              more.
-            </Paragraph>
-          </div>
-        </Space>
-      </Card>
+      <div className="first-section">
+        <Card className="copilot-header-card">
+          <Space align="start">
+            <div>
+              <Tag icon={<RobotOutlined />} className="eyebrow">
+                Student Copilot
+              </Tag>
+              <Title level={1} style={{ color: "#fff", fontWeight: "bold" }}>
+                Your intelligent SLMS assistant
+              </Title>
+              <Paragraph style={{ color: "#CED7F3" }}>
+                Ask about the information you have saved for academics,
+                attendance, exams, spending, hostel, and support.
+              </Paragraph>
+            </div>
+          </Space>
+        </Card>
       </div>
-
       <div className="copilot-page">
-        <div>
-          <aside className="copilot-sidebar" style={{ display: "flex", flexDirection: "column" }}>
-          <Card className="copilot-sidebar-card" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "visible" }}>
-            <Title level={4}>Recent Chats</Title>
+        <aside
+          className="copilot-sidebar"
+          style={{ display: "flex", flexDirection: "column" }}
+        >
+          <Card
+            className="copilot-sidebar-card"
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              overflow: "visible",
+            }}
+          >
+            <Space style={{ width: "100%", justifyContent: "space-between" }}>
+              <Title level={4} style={{ margin: 0 }}>
+                Recent Chats
+              </Title>
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={clearChat}
+                disabled={!messages.length && !typing}
+                aria-label="Clear chat"
+              >
+                Clear
+              </Button>
+            </Space>
             <List
               rowKey="id"
-              dataSource={[
-                {
-                  id: "live",
-                  title: recentTitle,
-                  preview: "Current conversation",
-                },
-              ]}
+              dataSource={recentChats}
               renderItem={(item) => (
                 <List.Item className="copilot-recent-item">
                   <List.Item.Meta
@@ -191,45 +295,47 @@ function Copilot() {
             <Card className="copilot-panel" title="Suggested Prompts">
               <div className="copilot-chip-group">
                 {suggestedPrompts.map((prompt) => (
-                  <Button key={prompt} onClick={() => submitPrompt(prompt)}>
+                  <Button
+                    key={prompt}
+                    onClick={() => submitPrompt(prompt)}
+                    disabled={typing}
+                  >
                     {prompt}
                   </Button>
                 ))}
               </div>
             </Card>
           </Card>
-          </aside>
-        </div>
-
-        <div>
-          <section className="copilot-main" style={{ flex: "1 1 auto", minWidth: 0, width: "100%" }}>
+        </aside>
+        <section
+          className="copilot-main"
+          style={{ flex: "1 1 auto", minWidth: 0, width: "100%" }}
+        >
           <Card className="copilot-chat-card" style={{ width: "100%" }}>
-            {messages.length === 0 && !typing && !error ? (
+            {!messages.length && !typing ? (
               <Empty
                 description="Start a conversation with your SLMS Copilot"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             ) : null}
-
-            {messages.length > 0 ? (
+            {messages.length ? (
               <div
                 className="copilot-chat-history"
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: "12px",
+                  gap: 12,
                   width: "100%",
                   overflowX: "hidden",
-                  height: "400px",
+                  height: 500,
                   overflowY: "auto",
                 }}
               >
-                {messages.map((message, index) => {
-                  const isUser = message.role === "user";
-
+                {messages.map((item) => {
+                  const isUser = item.role === "user";
                   return (
                     <div
-                      key={`${message.role}-${index}`}
+                      key={item.id}
                       style={{
                         display: "flex",
                         justifyContent: isUser ? "flex-end" : "flex-start",
@@ -242,33 +348,25 @@ function Copilot() {
                           display: "flex",
                           alignItems: "flex-start",
                           flexDirection: isUser ? "row-reverse" : "row",
-                          gap: "10px",
+                          gap: 10,
                           width: "fit-content",
                           maxWidth: "min(100%, 760px)",
-                          flexWrap: "nowrap",
+                          marginLeft: isUser ? "auto" : 0,
                         }}
                       >
                         <Avatar
                           icon={isUser ? <UserOutlined /> : <RobotOutlined />}
                           className="copilot-avatar"
-                          style={{
-                            flexShrink: 0,
-                            marginLeft: isUser ? "6px" : 0,
-                            marginRight: isUser ? 0 : "6px",
-                          }}
+                          style={{ flexShrink: 0 }}
                         />
                         <div
                           className={`copilot-bubble ${isUser ? "user-bubble" : "assistant-bubble"}`}
                           style={{
-                            marginLeft: 0,
-                            marginRight: 0,
-                            maxWidth: "100%",
-                            width: "fit-content",
                             whiteSpace: "pre-wrap",
                             wordBreak: "break-word",
                           }}
                         >
-                          {message.content}
+                          {item.content}
                         </div>
                       </div>
                     </div>
@@ -276,81 +374,71 @@ function Copilot() {
                 })}
               </div>
             ) : null}
-
             {typing ? (
               <div
+                className="copilot-bubble-row is-assistant"
                 style={{
                   display: "flex",
-                  justifyContent: "flex-start",
-                  width: "100%",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  marginTop: 12,
                 }}
               >
-                <div
-                  className="copilot-bubble-row is-assistant"
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                    width: "fit-content",
-                    maxWidth: "min(100%, 760px)",
-                    flexWrap: "nowrap",
-                  }}
-                >
-                  <Avatar
-                    icon={<RobotOutlined />}
-                    className="copilot-avatar"
-                    style={{ flexShrink: 0, marginRight: "6px" }}
-                  />
-                  <div
-                    className="copilot-bubble assistant-bubble"
-                    style={{
-                      maxWidth: "100%",
-                      width: "fit-content",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    <Skeleton active paragraph={{ rows: 1 }} title={false} />
-                    <Text className="copilot-typing">Copilot is thinking...</Text>
-                  </div>
+                <Avatar icon={<RobotOutlined />} className="copilot-avatar" />
+                <div className="copilot-bubble assistant-bubble">
+                  <Skeleton active paragraph={{ rows: 1 }} title={false} />
+                  <Text className="copilot-typing">
+                    Copilot is checking your saved data...
+                  </Text>
                 </div>
               </div>
             ) : null}
-
-            {error ? (
-              <Result
-                status="warning"
-                title="Temporary response issue"
-                subTitle="Please retry your question. The Copilot simulation intentionally exposes this error state for UI completeness."
-                extra={<Button onClick={() => setError(false)}>Dismiss</Button>}
-              />
-            ) : null}
           </Card>
-
-          <Card style={{ width: "100%" ,alignItems:"center",justifyContent:"center",display:"flex"}}>
-            <Space className="copilot-input-wra" style={{ width: "100%" }}>
-              <Input
+          <Card
+            style={{
+              maxWidth: "100%",
+              alignItems: "center",
+              justifyContent: "center",
+              display: "flex",
+            }}
+          >
+            <Space className="copilot-input-wrap">
+              <Input.TextArea
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                onPressEnter={() => submitPrompt(draft)}
-                placeholder="Ask about assignments, hostel, budget, exams, or campus rules"
-                style={{ flex: 1, minWidth: 0 }}
+                onPressEnter={(event) => {
+                  if (!event.shiftKey) {
+                    event.preventDefault();
+                    submitPrompt(draft);
+                  }
+                }}
+                autoSize={{ minRows: 1, maxRows: 1 }}
+                placeholder="Ask about assignments, hostel, budget, exams, or support"
+                style={{
+                  flex: "1 1 auto",
+                  width: "100%",
+                  maxWidth: "100%",
+                  minWidth: 0,
+                }}
+                disabled={typing}
               />
-             
-              <Button onClick={undoLastPrompt} disabled={messages.length === 0}>
+              <Button
+                onClick={undoLastPrompt}
+                disabled={!messages.length && !typing}
+              >
                 Undo
               </Button>
               <Button
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={() => submitPrompt(draft)}
+                loading={typing}
               >
                 Send
               </Button>
             </Space>
           </Card>
-          </section>
-        </div>
+        </section>
       </div>
     </>
   );
