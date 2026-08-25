@@ -7,7 +7,6 @@ import {
   register as registerWithService,
 } from "../services/authService";
 
-
 export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);

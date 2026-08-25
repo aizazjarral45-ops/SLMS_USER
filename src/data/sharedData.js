@@ -79,8 +79,6 @@ const defaultSettings = {
     ai: false,
   },
   reminders: [],
-  // customNotifications allows ad-hoc notifications to be added programmatically
-  // and persisted so they appear immediately and after page refresh.
   customNotifications: [],
   readNotificationIds: [],
   dismissedNotificationIds: [],
@@ -111,6 +109,85 @@ const asObject = (value, fallback = {}) =>
   value && typeof value === "object" && !Array.isArray(value)
     ? value
     : fallback;
+
+const notificationCreationCache = new Map();
+
+const getStableCreatedAt = (notification, fallbackDate = new Date()) => {
+  if (notification?.createdAt) return notification.createdAt;
+
+  const cacheKey =
+    notification?.id || `notification:${fallbackDate.toISOString()}`;
+  if (notificationCreationCache.has(cacheKey)) {
+    return notificationCreationCache.get(cacheKey);
+  }
+
+  const createdAt = fallbackDate.toISOString();
+  notificationCreationCache.set(cacheKey, createdAt);
+  return createdAt;
+};
+
+const parseDateValue = (value) => {
+  if (!value) return null;
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value;
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const formatNotificationDate = (value) => {
+  const date = parseDateValue(value);
+  if (!date) return "";
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+};
+
+const formatNotificationTime = (value) => {
+  const date = parseDateValue(value);
+  if (!date) return "";
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const normalizeStoredNotification = (item, fallback = {}) => {
+  if (!item || typeof item !== "object") return null;
+
+  const createdAtValue =
+    item.createdAt ||
+    item.timestamp ||
+    item.dateTime ||
+    fallback.createdAt ||
+    null;
+
+  const baseDate = parseDateValue(createdAtValue) || new Date();
+  const id =
+    (typeof item.id === "string" && item.id.trim()) ||
+    (typeof fallback.id === "string" && fallback.id.trim())
+      ? (typeof item.id === "string" && item.id.trim()) || fallback.id
+      : `notification:${baseDate.toISOString()}:${Math.random().toString(16).slice(2)}`;
+
+  const createdAt = getStableCreatedAt({ ...item, id }, baseDate);
+
+  return {
+    ...item,
+    id,
+    createdAt,
+    date: item.date || formatNotificationDate(createdAt),
+    time: item.time || formatNotificationTime(createdAt),
+    title: item.title || fallback.title || "Notification",
+    message: item.message || item.description || fallback.message || "",
+    type: item.type || fallback.type || "reminder",
+    module: item.module || item.route || fallback.module || "general",
+    read: Boolean(item.read),
+  };
+};
 
 export const normalizeAcademicWorkspace = (value) => {
   const defaults = createDefaultAcademicWorkspace();
@@ -176,25 +253,21 @@ export const normalizeSharedData = (value) => {
         ...asObject(settings.notifications),
       },
       reminders: asArray(settings.reminders),
-      // restore any previously saved ad-hoc notifications
-      customNotifications: asArray(settings.customNotifications).map((item) => {
-      const sourceDate = item?.createdAt || item?.timestamp || item?.date || null;
-      return {
-        ...item,
-        // preserve an id for consistent deduping and read/dismiss tracking
-        id:
-          typeof item?.id === "string" && item.id.trim()
-            ? item.id
-            : `custom:${sourceDate || Date.now()}:${Math.random()}`,
-        createdAt: sourceDate,
-      };
-    }),
+      customNotifications: asArray(settings.customNotifications)
+        .map((item) => normalizeStoredNotification(item))
+        .filter(Boolean)
+        .filter((item, index, allItems) => {
+          const duplicateIndex = allItems.findIndex(
+            (entry) => entry.id === item.id,
+          );
+          return duplicateIndex === index;
+        }),
       readNotificationIds: asArray(settings.readNotificationIds).filter(
         (item) => typeof item === "string",
       ),
-      dismissedNotificationIds: asArray(settings.dismissedNotificationIds).filter(
-        (item) => typeof item === "string",
-      ),
+      dismissedNotificationIds: asArray(
+        settings.dismissedNotificationIds,
+      ).filter((item) => typeof item === "string"),
       aiSettings: {
         ...defaultSettings.aiSettings,
         ...asObject(settings.aiSettings),
@@ -228,7 +301,6 @@ export const loadSharedData = () => {
     settings: {
       notifications: readJSON("notifications", defaultSettings.notifications),
       reminders: readJSON("reminders", []),
-      // load previously saved custom (ad-hoc) notifications
       customNotifications: readJSON("customNotifications", []),
       aiSettings: readJSON("aiSettings", defaultSettings.aiSettings),
     },
@@ -246,7 +318,6 @@ export const persistSharedData = (data) => {
       JSON.stringify(normalized),
     );
 
-    // Keep the original keys in sync so previously stored browser data remains usable.
     window.localStorage.setItem(
       "personalData",
       JSON.stringify(normalized.profile.personalData),
@@ -287,10 +358,9 @@ export const persistSharedData = (data) => {
       "reminders",
       JSON.stringify(normalized.settings.reminders),
     );
-    // persist any ad-hoc/custom notifications so they survive refresh
     window.localStorage.setItem(
       "customNotifications",
-      JSON.stringify(normalized.settings.customNotifications || []),
+      JSON.stringify(normalized.settings.customNotifications),
     );
     window.localStorage.setItem(
       "aiSettings",

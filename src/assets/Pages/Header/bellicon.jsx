@@ -43,15 +43,37 @@ const getNotificationDate = (notification) => {
   return date && !Number.isNaN(date.getTime()) ? date : null;
 };
 
-const formatNotificationDateTime = (date) =>
-  date
-    ? new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date)
-    : "Date and time unavailable";
+const notificationCreationTimesKey = "slms-notification-creation-times";
 
-// Format only the time (e.g., 11:10 AM) for use inside grouped lists
+const ensureNotificationCreationTime = (notification) => {
+  if (!notification.id || typeof window === "undefined") return notification;
+
+  try {
+    const storedTimes = JSON.parse(
+      window.localStorage.getItem(notificationCreationTimesKey) || "{}",
+    );
+    let createdAt = storedTimes[notification.id];
+
+    if (!createdAt) {
+      createdAt = getNotificationDate(notification)?.toISOString();
+      if (!createdAt) createdAt = new Date().toISOString();
+      window.localStorage.setItem(
+        notificationCreationTimesKey,
+        JSON.stringify({ ...storedTimes, [notification.id]: createdAt }),
+      );
+    }
+
+    return { ...notification, createdAt };
+  } catch {
+    return {
+      ...notification,
+      createdAt:
+        getNotificationDate(notification)?.toISOString() ||
+        new Date().toISOString(),
+    };
+  }
+};
+
 const formatNotificationTimeOnly = (date) =>
   date
     ? new Intl.DateTimeFormat(undefined, {
@@ -83,17 +105,17 @@ function BellIcon({
   const navigate = useNavigate();
   const visibleNotifications = useMemo(
     () =>
-      [...notifications].sort((first, second) => {
-        // Use the stored timestamp (createdAt/timestamp/date) for ordering
-        const firstDate = getNotificationDate(first)?.getTime() ?? 0;
-        const secondDate = getNotificationDate(second)?.getTime() ?? 0;
-        return secondDate - firstDate; // newest first
-      }),
+      notifications
+        .map(ensureNotificationCreationTime)
+        .sort((first, second) => {
+          const firstDate = getNotificationDate(first)?.getTime() ?? 0;
+          const secondDate = getNotificationDate(second)?.getTime() ?? 0;
+          return secondDate - firstDate;
+        }),
     [notifications],
   );
 
   const notificationGroups = useMemo(() => {
-    // Group by date string and ensure groups and items are ordered newest -> oldest
     const groups = [];
     visibleNotifications.forEach((item) => {
       const date = getNotificationDate(item);
@@ -104,22 +126,6 @@ function BellIcon({
         groups.push(group);
       }
       group.items.push(item);
-    });
-
-    // Ensure each group's items are sorted by time descending (newest to oldest)
-    groups.forEach((group) => {
-      group.items.sort((a, b) => {
-        const aTime = getNotificationDate(a)?.getTime() ?? 0;
-        const bTime = getNotificationDate(b)?.getTime() ?? 0;
-        return bTime - aTime;
-      });
-    });
-
-    // Ensure groups are sorted by their newest item's time (newest date group first)
-    groups.sort((a, b) => {
-      const aNewest = getNotificationDate(a.items[0])?.getTime() ?? 0;
-      const bNewest = getNotificationDate(b.items[0])?.getTime() ?? 0;
-      return bNewest - aNewest;
     });
 
     return groups;
@@ -201,57 +207,64 @@ function BellIcon({
                 dataSource={group.items}
                 rowKey="id"
                 renderItem={(item) => (
-                  <List.Item className={`bell-notification-item ${item.urgency}`}>
-                <div className="bell-notification-content">
-                  <span className={`bell-notification-icon ${item.urgency}`}>
-                    {typeIcons[item.type] || <BellOutlined />}
-                  </span>
-                  <div className="bell-notification-copy">
-                    <div className="bell-notification-heading">
-                      <Text strong>{item.title}</Text>
-                      <Tag
-                        color={
-                          item.urgency === "critical"
-                            ? "red"
-                            : item.urgency === "soon"
-                              ? "gold"
-                              : "blue"
-                        }
-                      >
-                        {getNotificationLabel(item.type)}
-                      </Tag>
-                    </div>
-                    <Text type="secondary">{item.description}</Text>
-                    <div style={{ marginTop: 6 }}>
+                  <List.Item
+                    className={`bell-notification-item ${item.urgency}`}
+                  >
+                    <div className="bell-notification-content">
                       <span
-                        className={`bell-notification-time ${item.urgency}`}
+                        className={`bell-notification-icon ${item.urgency}`}
                       >
-                      <ClockCircleOutlined /> {formatNotificationTimeOnly(getNotificationDate(item))}
+                        {typeIcons[item.type] || <BellOutlined />}
                       </span>
+                      <div className="bell-notification-copy">
+                        <div className="bell-notification-heading">
+                          <Text strong>{item.title}</Text>
+                          <Tag
+                            color={
+                              item.urgency === "critical"
+                                ? "red"
+                                : item.urgency === "soon"
+                                  ? "gold"
+                                  : "blue"
+                            }
+                          >
+                            {getNotificationLabel(item.type)}
+                          </Tag>
+                        </div>
+                        <Text type="secondary">{item.description}</Text>
+                        <div style={{ marginTop: 6 }}>
+                          <span
+                            className={`bell-notification-time ${item.urgency}`}
+                          >
+                            <ClockCircleOutlined />{" "}
+                            {formatNotificationTimeOnly(
+                              getNotificationDate(item),
+                            )}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                <Space>
-                  <Button
-                    type="text"
-                    className="bell-open-button"
-                    icon={<ArrowRightOutlined />}
-                    iconPosition="end"
-                    onClick={() => navigate(item.route)}
-                  >
-                    Open
-                  </Button>
-                  <Button
-                    type="text"
-                    className="bell-delete-button"
-                    icon={<DeleteOutlined />}
-                    iconPosition="end"
-                    danger
-                    onClick={() => onDismissNotifications?.([item.id])}
-                  >
-                    Delete
-                  </Button>
-                </Space>
+                    <Space>
+                      <Button
+                        type="text"
+                        className="bell-open-button"
+                        icon={<ArrowRightOutlined />}
+                        iconPosition="end"
+                        onClick={() => navigate(item.route)}
+                      >
+                        Open
+                      </Button>
+                      <Button
+                        type="text"
+                        className="bell-delete-button"
+                        icon={<DeleteOutlined />}
+                        iconPosition="end"
+                        danger
+                        onClick={() => onDismissNotifications?.([item.id])}
+                      >
+                        Delete
+                      </Button>
+                    </Space>
                   </List.Item>
                 )}
               />

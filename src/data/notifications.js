@@ -13,8 +13,124 @@ const notificationLabels = {
 };
 
 const asArray = (value) => (Array.isArray(value) ? value : []);
+const notificationCreationCache = new Map();
+
+const getStableCreatedAt = (notification, fallbackDate = new Date()) => {
+  if (notification?.createdAt) return notification.createdAt;
+
+  const cacheKey =
+    notification?.id || `notification:${fallbackDate.toISOString()}`;
+  if (notificationCreationCache.has(cacheKey)) {
+    return notificationCreationCache.get(cacheKey);
+  }
+
+  const createdAt = fallbackDate.toISOString();
+  notificationCreationCache.set(cacheKey, createdAt);
+  return createdAt;
+};
 
 const isEnabled = (settings, type) => settings?.notifications?.[type] !== false;
+
+const parseNotificationDate = (value) => {
+  if (!value) return null;
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (!normalized) return null;
+
+    const date = new Date(normalized);
+    if (!Number.isNaN(date.getTime())) return date;
+
+    const dateOnly = new Date(`${normalized}T00:00:00`);
+    return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+  }
+
+  return null;
+};
+
+const getNotificationSortValue = (notification) => {
+  const rawValue =
+    notification?.createdAt ||
+    notification?.timestamp ||
+    notification?.dateTime ||
+    notification?.date ||
+    notification?.time ||
+    null;
+  const date = parseNotificationDate(rawValue);
+  return date ? date.getTime() : 0;
+};
+
+const formatNotificationDate = (value) => {
+  const date = parseNotificationDate(value);
+  if (!date) return "";
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+};
+
+const formatNotificationTime = (value) => {
+  const date = parseNotificationDate(value);
+  if (!date) return "";
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+};
+
+const normalizeNotification = (notification = {}, fallback = {}) => {
+  if (!notification || typeof notification !== "object") return null;
+
+  const createdAt = getStableCreatedAt(
+    {
+      ...notification,
+      id: notification.id || fallback.id,
+    },
+    parseNotificationDate(
+      notification.createdAt ||
+        notification.timestamp ||
+        notification.dateTime ||
+        fallback.createdAt ||
+        null,
+    ) || new Date(),
+  );
+
+  const explicitId =
+    typeof notification.id === "string" ? notification.id.trim() : "";
+  const fallbackId = typeof fallback.id === "string" ? fallback.id.trim() : "";
+  const id =
+    explicitId ||
+    fallbackId ||
+    `notification:${createdAt}:${Math.random().toString(16).slice(2)}`;
+
+  return {
+    ...notification,
+    id,
+    createdAt,
+    date: notification.date || formatNotificationDate(createdAt),
+    time: notification.time || formatNotificationTime(createdAt),
+    title: notification.title || fallback.title || "Notification",
+    message:
+      notification.message ||
+      notification.description ||
+      fallback.message ||
+      "",
+    type: notification.type || fallback.type || "reminder",
+    module:
+      notification.module || notification.route || fallback.module || "general",
+    read: Boolean(notification.read),
+    description: notification.description || notification.message || "",
+  };
+};
 
 const getStartOfToday = () => {
   const today = new Date();
@@ -95,9 +211,13 @@ export const getNotifications = (data) => {
   const academic = data?.academic || {};
   const notifications = [];
   const add = (notification) => {
-    if (notification && isEnabled(settings, notification.type)) {
-      notifications.push(notification);
-    }
+    if (!notification) return;
+
+    const normalized = normalizeNotification(notification);
+    if (!normalized || !isEnabled(settings, normalized.type)) return;
+    if (notifications.some((entry) => entry.id === normalized.id)) return;
+
+    notifications.push(normalized);
   };
 
   asArray(academic.assignments)
@@ -246,23 +366,18 @@ export const getNotifications = (data) => {
       });
     });
 
-  // Include any ad-hoc/custom notifications saved in settings so that they
-  // appear immediately and persist across refreshes. Each custom notification
-  // may include createdAt, timestamp, or date fields; prefer createdAt when present.
   asArray(settings.customNotifications).forEach((item) => {
     if (!item) return;
-    const id = item.id || `custom:${item.createdAt || item.timestamp || Date.now()}:${Math.random()}`;
-    const dateValue = item.createdAt || item.timestamp || item.date || "";
-    add({
-      id,
+
+    const normalized = normalizeNotification(item, {
+      id: `custom:${item.createdAt || item.timestamp || item.date || Date.now()}`,
       type: item.type || "reminder",
       title: item.title || "Notification",
-      description: item.description || "",
-      relativeTime: item.relativeTime || "",
-      date: dateValue,
-      route: item.route || "",
-      urgency: item.urgency || "upcoming",
+      message: item.message || item.description || "",
+      module: item.module || item.route || "general",
     });
+
+    if (normalized) add(normalized);
   });
 
   const readIds = new Set(asArray(settings.readNotificationIds));
@@ -270,18 +385,10 @@ export const getNotifications = (data) => {
   return notifications
     .filter((item) => !dismissedIds.has(item.id))
     .map((item) => ({ ...item, read: readIds.has(item.id) }))
-    .sort((first, second) => {
-      const urgencyOrder = { critical: 0, soon: 1, upcoming: 2 };
-      const urgencyDifference =
-        urgencyOrder[first.urgency] - urgencyOrder[second.urgency];
-      if (urgencyDifference) return urgencyDifference;
-
-      const firstDate =
-        toLocalDate(first.date)?.getTime() || Number.MAX_SAFE_INTEGER;
-      const secondDate =
-        toLocalDate(second.date)?.getTime() || Number.MAX_SAFE_INTEGER;
-      return firstDate - secondDate;
-    });
+    .sort(
+      (first, second) =>
+        getNotificationSortValue(second) - getNotificationSortValue(first),
+    );
 };
 
 export const getNotificationLabel = (type) =>

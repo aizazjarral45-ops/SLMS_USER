@@ -28,7 +28,10 @@ const Login = () => {
     try {
       await login({ email, password, rememberMe });
       if (rememberMe) {
-        localStorage.setItem("slms_remember_me", JSON.stringify({ email: email.trim() }));
+        localStorage.setItem(
+          "slms_remember_me",
+          JSON.stringify({ email: email.trim() }),
+        );
       } else {
         localStorage.removeItem("slms_remember_me");
       }
@@ -54,7 +57,11 @@ const Login = () => {
           name="login"
           initialValues={{ rememberMe: true }}
           onFinish={onFinish}
-          onFinishFailed={({ errorFields }) => message.error(errorFields[0]?.errors?.[0] || "Check the form fields.")}
+          onFinishFailed={({ errorFields }) =>
+            message.error(
+              errorFields[0]?.errors?.[0] || "Check the form fields.",
+            )
+          }
           layout="vertical"
           className="slms-login-form"
         >
@@ -66,24 +73,49 @@ const Login = () => {
               { type: "email", message: "Please enter a valid email address" },
             ]}
           >
-            <Input size="large" prefix={<MailOutlined />} placeholder="Enter your email" autoComplete="email" />
+            <Input
+              size="large"
+              prefix={<MailOutlined />}
+              placeholder="Enter your email"
+              autoComplete="email"
+            />
           </Form.Item>
-          <Form.Item name="password" label="Password" rules={[{ required: true, message: "Please input your password" }]}>
-            <Input.Password size="large" prefix={<LockOutlined />} placeholder="Password" autoComplete="current-password" />
+          <Form.Item
+            name="password"
+            label="Password"
+            rules={[{ required: true, message: "Please input your password" }]}
+          >
+            <Input.Password
+              size="large"
+              prefix={<LockOutlined />}
+              placeholder="Password"
+              autoComplete="current-password"
+            />
           </Form.Item>
           <div className="slms-form-row">
             <Form.Item name="rememberMe" valuePropName="checked" noStyle>
               <Checkbox>Remember me</Checkbox>
             </Form.Item>
-            <Link to="/forgot" className="slms-forgot-link">Forgot Password?</Link>
+            <Link to="/forgot" className="slms-forgot-link">
+              Forgot Password?
+            </Link>
           </div>
           <Form.Item>
-            <Button type="primary" htmlType="submit" className="slms-login-button" block size="large" loading={loading}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              className="slms-login-button"
+              block
+              size="large"
+              loading={loading}
+            >
               {loading ? "Signing in..." : "Login"}
             </Button>
           </Form.Item>
           <div className="slms-alt-actions">
-            <p>Don&apos;t have an account? <Link to="/register">Register</Link></p>
+            <p>
+              Don&apos;t have an account? <Link to="/register">Register</Link>
+            </p>
           </div>
         </Form>
       </div>

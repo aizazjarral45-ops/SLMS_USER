@@ -25,7 +25,9 @@ const Signup = () => {
       message.success("Your account has been created.");
       navigate("/", { replace: true });
     } catch (error) {
-      message.error(error.message || "Unable to create the account. Please try again.");
+      message.error(
+        error.message || "Unable to create the account. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -43,43 +45,97 @@ const Signup = () => {
           form={form}
           name="signup"
           onFinish={onFinish}
-          onFinishFailed={({ errorFields }) => message.error(errorFields[0]?.errors?.[0] || "Check the form fields.")}
+          onFinishFailed={({ errorFields }) =>
+            message.error(
+              errorFields[0]?.errors?.[0] || "Check the form fields.",
+            )
+          }
           layout="vertical"
           className="slms-signup-form"
         >
-          <Form.Item name="name" label="Full Name" rules={[
-            { required: true, message: "Please enter your full name" },
-            { min: 2, message: "Name must be at least 2 characters" },
-            { max: 50, message: "Name must not exceed 50 characters" },
-          ]}>
-            <Input size="large" prefix={<UserOutlined />} placeholder="Enter your full name" autoComplete="name" />
+          <Form.Item
+            name="name"
+            label="Full Name"
+            rules={[
+              { required: true, message: "Please enter your full name" },
+              { min: 2, message: "Name must be at least 2 characters" },
+              { max: 50, message: "Name must not exceed 50 characters" },
+            ]}
+          >
+            <Input
+              size="large"
+              prefix={<UserOutlined />}
+              placeholder="Enter your full name"
+              autoComplete="name"
+            />
           </Form.Item>
-          <Form.Item name="email" label="Email" rules={[
-            { required: true, message: "Please enter your email" },
-            { type: "email", message: "Please enter a valid email address" },
-          ]}>
-            <Input size="large" prefix={<MailOutlined />} placeholder="Enter your email" autoComplete="email" />
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: "Please enter your email" },
+              { type: "email", message: "Please enter a valid email address" },
+            ]}
+          >
+            <Input
+              size="large"
+              prefix={<MailOutlined />}
+              placeholder="Enter your email"
+              autoComplete="email"
+            />
           </Form.Item>
-          <Form.Item name="password" label="Password" rules={[
-            { required: true, message: "Please enter your password" },
-            { min: 8, message: "Password must be at least 8 characters" },
-            { pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/, message: "Password must contain uppercase, lowercase, number, and special character" },
-          ]}>
-            <Input.Password size="large" prefix={<LockOutlined />} placeholder="Create a strong password" autoComplete="new-password" />
+          <Form.Item
+            name="password"
+            label="Password"
+            rules={[
+              { required: true, message: "Please enter your password" },
+              { min: 8, message: "Password must be at least 8 characters" },
+              {
+                pattern: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+                message:
+                  "Password must contain uppercase, lowercase, number, and special character",
+              },
+            ]}
+          >
+            <Input.Password
+              size="large"
+              prefix={<LockOutlined />}
+              placeholder="Create a strong password"
+              autoComplete="new-password"
+            />
           </Form.Item>
-          <Form.Item name="confirmPassword" label="Confirm Password" dependencies={["password"]} rules={[
-            { required: true, message: "Please confirm your password" },
-            { validator: validatePasswordMatch },
-          ]}>
-            <Input.Password size="large" prefix={<LockOutlined />} placeholder="Confirm your password" autoComplete="new-password" />
+          <Form.Item
+            name="confirmPassword"
+            label="Confirm Password"
+            dependencies={["password"]}
+            rules={[
+              { required: true, message: "Please confirm your password" },
+              { validator: validatePasswordMatch },
+            ]}
+          >
+            <Input.Password
+              size="large"
+              prefix={<LockOutlined />}
+              placeholder="Confirm your password"
+              autoComplete="new-password"
+            />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" className="slms-signup-button" block size="large" loading={loading}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              className="slms-signup-button"
+              block
+              size="large"
+              loading={loading}
+            >
               {loading ? "Creating account..." : "Sign Up"}
             </Button>
           </Form.Item>
           <div className="slms-alt-actions">
-            <p>Already have an account? <Link to="/login">Login</Link></p>
+            <p>
+              Already have an account? <Link to="/login">Login</Link>
+            </p>
           </div>
         </Form>
       </div>

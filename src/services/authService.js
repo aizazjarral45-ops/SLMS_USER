@@ -43,14 +43,17 @@ const saveSession = ({ token, user, rememberMe }) => {
 const toSession = (payload, rememberMe) => {
   const token = payload.accessToken || payload.token;
   const user = payload.user;
-  if (!token || !user) throw new Error("The authentication response is incomplete.");
+  if (!token || !user)
+    throw new Error("The authentication response is incomplete.");
   return saveSession({ token, user, rememberMe });
 };
 
 export const getStoredSession = () => {
   for (const storage of [window.localStorage, window.sessionStorage]) {
     try {
-      const session = JSON.parse(storage.getItem(SESSION_STORAGE_KEY) || "null");
+      const session = JSON.parse(
+        storage.getItem(SESSION_STORAGE_KEY) || "null",
+      );
       if (session?.token && session?.user?.id) return session;
     } catch {
       // An invalid local session is treated as signed out.
@@ -66,7 +69,12 @@ export const clearStoredSession = () => {
   }
 };
 
-export const register = async ({ name, email, password, rememberMe = true }) => {
+export const register = async ({
+  name,
+  email,
+  password,
+  rememberMe = true,
+}) => {
   const cleanName = name.trim();
   const cleanEmail = normaliseEmail(email);
 
@@ -131,7 +139,11 @@ export const login = async ({ email, password, rememberMe = true }) => {
     rememberMe,
   });
   // record successful login
-  await recordLoginEvent({ email: cleanEmail, status: "success", sessionId: session.token });
+  await recordLoginEvent({
+    email: cleanEmail,
+    status: "success",
+    sessionId: session.token,
+  });
   return session;
 };
 
@@ -153,7 +165,11 @@ export const beginPasswordReset = async (email) => {
   const code = String(Math.floor(100000 + Math.random() * 900000));
   window.sessionStorage.setItem(
     RESET_STORAGE_KEY,
-    JSON.stringify({ email: cleanEmail, code, expiresAt: Date.now() + 10 * 60 * 1000 }),
+    JSON.stringify({
+      email: cleanEmail,
+      code,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    }),
   );
   return { delivery: "local", code };
 };
@@ -168,8 +184,15 @@ export const verifyPasswordResetCode = async ({ email, code }) => {
     return true;
   }
 
-  const reset = JSON.parse(window.sessionStorage.getItem(RESET_STORAGE_KEY) || "null");
-  if (!reset || reset.email !== cleanEmail || reset.code !== code || reset.expiresAt < Date.now()) {
+  const reset = JSON.parse(
+    window.sessionStorage.getItem(RESET_STORAGE_KEY) || "null",
+  );
+  if (
+    !reset ||
+    reset.email !== cleanEmail ||
+    reset.code !== code ||
+    reset.expiresAt < Date.now()
+  ) {
     throw new Error("The verification code is invalid or has expired.");
   }
   return true;
@@ -206,7 +229,11 @@ export const cancelPasswordReset = () =>
 // --- New helpers for login history, password change and account deletion ---
 const LOGIN_HISTORY_KEY = "slms_login_history";
 
-export const recordLoginEvent = async ({ email = null, status = "unknown", sessionId = null }) => {
+export const recordLoginEvent = async ({
+  email = null,
+  status = "unknown",
+  sessionId = null,
+}) => {
   try {
     const history = readJson(LOGIN_HISTORY_KEY, []);
     const entry = {
@@ -218,7 +245,10 @@ export const recordLoginEvent = async ({ email = null, status = "unknown", sessi
       status,
       sessionId,
     };
-    window.localStorage.setItem(LOGIN_HISTORY_KEY, JSON.stringify([entry, ...history]));
+    window.localStorage.setItem(
+      LOGIN_HISTORY_KEY,
+      JSON.stringify([entry, ...history]),
+    );
     return entry;
   } catch (e) {
     return null;
@@ -239,7 +269,11 @@ export const clearLoginHistoryForEmail = (email) => {
   );
 };
 
-export const changePassword = async ({ email, currentPassword, newPassword }) => {
+export const changePassword = async ({
+  email,
+  currentPassword,
+  newPassword,
+}) => {
   const cleanEmail = normaliseEmail(email);
   if (isApiConfigured) {
     await request("/auth/change-password", {
@@ -254,7 +288,8 @@ export const changePassword = async ({ email, currentPassword, newPassword }) =>
   if (idx === -1) throw new Error("No local account for this email.");
   const user = users[idx];
   const currentHash = await hashPassword(currentPassword);
-  if (user.passwordHash !== currentHash) throw new Error("Current password is incorrect.");
+  if (user.passwordHash !== currentHash)
+    throw new Error("Current password is incorrect.");
   const newHash = await hashPassword(newPassword);
   users[idx] = { ...user, passwordHash: newHash };
   window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));

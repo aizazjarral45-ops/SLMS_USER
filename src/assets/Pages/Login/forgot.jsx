@@ -33,7 +33,9 @@ const Forgot = () => {
       const result = await beginPasswordReset(enteredEmail);
       setEmail(enteredEmail.trim().toLowerCase());
       if (result.delivery === "local") {
-        message.info(`Local development code: ${result.code}. Configure VITE_API_BASE_URL to send email.`);
+        message.info(
+          `Local development code: ${result.code}. Configure VITE_API_BASE_URL to send email.`,
+        );
       } else {
         message.success("A verification code has been sent to your email.");
       }
@@ -91,14 +93,29 @@ const Forgot = () => {
         </div>
         {step === 0 && (
           <Form form={form} layout="vertical" onFinish={sendReset}>
-            <Form.Item name="email" label="Email" rules={[
-              { required: true, message: "Please input your email" },
-              { type: "email", message: "Please enter a valid email" },
-            ]}>
-              <Input prefix={<MailOutlined />} size="large" placeholder="Email" autoComplete="email" />
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, message: "Please input your email" },
+                { type: "email", message: "Please enter a valid email" },
+              ]}
+            >
+              <Input
+                prefix={<MailOutlined />}
+                size="large"
+                placeholder="Email"
+                autoComplete="email"
+              />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={loading}
+              >
                 {loading ? "Preparing..." : "Continue"}
               </Button>
             </Form.Item>
@@ -107,50 +124,98 @@ const Forgot = () => {
         {step === 1 && (
           <Form form={form} layout="vertical" onFinish={verifyCode}>
             <Form.Item label={`Verification code for ${email}`}>
-              <p className="slms-muted">Enter the six-digit code from your reset request.</p>
+              <p className="slms-muted">
+                Enter the six-digit code from your reset request.
+              </p>
             </Form.Item>
-            <Form.Item name="code" label="Verification Code" rules={[
-              { required: true, message: "Please enter the code" },
-              { pattern: /^\d{6}$/, message: "Enter the six-digit code" },
-            ]}>
-              <Input size="large" placeholder="Enter 6-digit code" maxLength={6} inputMode="numeric" />
+            <Form.Item
+              name="code"
+              label="Verification Code"
+              rules={[
+                { required: true, message: "Please enter the code" },
+                { pattern: /^\d{6}$/, message: "Enter the six-digit code" },
+              ]}
+            >
+              <Input
+                size="large"
+                placeholder="Enter 6-digit code"
+                maxLength={6}
+                inputMode="numeric"
+              />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={loading}
+              >
                 {loading ? "Verifying..." : "Verify Code"}
               </Button>
             </Form.Item>
             <div className="slms-forgot-actions">
-              <Button type="link" onClick={cancel}>Start over</Button>
+              <Button type="link" onClick={cancel}>
+                Start over
+              </Button>
               <Link to="/login">Back to Login</Link>
             </div>
           </Form>
         )}
         {step === 2 && (
           <Form form={form} layout="vertical" onFinish={savePassword}>
-            <Form.Item name="password" label="New Password" rules={passwordRules} hasFeedback>
-              <Input.Password size="large" placeholder="New password" autoComplete="new-password" />
+            <Form.Item
+              name="password"
+              label="New Password"
+              rules={passwordRules}
+              hasFeedback
+            >
+              <Input.Password
+                size="large"
+                placeholder="New password"
+                autoComplete="new-password"
+              />
             </Form.Item>
-            <Form.Item name="confirm" label="Confirm New Password" dependencies={["password"]} hasFeedback rules={[
-              { required: true, message: "Please confirm your password" },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  return !value || getFieldValue("password") === value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error("Passwords do not match"));
-                },
-              }),
-            ]}>
-              <Input.Password size="large" placeholder="Confirm new password" autoComplete="new-password" />
+            <Form.Item
+              name="confirm"
+              label="Confirm New Password"
+              dependencies={["password"]}
+              hasFeedback
+              rules={[
+                { required: true, message: "Please confirm your password" },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    return !value || getFieldValue("password") === value
+                      ? Promise.resolve()
+                      : Promise.reject(new Error("Passwords do not match"));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password
+                size="large"
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+              />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" block size="large" loading={loading}>
+              <Button
+                type="primary"
+                htmlType="submit"
+                block
+                size="large"
+                loading={loading}
+              >
                 {loading ? "Saving..." : "Reset Password"}
               </Button>
             </Form.Item>
           </Form>
         )}
-        {step === 0 && <div className="slms-forgot-actions"><Link to="/login">Back to Login</Link></div>}
+        {step === 0 && (
+          <div className="slms-forgot-actions">
+            <Link to="/login">Back to Login</Link>
+          </div>
+        )}
       </div>
     </div>
   );

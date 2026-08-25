@@ -14,12 +14,13 @@ import { ContactModal } from "./contactmodal";
 import { ProfileModal } from "./profilemodal";
 
 const emptyProfile = { personalData: {}, profileData: {}, contactData: {} };
-const getBase64 = (file) => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.onload = () => resolve(reader.result);
-  reader.onerror = reject;
-  reader.readAsDataURL(file);
-});
+const getBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 const displayValue = (value) => value || "Not provided";
 
 function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
@@ -27,10 +28,16 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
   const profile = profileProp || fallbackProfile;
   const setProfile = (nextValue) => {
     if (onProfileChange) {
-      onProfileChange((current) => typeof nextValue === "function" ? nextValue(current || emptyProfile) : nextValue);
+      onProfileChange((current) =>
+        typeof nextValue === "function"
+          ? nextValue(current || emptyProfile)
+          : nextValue,
+      );
       return;
     }
-    setFallbackProfile((current) => typeof nextValue === "function" ? nextValue(current) : nextValue);
+    setFallbackProfile((current) =>
+      typeof nextValue === "function" ? nextValue(current) : nextValue,
+    );
   };
 
   const [personalVisible, setPersonalVisible] = useState(false);
@@ -72,7 +79,9 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
   };
 
   const uploadImage = async (file) => {
-    const validType = ["image/jpeg", "image/png", "image/webp"].includes(file.type);
+    const validType = ["image/jpeg", "image/png", "image/webp"].includes(
+      file.type,
+    );
     const validSize = file.size / 1024 / 1024 < 2;
     if (!validType) {
       messageApi.error("Use a JPG, PNG, or WEBP image.");
@@ -96,7 +105,9 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
   };
 
   const resetProfile = () => {
-    const confirmed = window.confirm("Reset all profile information stored for this student?");
+    const confirmed = window.confirm(
+      "Reset all profile information stored for this student?",
+    );
     if (!confirmed) return;
     if (onResetProfile) onResetProfile();
     else setProfile(emptyProfile);
@@ -125,66 +136,223 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
     ["Sessions", profileData.sessions],
   ];
   const personalFields = [
-    ["Full Name", personalData.fullName], ["Father's Name", personalData.fname],
-    ["Gender", personalData.gender], ["Date of Birth", personalData.dob],
-    ["CNIC", personalData.cnic], ["Blood Group", personalData.bloodGroup],
-    ["Nationality", personalData.nationality], ["Marital Status", personalData.maritalStatus],
+    ["Full Name", personalData.fullName],
+    ["Father's Name", personalData.fname],
+    ["Gender", personalData.gender],
+    ["Date of Birth", personalData.dob],
+    ["CNIC", personalData.cnic],
+    ["Blood Group", personalData.bloodGroup],
+    ["Nationality", personalData.nationality],
+    ["Marital Status", personalData.maritalStatus],
   ];
   const contactFields = [
-    ["University Email", contactData.universityEmail], ["Personal Email", contactData.personalEmail],
-    ["Phone", contactData.phone], ["Emergency Contact", contactData.emergencyContact],
-    ["Current Address", contactData.currentAddress], ["Permanent Address", contactData.permanentAddress],
+    ["University Email", contactData.universityEmail],
+    ["Personal Email", contactData.personalEmail],
+    ["Phone", contactData.phone],
+    ["Emergency Contact", contactData.emergencyContact],
+    ["Current Address", contactData.currentAddress],
+    ["Permanent Address", contactData.permanentAddress],
   ];
-  const infoRows = (fields) => fields.map(([label, value]) => (
-    <div className="cardinfo-content" key={label}><span>{label}</span><span className="cardinfo-data">{displayValue(value)}</span></div>
-  ));
+  const infoRows = (fields) =>
+    fields.map(([label, value]) => (
+      <div className="cardinfo-content" key={label}>
+        <span>{label}</span>
+        <span className="cardinfo-data">{displayValue(value)}</span>
+      </div>
+    ));
 
   return (
     <>
       {contextHolder}
       <div className="profile-card">
         <div className="gradient">
-          <Button style={{ color: "white" }} type="text" icon={<EditOutlined />} onClick={() => {
-            profileForm.setFieldsValue(profileData);
-            setProfileVisible(true);
-          }}>
+          <Button
+            style={{ color: "white" }}
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => {
+              profileForm.setFieldsValue(profileData);
+              setProfileVisible(true);
+            }}
+          >
             Edit Profile
           </Button>
         </div>
         <div className="profile-down">
-          <div className="profile"><Flex gap="medium" wrap><div style={{ textAlign: "center" }}>
-            {imageUrl ? (
-              <img draggable={false} src={imageUrl} alt="Profile" style={{ width: 120, height: 120, borderRadius: "50%", objectFit: "cover", cursor: "pointer" }} onClick={() => setPreviewVisible(true)} />
-            ) : (
-              <Upload name="avatar" listType="picture-circle" className="avatar-uploader" showUploadList={false} beforeUpload={uploadImage}>{uploadButton}</Upload>
-            )}
-          </div></Flex></div>
+          <div className="profile">
+            <Flex gap="medium" wrap>
+              <div style={{ textAlign: "center" }}>
+                {imageUrl ? (
+                  <img
+                    draggable={false}
+                    src={imageUrl}
+                    alt="Profile"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setPreviewVisible(true)}
+                  />
+                ) : (
+                  <Upload
+                    name="avatar"
+                    listType="picture-circle"
+                    className="avatar-uploader"
+                    showUploadList={false}
+                    beforeUpload={uploadImage}
+                  >
+                    {uploadButton}
+                  </Upload>
+                )}
+              </div>
+            </Flex>
+          </div>
         </div>
         <div style={{ padding: "0 20px 20px", boxSizing: "border-box" }}>
           <div className="profile-name">{profileData.name || "Your Name"}</div>
-          <div className="profile-bio">{profileData.department ? `${profileData.department} Student` : "Department not provided"}</div>
+          <div className="profile-bio">
+            {profileData.department
+              ? `${profileData.department} Student`
+              : "Department not provided"}
+          </div>
         </div>
-        <div className="cardrapper" style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}>
-          {profileFields.map(([label, value]) => <div className="card" style={{ flex: "1 1 180px", minWidth: 140 }} key={label}><div className="info">{label}</div><div className="detail">{displayValue(value)}</div></div>)}
+        <div
+          className="cardrapper"
+          style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}
+        >
+          {profileFields.map(([label, value]) => (
+            <div
+              className="card"
+              style={{ flex: "1 1 180px", minWidth: 140 }}
+              key={label}
+            >
+              <div className="info">{label}</div>
+              <div className="detail">{displayValue(value)}</div>
+            </div>
+          ))}
         </div>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 24, marginTop: 24, width: "100%" }}>
-        <Card className="personal-card" title={<div style={{ display: "flex", alignItems: "center", gap: 8 }}><Avatar shape="square" style={{ background: "#307EF8" }} icon={<UserOutlined />} /><span>Personal Information</span></div>} extra={<Button icon={<EditOutlined />} onClick={() => { personalForm.setFieldsValue(personalData); setPersonalVisible(true); }}>Edit</Button>} style={{ flex: "1 1 320px", minWidth: 280, width: "100%" }}>
-          <div style={{ display: "grid", rowGap: 20 }}>{infoRows(personalFields)}</div>
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 24,
+          marginTop: 24,
+          width: "100%",
+        }}
+      >
+        <Card
+          className="personal-card"
+          title={
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Avatar
+                shape="square"
+                style={{ background: "#307EF8" }}
+                icon={<UserOutlined />}
+              />
+              <span>Personal Information</span>
+            </div>
+          }
+          extra={
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => {
+                personalForm.setFieldsValue(personalData);
+                setPersonalVisible(true);
+              }}
+            >
+              Edit
+            </Button>
+          }
+          style={{ flex: "1 1 320px", minWidth: 280, width: "100%" }}
+        >
+          <div style={{ display: "grid", rowGap: 20 }}>
+            {infoRows(personalFields)}
+          </div>
         </Card>
-        <Card className="contact-card" title={<div style={{ display: "flex", alignItems: "center", gap: 8 }}><Avatar shape="square" style={{ background: "#307EF8" }} icon={<PhoneFilled />} /><span>Contact Information</span></div>} extra={<Button icon={<EditOutlined />} onClick={() => { contactForm.setFieldsValue(contactData); setContactVisible(true); }}>Edit</Button>} style={{ flex: "1 1 320px", minWidth: 280, width: "100%" }}>
-          <div style={{ display: "grid", rowGap: 20 }}>{infoRows(contactFields)}</div>
+        <Card
+          className="contact-card"
+          title={
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Avatar
+                shape="square"
+                style={{ background: "#307EF8" }}
+                icon={<PhoneFilled />}
+              />
+              <span>Contact Information</span>
+            </div>
+          }
+          extra={
+            <Button
+              icon={<EditOutlined />}
+              onClick={() => {
+                contactForm.setFieldsValue(contactData);
+                setContactVisible(true);
+              }}
+            >
+              Edit
+            </Button>
+          }
+          style={{ flex: "1 1 320px", minWidth: 280, width: "100%" }}
+        >
+          <div style={{ display: "grid", rowGap: 20 }}>
+            {infoRows(contactFields)}
+          </div>
         </Card>
       </div>
       <Card className="danger-card">
         <div className="danger-title">Profile data</div>
-        <div className="danger-content">Reset the personal, contact, and profile information stored in this student workspace. This does not remove academic, hostel, expense, complaint, or settings records.</div>
-        <div className="resetbutton"><Button danger onClick={resetProfile} icon={<DeleteOutlined />}>Reset Profile Data</Button></div>
+        <div className="danger-content">
+          Reset the personal, contact, and profile information stored in this
+          student workspace. This does not remove academic, hostel, expense,
+          complaint, or settings records.
+        </div>
+        <div className="resetbutton">
+          <Button danger onClick={resetProfile} icon={<DeleteOutlined />}>
+            Reset Profile Data
+          </Button>
+        </div>
       </Card>
-      <ProfileModal visible={profileVisible} onClose={() => setProfileVisible(false)} form={profileForm} initialValues={profileData} onFinish={saveProfile} imageUrl={imageUrl} uploadButton={uploadButton} beforeUpload={uploadImage} />
-      <PersonalModal visible={personalVisible} onClose={() => setPersonalVisible(false)} form={personalForm} initialValues={personalData} onFinish={savePersonal} />
-      <ContactModal visible={contactVisible} onClose={() => setContactVisible(false)} form={contactForm} initialValues={contactData} onFinish={saveContact} />
-      <Modal open={previewVisible} footer={null} onCancel={() => setPreviewVisible(false)}>{imageUrl && <img alt="Profile preview" style={{ width: "100%", maxHeight: "80vh", objectFit: "contain" }} src={imageUrl} />}</Modal>
+      <ProfileModal
+        visible={profileVisible}
+        onClose={() => setProfileVisible(false)}
+        form={profileForm}
+        initialValues={profileData}
+        onFinish={saveProfile}
+        imageUrl={imageUrl}
+        uploadButton={uploadButton}
+        beforeUpload={uploadImage}
+      />
+      <PersonalModal
+        visible={personalVisible}
+        onClose={() => setPersonalVisible(false)}
+        form={personalForm}
+        initialValues={personalData}
+        onFinish={savePersonal}
+      />
+      <ContactModal
+        visible={contactVisible}
+        onClose={() => setContactVisible(false)}
+        form={contactForm}
+        initialValues={contactData}
+        onFinish={saveContact}
+      />
+      <Modal
+        open={previewVisible}
+        footer={null}
+        onCancel={() => setPreviewVisible(false)}
+      >
+        {imageUrl && (
+          <img
+            alt="Profile preview"
+            style={{ width: "100%", maxHeight: "80vh", objectFit: "contain" }}
+            src={imageUrl}
+          />
+        )}
+      </Modal>
     </>
   );
 }

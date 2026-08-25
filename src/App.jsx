@@ -1,6 +1,13 @@
 import "./App.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, ConfigProvider, Drawer, Layout, Result, theme as antdTheme } from "antd";
+import {
+  Button,
+  ConfigProvider,
+  Drawer,
+  Layout,
+  Result,
+  theme as antdTheme,
+} from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
@@ -49,9 +56,13 @@ function PublicRoute({ children }) {
 function StudentLayout() {
   const { logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < MOBILE_BREAKPOINT);
+  const [isMobile, setIsMobile] = useState(
+    () => window.innerWidth < MOBILE_BREAKPOINT,
+  );
   const [isTablet, setIsTablet] = useState(
-    () => window.innerWidth >= MOBILE_BREAKPOINT && window.innerWidth < TABLET_BREAKPOINT,
+    () =>
+      window.innerWidth >= MOBILE_BREAKPOINT &&
+      window.innerWidth < TABLET_BREAKPOINT,
   );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sharedData, setSharedData] = useState(studentDataService.load);
@@ -87,11 +98,13 @@ function StudentLayout() {
     if (!isMobile) setMobileSidebarOpen(false);
   }, [isMobile, isTablet]);
 
-
   const updateSection = useCallback((section, nextValue) => {
     setSharedData((current) => ({
       ...current,
-      [section]: typeof nextValue === "function" ? nextValue(current[section]) : nextValue,
+      [section]:
+        typeof nextValue === "function"
+          ? nextValue(current[section])
+          : nextValue,
     }));
   }, []);
 
@@ -112,8 +125,13 @@ function StudentLayout() {
     });
   }, [updateSection]);
 
-  const notifications = useMemo(() => getNotifications(sharedData), [sharedData]);
-  const unreadNotificationCount = notifications.filter((item) => !item.read).length;
+  const notifications = useMemo(
+    () => getNotifications(sharedData),
+    [sharedData],
+  );
+  const unreadNotificationCount = notifications.filter(
+    (item) => !item.read,
+  ).length;
 
   const markNotificationsRead = useCallback(
     (notificationIds) => {
@@ -121,7 +139,10 @@ function StudentLayout() {
       updateSection("settings", (settings) => ({
         ...settings,
         readNotificationIds: Array.from(
-          new Set([...(settings?.readNotificationIds || []), ...notificationIds]),
+          new Set([
+            ...(settings?.readNotificationIds || []),
+            ...notificationIds,
+          ]),
         ).slice(-500),
       }));
     },
@@ -134,7 +155,10 @@ function StudentLayout() {
       updateSection("settings", (settings) => ({
         ...settings,
         dismissedNotificationIds: Array.from(
-          new Set([...(settings?.dismissedNotificationIds || []), ...notificationIds]),
+          new Set([
+            ...(settings?.dismissedNotificationIds || []),
+            ...notificationIds,
+          ]),
         ).slice(-500),
       }));
     },
@@ -143,57 +167,59 @@ function StudentLayout() {
 
   return (
     <ConfigProvider theme={{ algorithm: antdTheme.defaultAlgorithm }}>
-      <div className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}>
-      <Header
-        profileData={sharedData.profile.profileData}
-        unreadNotificationCount={unreadNotificationCount}
-        onToggleSidebar={() => setMobileSidebarOpen(true)}
-        onLogout={logout}
-      />
-      <Layout className="app-body">
-        {!isMobile ? (
-          <Sider
-            collapsible
-            collapsed={collapsed}
-            onCollapse={setCollapsed}
-            width={220}
-            theme="dark"
-            className="app-sidebar app-desktop-sidebar"
-          >
-            <Sidebar />
-          </Sider>
-        ) : null}
-        <Content className="app-content">
-          <Outlet
-            context={{
-              sharedData,
-              notifications,
-              updateSection,
-              updateMonthlyBudget,
-              resetProfile,
-              markNotificationsRead,
-              dismissNotifications,
-            }}
-          />
-        </Content>
-      </Layout>
-      <Drawer
-        className="mobile-sidebar-drawer"
-        rootClassName="mobile-sidebar-drawer-root"
-        title="Navigation"
-        placement="left"
-        width={260}
-        closable
-        closeIcon={<CloseOutlined />}
-        open={isMobile && mobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
-        styles={{
-          header: { background: "#1e3a8a", color: "#ffffff" },
-          body: { padding: 0, background: "#1e3a8a" },
-        }}
+      <div
+        className={`app-shell ${mobileSidebarOpen ? "mobile-navigation-open" : ""}`}
       >
-        <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
-      </Drawer>
+        <Header
+          profileData={sharedData.profile.profileData}
+          unreadNotificationCount={unreadNotificationCount}
+          onToggleSidebar={() => setMobileSidebarOpen(true)}
+          onLogout={logout}
+        />
+        <Layout className="app-body">
+          {!isMobile ? (
+            <Sider
+              collapsible
+              collapsed={collapsed}
+              onCollapse={setCollapsed}
+              width={220}
+              theme="dark"
+              className="app-sidebar app-desktop-sidebar"
+            >
+              <Sidebar />
+            </Sider>
+          ) : null}
+          <Content className="app-content">
+            <Outlet
+              context={{
+                sharedData,
+                notifications,
+                updateSection,
+                updateMonthlyBudget,
+                resetProfile,
+                markNotificationsRead,
+                dismissNotifications,
+              }}
+            />
+          </Content>
+        </Layout>
+        <Drawer
+          className="mobile-sidebar-drawer"
+          rootClassName="mobile-sidebar-drawer-root"
+          title="Navigation"
+          placement="left"
+          width={260}
+          closable
+          closeIcon={<CloseOutlined />}
+          open={isMobile && mobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          styles={{
+            header: { background: "#1e3a8a", color: "#ffffff" },
+            body: { padding: 0, background: "#1e3a8a" },
+          }}
+        >
+          <Sidebar onNavigate={() => setMobileSidebarOpen(false)} />
+        </Drawer>
       </div>
     </ConfigProvider>
   );
@@ -209,7 +235,8 @@ function DashboardPage() {
 }
 
 function NotificationsPage() {
-  const { notifications, markNotificationsRead, dismissNotifications } = useStudentData();
+  const { notifications, markNotificationsRead, dismissNotifications } =
+    useStudentData();
   return (
     <BellIcon
       notifications={notifications}
@@ -225,7 +252,9 @@ function CopilotPage() {
     <Copilot
       data={sharedData}
       messages={sharedData.copilotMessages}
-      onMessagesChange={(nextValue) => updateSection("copilotMessages", nextValue)}
+      onMessagesChange={(nextValue) =>
+        updateSection("copilotMessages", nextValue)
+      }
     />
   );
 }
@@ -286,7 +315,9 @@ function HostelPage() {
   return (
     <Hostel
       applications={sharedData.hostelApplications}
-      onApplicationsChange={(nextValue) => updateSection("hostelApplications", nextValue)}
+      onApplicationsChange={(nextValue) =>
+        updateSection("hostelApplications", nextValue)
+      }
     />
   );
 }
@@ -310,7 +341,10 @@ function NotFound() {
       title="Page not found"
       subTitle="The page you requested is not available in SLMS."
       extra={
-        <Button type="primary" onClick={() => navigate(isAuthenticated ? "/" : "/login")}>
+        <Button
+          type="primary"
+          onClick={() => navigate(isAuthenticated ? "/" : "/login")}
+        >
           {isAuthenticated ? "Back to dashboard" : "Go to login"}
         </Button>
       }
@@ -321,10 +355,37 @@ function NotFound() {
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-      <Route path="/register" element={<PublicRoute><Signup /></PublicRoute>} />
-      <Route path="/forgot" element={<PublicRoute><Forgot /></PublicRoute>} />
-      <Route element={<ProtectedRoute><StudentLayout /></ProtectedRoute>}>
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <Signup />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/forgot"
+        element={
+          <PublicRoute>
+            <Forgot />
+          </PublicRoute>
+        }
+      />
+      <Route
+        element={
+          <ProtectedRoute>
+            <StudentLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route index element={<DashboardPage />} />
         <Route path="dashboard" element={<Navigate to="/" replace />} />
         <Route path="notifications" element={<NotificationsPage />} />
@@ -333,7 +394,10 @@ function App() {
         <Route path="expense" element={<ExpensePage />} />
         <Route path="complaints" element={<ComplaintsPage />} />
         <Route path="setting" element={<SettingsPage />} />
-        <Route path="setting/change-password" element={<ChangePasswordPage />} />
+        <Route
+          path="setting/change-password"
+          element={<ChangePasswordPage />}
+        />
         <Route path="setting/login-history" element={<LoginHistoryPage />} />
         <Route path="hostel" element={<HostelPage />} />
         <Route path="academic" element={<AcademicPage />} />

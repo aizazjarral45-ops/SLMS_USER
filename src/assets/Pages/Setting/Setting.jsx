@@ -76,7 +76,7 @@ const aiSettingItems = [
 ];
 
 const securityItems = [
-  { key: "change-password", title: "Change Password", icon: <KeyOutlined />, },
+  { key: "change-password", title: "Change Password", icon: <KeyOutlined /> },
   { key: "login-history", title: "Login History", icon: <HistoryOutlined /> },
   { key: "logout", title: "Logout", icon: <LogoutOutlined /> },
   { key: "delete-account", title: "Delete Account", icon: <DeleteOutlined /> },

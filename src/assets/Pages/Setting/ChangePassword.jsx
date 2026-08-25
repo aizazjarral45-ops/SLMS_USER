@@ -14,10 +14,20 @@ export default function ChangePassword() {
 
   const validatePassword = (_, value) => {
     if (!value) return Promise.reject(new Error("Please enter a password."));
-    if (value.length < 8) return Promise.reject(new Error("Password must be at least 8 characters."));
-    if (!/[A-Z]/.test(value)) return Promise.reject(new Error("Password must include an uppercase letter."));
-    if (!/[a-z]/.test(value)) return Promise.reject(new Error("Password must include a lowercase letter."));
-    if (!/[0-9]/.test(value)) return Promise.reject(new Error("Password must include a number."));
+    if (value.length < 8)
+      return Promise.reject(
+        new Error("Password must be at least 8 characters."),
+      );
+    if (!/[A-Z]/.test(value))
+      return Promise.reject(
+        new Error("Password must include an uppercase letter."),
+      );
+    if (!/[a-z]/.test(value))
+      return Promise.reject(
+        new Error("Password must include a lowercase letter."),
+      );
+    if (!/[0-9]/.test(value))
+      return Promise.reject(new Error("Password must include a number."));
     return Promise.resolve();
   };
 
@@ -50,12 +60,18 @@ export default function ChangePassword() {
         </Button>
       </div>
 
-      <Card className="setting-inner-card" title="Change Password" extra={<LockOutlined />}>
+      <Card
+        className="setting-inner-card"
+        title="Change Password"
+        extra={<LockOutlined />}
+      >
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <Form.Item
             name="current"
             label="Current password"
-            rules={[{ required: true, message: "Enter your current password." }]}
+            rules={[
+              { required: true, message: "Enter your current password." },
+            ]}
           >
             <Input.Password placeholder="Current password" />
           </Form.Item>
@@ -79,7 +95,9 @@ export default function ChangePassword() {
                   if (!value || getFieldValue("newPassword") === value) {
                     return Promise.resolve();
                   }
-                  return Promise.reject(new Error("The two passwords do not match."));
+                  return Promise.reject(
+                    new Error("The two passwords do not match."),
+                  );
                 },
               }),
             ]}

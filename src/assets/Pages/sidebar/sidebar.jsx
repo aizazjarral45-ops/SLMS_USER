@@ -78,7 +78,6 @@ function Sidebar({ onNavigate }) {
             icon: <SettingOutlined />,
             label: <Link to="/setting">Settings</Link>,
           },
-
         ]}
       />
     </nav>

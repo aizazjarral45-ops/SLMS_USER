@@ -1,9 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { Card, List, Button, Empty } from "antd";
-import { ArrowLeftOutlined, HistoryOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+  ArrowLeftOutlined,
+  HistoryOutlined,
+  ReloadOutlined,
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
-import { getLoginHistory, clearLoginHistoryForEmail } from "../../../services/authService";
+import {
+  getLoginHistory,
+  clearLoginHistoryForEmail,
+} from "../../../services/authService";
 import "./LoginHistory.css";
 
 export default function LoginHistory() {
@@ -37,9 +44,17 @@ export default function LoginHistory() {
         </Button>
       </div>
 
-      <Card className="setting-inner-card" title="Login History" extra={<HistoryOutlined />}>
+      <Card
+        className="setting-inner-card"
+        title="Login History"
+        extra={<HistoryOutlined />}
+      >
         <div className="login-history-actions">
-          <Button icon={<ReloadOutlined />} onClick={refresh} style={{ marginRight: 8 }}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={refresh}
+            style={{ marginRight: 8 }}
+          >
             Refresh
           </Button>
           <Button danger onClick={clearForUser}>
@@ -54,7 +69,7 @@ export default function LoginHistory() {
               <List.Item>
                 <List.Item.Meta
                   title={`${new Date(item.timestamp).toLocaleString()} — ${item.status}`}
-                  description={`${item.userAgent} ${item.ip ? '• ' + item.ip : ''}`}
+                  description={`${item.userAgent} ${item.ip ? "• " + item.ip : ""}`}
                 />
                 <div>{item.sessionId ? "Current" : "—"}</div>
               </List.Item>
