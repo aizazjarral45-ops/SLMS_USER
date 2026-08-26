@@ -12,6 +12,7 @@ import { Avatar, Button, Card, Flex, Form, message, Modal, Upload } from "antd";
 import { PersonalModal } from "./Modal";
 import { ContactModal } from "./contactmodal";
 import { ProfileModal } from "./profilemodal";
+import { loadSharedData, persistSharedData } from "../../../data/sharedData";
 
 const emptyProfile = { personalData: {}, profileData: {}, contactData: {} };
 const getBase64 = (file) =>
@@ -23,7 +24,7 @@ const getBase64 = (file) =>
   });
 const displayValue = (value) => value || "Not provided";
 
-function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
+function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddNotification }) {
   const [fallbackProfile, setFallbackProfile] = useState(emptyProfile);
   const profile = profileProp || fallbackProfile;
   const setProfile = (nextValue) => {
@@ -66,16 +67,107 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile }) {
     updateSection("personalData", values);
     setPersonalVisible(false);
     messageApi.success("Personal information updated.");
+
+    // create a persistent notification for profile update
+    try {
+      const note = {
+        id: `profile-updated:${Date.now()}`,
+        title: "Profile submitted",
+        description: "Your personal information has been updated successfully.",
+        type: "reminder",
+        module: "profile",
+        createdAt: new Date().toISOString(),
+        date: new Date().toISOString(),
+      };
+      if (typeof onAddNotification === "function") {
+        onAddNotification(note);
+      } else {
+        const shared = loadSharedData();
+        const next = {
+          ...shared,
+          settings: {
+            ...shared.settings,
+            customNotifications: [
+              ...(shared.settings?.customNotifications || []),
+              note,
+            ],
+          },
+        };
+        persistSharedData(next);
+      }
+    } catch (e) {
+      // non-fatal
+    }
   };
   const saveContact = (values) => {
     updateSection("contactData", values);
     setContactVisible(false);
     messageApi.success("Contact information updated.");
+
+    try {
+      const note = {
+        id: `profile-contact-updated:${Date.now()}`,
+        title: "Profile submitted",
+        description: "Your contact information has been updated successfully.",
+        type: "reminder",
+        module: "profile",
+        createdAt: new Date().toISOString(),
+        date: new Date().toISOString(),
+      };
+      if (typeof onAddNotification === "function") {
+        onAddNotification(note);
+      } else {
+        const shared = loadSharedData();
+        const next = {
+          ...shared,
+          settings: {
+            ...shared.settings,
+            customNotifications: [
+              ...(shared.settings?.customNotifications || []),
+              note,
+            ],
+          },
+        };
+        persistSharedData(next);
+      }
+    } catch (e) {
+      // non-fatal
+    }
   };
   const saveProfile = (values) => {
     updateSection("profileData", values);
     setProfileVisible(false);
     messageApi.success("Profile details updated.");
+
+    try {
+      const note = {
+        id: `profile-details-updated:${Date.now()}`,
+        title: "Profile submitted",
+        description: "Your profile details have been updated successfully.",
+        type: "reminder",
+        module: "profile",
+        createdAt: new Date().toISOString(),
+        date: new Date().toISOString(),
+      };
+      if (typeof onAddNotification === "function") {
+        onAddNotification(note);
+      } else {
+        const shared = loadSharedData();
+        const next = {
+          ...shared,
+          settings: {
+            ...shared.settings,
+            customNotifications: [
+              ...(shared.settings?.customNotifications || []),
+              note,
+            ],
+          },
+        };
+        persistSharedData(next);
+      }
+    } catch (e) {
+      // non-fatal
+    }
   };
 
   const uploadImage = async (file) => {

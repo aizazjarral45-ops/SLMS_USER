@@ -281,15 +281,17 @@ export const getNotifications = (data) => {
     0,
   );
   const budgetPercent = budget ? Math.round((spent / budget) * 100) : 0;
-  if (budget && budgetPercent >= 80) {
+  // Trigger a budget notification when remaining budget is 30% or less
+  // i.e., when spent is >= 70% of budget
+  if (budget && budgetPercent >= 70) {
     add({
       id: `budget:${budget}:${spent.toFixed(2)}`,
       type: "expense",
       title:
         budgetPercent >= 100
           ? "Monthly budget exceeded"
-          : "You are close to your monthly budget",
-      description: `$${spent.toFixed(2)} of your $${budget.toFixed(2)} monthly budget has been used.`,
+          : "Your remaining budget is low",
+      description: `$${spent.toFixed(2)} of your $${budget.toFixed(2)} monthly budget has been used (${budgetPercent}% used).`,
       relativeTime: `${budgetPercent}% used`,
       date: "",
       route: "/expense",

@@ -3,6 +3,9 @@ import { Button, Form, Input, message } from "antd";
 import { LockOutlined, MailOutlined, UserOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
+import { recordLoginEvent } from "../../../services/authService";
+import { loadSharedData, persistSharedData } from "../../../data/sharedData";
+
 import "./signup.css";
 
 const Signup = () => {
@@ -22,7 +25,45 @@ const Signup = () => {
     setLoading(true);
     try {
       await register({ name, email, password, rememberMe: true });
+
+      // Add an entry to login history for account creation
+      try {
+        await recordLoginEvent({ email: (email || "").toLowerCase(), status: "account_created" });
+      } catch (e) {
+        // non-fatal
+      }
+
+      // Add a persistent notification for account creation so it appears in the Notifications page
+      try {
+        const shared = loadSharedData();
+        const next = {
+          ...shared,
+          settings: {
+            ...shared.settings,
+            customNotifications: [
+              ...(shared.settings?.customNotifications || []),
+              {
+                id: `account-created:${(email || "").toLowerCase()}:${Date.now()}`,
+                title: "Account created",
+                description: `Your account ${(email || "").toLowerCase()} has been created successfully.`,
+                type: "reminder",
+                module: "auth",
+                createdAt: new Date().toISOString(),
+                date: new Date().toISOString(),
+              },
+            ],
+          },
+        };
+        persistSharedData(next);
+      } catch (e) {
+        // non-fatal
+      }
+
       message.success("Your account has been created.");
+      // prefill login email for convenience
+      try {
+        sessionStorage.setItem("signupEmail", (email || "").toLowerCase());
+      } catch {}
       navigate("/", { replace: true });
     } catch (error) {
       message.error(

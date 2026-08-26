@@ -266,6 +266,15 @@ function ProfilePage() {
       profile={sharedData.profile}
       onProfileChange={(nextValue) => updateSection("profile", nextValue)}
       onResetProfile={resetProfile}
+      onAddNotification={(note) =>
+        updateSection("settings", (settings) => ({
+          ...settings,
+          customNotifications: [
+            ...(settings?.customNotifications || []),
+            note,
+          ],
+        }))
+      }
     />
   );
 }
