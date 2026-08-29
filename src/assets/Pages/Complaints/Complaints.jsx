@@ -33,6 +33,7 @@ import {
 } from "@ant-design/icons";
 import "./Complaints.css";
 import { guidanceItems } from "./guidelines";
+import { isApiConfigured, request } from "../../../api/client";
 
 const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-complaints";
@@ -89,7 +90,22 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
     });
   }, [complaints, filter, query]);
 
-  const submitComplaint = (values) => {
+  const submitComplaint = async (values) => {
+    if (isApiConfigured) {
+      try {
+        const result = await request("/complaints", {
+          method: "POST",
+          body: values,
+        });
+        setComplaints((current) => [result.complaint, ...current]);
+        form.resetFields();
+        messageApi.success("Complaint submitted successfully.");
+        return;
+      } catch (error) {
+        messageApi.error(error.message || "Unable to submit complaint.");
+        return;
+      }
+    }
     const record = {
       key: `${Date.now()}`,
       title: values.title,

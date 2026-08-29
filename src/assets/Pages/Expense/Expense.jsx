@@ -31,6 +31,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import "./Expense.css";
+import { isApiConfigured, request } from "../../../api/client";
 const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-expenses";
 const BUDGET_STORAGE_KEY = "slms-monthly-budgets";
@@ -259,7 +260,27 @@ function Expense({
     "Prediction: if this pace continues, you may exceed the monthly budget by around $38.",
     "Recommendation: shift entertainment and transport to lower-cost options for the next 5 days.",
   ];
-  const onFinish = (values) => {
+  const onFinish = async (values) => {
+    if (isApiConfigured) {
+      try {
+        const result = await request("/expenses", {
+          method: "POST",
+          body: {
+            ...values,
+            date: values.date.format("YYYY-MM-DD"),
+            amount: Number(values.amount),
+          },
+        });
+        setExpenses((current) => [result.expense, ...current]);
+        setOpen(false);
+        form.resetFields();
+        messageApi.success("Expense added successfully.");
+        return;
+      } catch (error) {
+        messageApi.error(error.message || "Unable to add expense.");
+        return;
+      }
+    }
     const record = {
       key: `${Date.now()}`,
       date: values.date.format("YYYY-MM-DD"),

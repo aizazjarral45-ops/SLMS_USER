@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { AuthContext } from "./authContext";
 import {
-  clearStoredSession,
   getStoredSession,
   login as loginWithService,
+  logout as logoutWithService,
   register as registerWithService,
 } from "../services/authService";
 
@@ -31,8 +31,8 @@ export const AuthProvider = ({ children }) => {
         if (result?.token) setSession(result);
         return result;
       },
-      logout() {
-        clearStoredSession();
+      async logout() {
+        await logoutWithService();
         setSession(null);
       },
     }),

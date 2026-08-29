@@ -39,6 +39,7 @@ import LoginHistory from "./assets/Pages/Setting/LoginHistory";
 import { useAuth } from "./hooks/useAuth";
 import { getNotifications } from "./data/notifications";
 import { studentDataService } from "./services/studentDataService";
+import { isApiConfigured, request } from "./api/client";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
@@ -54,7 +55,7 @@ function PublicRoute({ children }) {
 }
 
 function StudentLayout() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => window.innerWidth < MOBILE_BREAKPOINT,
@@ -70,6 +71,48 @@ function StudentLayout() {
   useEffect(() => {
     studentDataService.save(sharedData);
   }, [sharedData]);
+
+  useEffect(() => {
+    if (!isApiConfigured || !user) return;
+    let cancelled = false;
+    const loadRemoteData = async () => {
+      const [complaintsResult, expensesResult, hostelResult, notificationsResult] =
+        await Promise.allSettled([
+          request("/complaints"),
+          request("/expenses"),
+          request("/hostel"),
+          request("/notifications"),
+        ]);
+      if (cancelled) return;
+      setSharedData((current) => ({
+        ...current,
+        complaints:
+          complaintsResult.status === "fulfilled"
+            ? complaintsResult.value.complaints || []
+            : current.complaints,
+        expenses:
+          expensesResult.status === "fulfilled"
+            ? expensesResult.value.expenses || []
+            : current.expenses,
+        hostelApplications:
+          hostelResult.status === "fulfilled"
+            ? hostelResult.value.records || []
+            : current.hostelApplications,
+        settings:
+          notificationsResult.status === "fulfilled"
+            ? {
+                ...current.settings,
+                remoteNotifications:
+                  notificationsResult.value.notifications || [],
+              }
+            : current.settings,
+      }));
+    };
+    loadRemoteData().catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     const syncFromAnotherTab = (event) => {
@@ -126,7 +169,10 @@ function StudentLayout() {
   }, [updateSection]);
 
   const notifications = useMemo(
-    () => getNotifications(sharedData),
+    () => [
+      ...(sharedData.settings?.remoteNotifications || []),
+      ...getNotifications(sharedData),
+    ],
     [sharedData],
   );
   const unreadNotificationCount = notifications.filter(
@@ -390,9 +436,9 @@ function App() {
       />
       <Route
         element={
-          <ProtectedRoute>
+          <PublicRoute>
             <StudentLayout />
-          </ProtectedRoute>
+          </PublicRoute>
         }
       >
         <Route index element={<DashboardPage />} />

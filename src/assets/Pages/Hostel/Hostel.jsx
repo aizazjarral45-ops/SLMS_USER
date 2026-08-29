@@ -37,6 +37,7 @@ import {
   WifiOutlined,
 } from "@ant-design/icons";
 import "./Hostel.css";
+import { isApiConfigured, request } from "../../../api/client";
 
 const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-hostel-applications";
@@ -115,7 +116,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     [applications],
   );
 
-  const submitApplication = (values) => {
+  const submitApplication = async (values) => {
     if (editingKey) {
       const existingApplication =
         applications.find((item) => item.key === editingKey) || {};
@@ -148,6 +149,38 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       form.resetFields();
       messageApi.success("Hostel application updated.");
       return;
+    }
+
+    if (isApiConfigured) {
+      try {
+        const result = await request("/hostel", {
+          method: "POST",
+          body: {
+            roomType: "Standard",
+            preference: values.program || "Standard",
+            facility: values.gender || "Standard",
+            remarks: [
+              values.fullName,
+              values.studentId,
+              values.email,
+              values.phone,
+              values.guardianName,
+              values.guardianPhone,
+              values.emergencyName,
+              values.emergencyPhone,
+            ]
+              .filter(Boolean)
+              .join(" | "),
+          },
+        });
+        setApplications((current) => [result.record, ...current]);
+        form.resetFields();
+        messageApi.success("Your hostel application has been saved.");
+        return;
+      } catch (error) {
+        messageApi.error(error.message || "Unable to save hostel application.");
+        return;
+      }
     }
 
     const timestamp = Date.now();

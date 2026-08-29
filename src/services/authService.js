@@ -28,10 +28,10 @@ const hashPassword = async (password) => {
   ).join("");
 };
 
-const saveSession = ({ token, user, rememberMe }) => {
+const saveSession = ({ token, refreshToken = null, sessionId = null, user, rememberMe }) => {
   const storage = rememberMe ? window.localStorage : window.sessionStorage;
   const otherStorage = rememberMe ? window.sessionStorage : window.localStorage;
-  const session = { token, user, createdAt: new Date().toISOString() };
+  const session = { token, refreshToken, sessionId, user, createdAt: new Date().toISOString() };
 
   storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   storage.setItem("slms_access_token", token);
@@ -41,11 +41,18 @@ const saveSession = ({ token, user, rememberMe }) => {
 };
 
 const toSession = (payload, rememberMe) => {
-  const token = payload.accessToken || payload.token;
-  const user = payload.user;
+  const response = payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+  const token = response?.accessToken || response?.token;
+  const user = response?.user;
   if (!token || !user)
     throw new Error("The authentication response is incomplete.");
-  return saveSession({ token, user, rememberMe });
+  return saveSession({
+    token,
+    refreshToken: response?.refreshToken,
+    sessionId: response?.sessionId,
+    user,
+    rememberMe,
+  });
 };
 
 export const getStoredSession = () => {
@@ -67,6 +74,17 @@ export const clearStoredSession = () => {
     storage.removeItem(SESSION_STORAGE_KEY);
     storage.removeItem("slms_access_token");
   }
+};
+
+export const logout = async () => {
+  const session = getStoredSession();
+  if (isApiConfigured && session?.token) {
+    await request("/auth/logout", {
+      method: "POST",
+      body: { sessionId: session.sessionId },
+    });
+  }
+  clearStoredSession();
 };
 
 export const register = async ({

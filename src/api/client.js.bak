@@ -32,8 +32,7 @@ export const request = async (path, options = {}) => {
   }
 
   if (token) {
-    // Use string concatenation to avoid any interpolation being modified by tooling
-    headers.set("Authorization", "Bearer " + token);
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   let response;
@@ -46,7 +45,7 @@ export const request = async (path, options = {}) => {
           ? options.body
           : JSON.stringify(options.body),
     });
-  } catch (e) {
+  } catch {
     throw new ApiError("Unable to reach the API. Please try again.");
   }
 
@@ -60,15 +59,6 @@ export const request = async (path, options = {}) => {
       status: response.status,
       details: body,
     });
-  }
-
-  if (
-    body &&
-    typeof body === "object" &&
-    "data" in body &&
-    body.data !== undefined
-  ) {
-    return body.data;
   }
 
   return body;
