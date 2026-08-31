@@ -20,7 +20,7 @@ function Sidebar({ onNavigate }) {
     if (path === "/aicopilot") return "2";
     if (path === "/academic") return "3";
     if (path === "/hostel") return "4";
-    if (path === "/expense") return "5";
+    if (path === "/expense" || path === "/expenses") return "5";
     if (path === "/complaints") return "6";
     if (path === "/profile") return "7";
     if (path === "/setting") return "8";

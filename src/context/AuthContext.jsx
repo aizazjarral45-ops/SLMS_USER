@@ -32,8 +32,11 @@ export const AuthProvider = ({ children }) => {
         return result;
       },
       async logout() {
-        await logoutWithService();
-        setSession(null);
+        try {
+          await logoutWithService();
+        } finally {
+          setSession(null);
+        }
       },
     }),
     [loading, session],

@@ -159,10 +159,15 @@ function Settings({ settings = {}, onSettingsChange }) {
       title: "Confirm logout",
       content: "Are you sure you want to logout from this session?",
       okText: "Logout",
-      onOk() {
-        logout();
-        messageApi.success("You have been logged out.");
-        navigate("/login");
+      async onOk() {
+        try {
+          await logout();
+          messageApi.success("You have been logged out.");
+        } catch (error) {
+          console.error("Logout request failed:", error);
+        } finally {
+          navigate("/login", { replace: true });
+        }
       },
     });
   };
@@ -181,8 +186,8 @@ function Settings({ settings = {}, onSettingsChange }) {
         password: deletePassword,
       });
       messageApi.success("Account deleted permanently.");
-      logout();
-      navigate("/login");
+      await logout();
+      navigate("/login", { replace: true });
     } catch (e) {
       messageApi.error(
         e?.message || "Incorrect password. Account was not deleted.",

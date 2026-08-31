@@ -28,10 +28,18 @@ const hashPassword = async (password) => {
   ).join("");
 };
 
+const normalizeUser = (user = {}) => {
+  if (!user || typeof user !== "object") return user;
+  const normalized = { ...user };
+  if (!normalized.id && normalized._id) normalized.id = normalized._id;
+  return normalized;
+};
+
 const saveSession = ({ token, refreshToken = null, sessionId = null, user, rememberMe }) => {
   const storage = rememberMe ? window.localStorage : window.sessionStorage;
   const otherStorage = rememberMe ? window.sessionStorage : window.localStorage;
-  const session = { token, refreshToken, sessionId, user, createdAt: new Date().toISOString() };
+  const normalizedUser = normalizeUser(user);
+  const session = { token, refreshToken, sessionId, user: normalizedUser, createdAt: new Date().toISOString() };
 
   storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   storage.setItem("slms_access_token", token);
@@ -43,7 +51,7 @@ const saveSession = ({ token, refreshToken = null, sessionId = null, user, remem
 const toSession = (payload, rememberMe) => {
   const response = payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
   const token = response?.accessToken || response?.token;
-  const user = response?.user;
+  const user = normalizeUser(response?.user);
   if (!token || !user)
     throw new Error("The authentication response is incomplete.");
   return saveSession({
@@ -61,7 +69,7 @@ export const getStoredSession = () => {
       const session = JSON.parse(
         storage.getItem(SESSION_STORAGE_KEY) || "null",
       );
-      if (session?.token && session?.user?.id) return session;
+      if (session?.token && (session?.user?.id || session?.user?._id)) return session;
     } catch {
       // An invalid local session is treated as signed out.
     }
@@ -73,18 +81,27 @@ export const clearStoredSession = () => {
   for (const storage of [window.localStorage, window.sessionStorage]) {
     storage.removeItem(SESSION_STORAGE_KEY);
     storage.removeItem("slms_access_token");
+    storage.removeItem("slms_admin_session");
+    storage.removeItem("token");
   }
+  document.cookie.split(";").forEach((cookie) => {
+    const name = cookie.split("=")[0].trim();
+    if (name) document.cookie = `${name}=; Max-Age=0; path=/`;
+  });
 };
 
 export const logout = async () => {
   const session = getStoredSession();
-  if (isApiConfigured && session?.token) {
-    await request("/auth/logout", {
-      method: "POST",
-      body: { sessionId: session.sessionId },
-    });
+  try {
+    if (isApiConfigured && session?.token) {
+      await request("/auth/logout", {
+        method: "POST",
+        body: { sessionId: session.sessionId },
+      });
+    }
+  } finally {
+    clearStoredSession();
   }
-  clearStoredSession();
 };
 
 export const register = async ({

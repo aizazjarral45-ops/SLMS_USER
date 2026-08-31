@@ -436,9 +436,9 @@ function App() {
       />
       <Route
         element={
-          <PublicRoute>
+          <ProtectedRoute>
             <StudentLayout />
-          </PublicRoute>
+          </ProtectedRoute>
         }
       >
         <Route index element={<DashboardPage />} />
@@ -447,6 +447,7 @@ function App() {
         <Route path="aicopilot" element={<CopilotPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="expense" element={<ExpensePage />} />
+        <Route path="expenses" element={<ExpensePage />} />
         <Route path="complaints" element={<ComplaintsPage />} />
         <Route path="setting" element={<SettingsPage />} />
         <Route

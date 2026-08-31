@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -44,6 +44,61 @@ const STORAGE_KEY = "slms-hostel-applications";
 
 const semesters = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 
+function formatDisplayValue(value, fallback = "Not provided") {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (value instanceof Date) return value.toLocaleDateString();
+  if (typeof value !== "object") return String(value);
+
+  const preferredProperty =
+    value.name ??
+    value.title ??
+    value.message ??
+    value.roomNumber ??
+    value.block ??
+    value.floor ??
+    value.value ??
+    value.label ??
+    value._id ??
+    value.id;
+  if (preferredProperty !== undefined && preferredProperty !== value) {
+    return formatDisplayValue(preferredProperty, fallback);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return fallback;
+  }
+}
+
+function formatDateInput(value) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
+function getApplicationFormValues(application) {
+  return {
+    fullName: formatDisplayValue(application?.fullName, ""),
+    studentId: formatDisplayValue(application?.studentId, ""),
+    email: formatDisplayValue(application?.email, ""),
+    phone: formatDisplayValue(application?.phone, ""),
+    gender: formatDisplayValue(application?.gender, ""),
+    program: formatDisplayValue(application?.program, ""),
+    semester: formatDisplayValue(application?.semester, ""),
+    guardianName: formatDisplayValue(application?.guardianName, ""),
+    guardianPhone: formatDisplayValue(application?.guardianPhone, ""),
+    emergencyName: formatDisplayValue(application?.emergencyName, ""),
+    emergencyPhone: formatDisplayValue(application?.emergencyPhone, ""),
+    feesPerSemester: formatDisplayValue(application?.feesPerSemester, ""),
+    feesPaidThisMonth: formatDisplayValue(application?.feesPaidThisMonth, ""),
+    paymentDueDate: formatDateInput(application?.paymentDueDate),
+    feesStatus: formatDisplayValue(application?.feesStatus, ""),
+    agreement: true,
+  };
+}
+
 function getSavedApplications() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -62,19 +117,101 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   const applications = Array.isArray(applicationsProp)
     ? applicationsProp
     : fallbackApplications;
-  const setApplications = (nextValue) => {
-    if (onApplicationsChange) {
-      onApplicationsChange(nextValue);
-      return;
-    }
+  const setApplications = useCallback(
+    (nextValue) => {
+      if (onApplicationsChange) {
+        onApplicationsChange(nextValue);
+        return;
+      }
 
-    setFallbackApplications((current) =>
-      typeof nextValue === "function" ? nextValue(current) : nextValue,
-    );
-  };
+      setFallbackApplications((current) =>
+        typeof nextValue === "function" ? nextValue(current) : nextValue,
+      );
+    },
+    [onApplicationsChange],
+  );
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [editingKey, setEditingKey] = useState(null);
+  const [editingKey, setEditingKey] = useState(
+    applicationsProp?.[0]?.key || fallbackApplications[0]?.key || null,
+  );
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
+  const [hostelNotifications, setHostelNotifications] = useState([]);
+
+  const normalizeRemoteApplication = (application) => {
+    if (!application) return null;
+    const details =
+      application.applicantDetails &&
+      typeof application.applicantDetails === "object"
+        ? application.applicantDetails
+        : application;
+    return {
+      ...details,
+      ...application,
+      key: String(
+        application._id || application.id || application.key || Date.now(),
+      ),
+      applicationNo:
+        application.applicationNo ||
+        `HST-${String(application._id || application.id || "").slice(-8)}`,
+      status: application.status || "Pending",
+      submittedAt: application.createdAt || application.submittedAt || "",
+      roomAllocation: application.roomAllocation || null,
+    };
+  };
+
+  useEffect(() => {
+    if (!isApiConfigured) return undefined;
+    let cancelled = false;
+    const loadMyApplication = async (showLoading = true) => {
+      if (showLoading) setRemoteLoading(true);
+      try {
+        const result = await request("/hostel/my-application");
+        if (cancelled) return;
+        const next = normalizeRemoteApplication(result?.application || result);
+        setApplications(next ? [next] : []);
+        if (next) {
+          form.setFieldsValue(getApplicationFormValues(next));
+          setEditingKey(next.key);
+        } else {
+          setEditingKey(null);
+          form.resetFields();
+        }
+        setRemoteError("");
+      } catch (error) {
+        if (!cancelled && error?.status !== 404) {
+          setRemoteError(
+            formatDisplayValue(
+              error?.message,
+              "Unable to load your hostel application.",
+            ),
+          );
+        }
+      } finally {
+        if (showLoading && !cancelled) setRemoteLoading(false);
+      }
+    };
+    const loadNotifications = async () => {
+      try {
+        const result = await request("/notifications");
+        const notifications = (result?.notifications || []).filter(
+          (notification) =>
+            notification.type === "hostel" || notification.module === "hostel",
+        );
+        if (!cancelled) setHostelNotifications(notifications.slice(0, 3));
+      } catch {
+        if (!cancelled) setHostelNotifications([]);
+      }
+    };
+    loadMyApplication();
+    loadNotifications();
+    const poll = window.setInterval(() => {
+      loadMyApplication(false);
+      loadNotifications();
+    }, 30000);
+    return () => window.clearInterval(poll);
+  }, [form, setApplications]);
 
   const filteredApplications = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -117,76 +254,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   );
 
   const submitApplication = async (values) => {
-    if (editingKey) {
-      const existingApplication =
-        applications.find((item) => item.key === editingKey) || {};
-      const updatedApplication = {
-        ...existingApplication,
-        fullName: values.fullName.trim(),
-        studentId: values.studentId.trim(),
-        email: values.email.trim(),
-        phone: values.phone.trim(),
-        gender: values.gender,
-        program: values.program.trim(),
-        semester: values.semester,
-        guardianName: values.guardianName.trim(),
-        guardianPhone: values.guardianPhone.trim(),
-        emergencyName: values.emergencyName.trim(),
-        emergencyPhone: values.emergencyPhone.trim(),
-        feesPerSemester: values.feesPerSemester || 0,
-        feesPaidThisMonth: values.feesPaidThisMonth || 0,
-        paymentDueDate: values.paymentDueDate || "",
-        feesStatus: values.feesStatus || "Pending",
-      };
-
-      setApplications((current) =>
-        current.map((item) =>
-          item.key === editingKey ? updatedApplication : item,
-        ),
-      );
-
-      setEditingKey(null);
-      form.resetFields();
-      messageApi.success("Hostel application updated.");
-      return;
-    }
-
-    if (isApiConfigured) {
-      try {
-        const result = await request("/hostel", {
-          method: "POST",
-          body: {
-            roomType: "Standard",
-            preference: values.program || "Standard",
-            facility: values.gender || "Standard",
-            remarks: [
-              values.fullName,
-              values.studentId,
-              values.email,
-              values.phone,
-              values.guardianName,
-              values.guardianPhone,
-              values.emergencyName,
-              values.emergencyPhone,
-            ]
-              .filter(Boolean)
-              .join(" | "),
-          },
-        });
-        setApplications((current) => [result.record, ...current]);
-        form.resetFields();
-        messageApi.success("Your hostel application has been saved.");
-        return;
-      } catch (error) {
-        messageApi.error(error.message || "Unable to save hostel application.");
-        return;
-      }
-    }
-
-    const timestamp = Date.now();
-    const application = {
-      key: String(timestamp),
-      applicationNo: `HST-${String(timestamp).slice(-6)}`,
+    const applicantDetails = {
       fullName: values.fullName.trim(),
       studentId: values.studentId.trim(),
       email: values.email.trim(),
@@ -198,17 +266,107 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       guardianPhone: values.guardianPhone.trim(),
       emergencyName: values.emergencyName.trim(),
       emergencyPhone: values.emergencyPhone.trim(),
-      status: "Submitted",
-      submittedAt: new Date().toLocaleDateString(),
-      feesPerSemester: values.feesPerSemester || 0,
-      feesPaidThisMonth: values.feesPaidThisMonth || 0,
+      feesPerSemester: Number(values.feesPerSemester) || 0,
+      feesPaidThisMonth: Number(values.feesPaidThisMonth) || 0,
       paymentDueDate: values.paymentDueDate || "",
       feesStatus: values.feesStatus || "Pending",
     };
 
+    if (editingKey) {
+      const existingApplication =
+        applications.find((item) => item.key === editingKey) || {};
+      if (isApiConfigured) {
+        try {
+          const result = await request(`/hostel/update/${editingKey}`, {
+            method: "PUT",
+            body: { applicantDetails },
+          });
+          const next = normalizeRemoteApplication(
+            result?.application || result,
+          );
+          if (next) {
+            setApplications([next]);
+            form.setFieldsValue(getApplicationFormValues(next));
+          }
+          messageApi.success("Your hostel application has been updated.");
+          return;
+        } catch (error) {
+          messageApi.error(
+            formatDisplayValue(
+              error?.message,
+              "Unable to update hostel application.",
+            ),
+          );
+          return;
+        }
+      }
+
+      const updatedApplication = {
+        ...existingApplication,
+        ...applicantDetails,
+      };
+
+      setApplications((current) =>
+        current.map((item) =>
+          item.key === editingKey ? updatedApplication : item,
+        ),
+      );
+
+      setEditingKey(updatedApplication.key);
+      form.setFieldsValue(getApplicationFormValues(updatedApplication));
+      messageApi.success("Hostel application updated.");
+      return;
+    }
+
+    if (isApiConfigured) {
+      try {
+        const result = await request("/hostel/apply", {
+          method: "POST",
+          body: { applicantDetails },
+        });
+        const next = normalizeRemoteApplication(result?.application || result);
+        if (next) setApplications([next]);
+        if (next) {
+          setEditingKey(next.key);
+          form.setFieldsValue(getApplicationFormValues(next));
+        }
+        messageApi.success("Your hostel application has been saved.");
+        return;
+      } catch (error) {
+        messageApi.error(
+          formatDisplayValue(
+            error?.message,
+            "Unable to save hostel application.",
+          ),
+        );
+        return;
+      }
+    }
+
+    const timestamp = Date.now();
+    const application = {
+      key: String(timestamp),
+      applicationNo: `HST-${String(timestamp).slice(-6)}`,
+      ...applicantDetails,
+      fullName: values.fullName.trim(),
+      studentId: values.studentId.trim(),
+      email: values.email.trim(),
+      phone: values.phone.trim(),
+      gender: values.gender,
+      program: values.program.trim(),
+      semester: values.semester,
+      guardianName: values.guardianName.trim(),
+      guardianPhone: values.guardianPhone.trim(),
+      emergencyName: values.emergencyName.trim(),
+      emergencyPhone: values.emergencyPhone.trim(),
+      status: "Pending",
+      submittedAt: new Date().toISOString(),
+    };
+
     setApplications((current) => [application, ...current]);
 
-    form.resetFields();
+    setEditingKey(application.key);
+    form.setFieldsValue(getApplicationFormValues(application));
     messageApi.success("Your hostel application has been saved.");
   };
 
@@ -245,7 +403,21 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     );
   };
 
-  const statusBadge = (status) => <Badge status="processing" text={status} />;
+  const statusBadge = (status) => {
+    const badgeStatus =
+      {
+        Approved: "success",
+        Rejected: "error",
+        Pending: "processing",
+        Submitted: "processing",
+      }[status] || "default";
+    return (
+      <Badge
+        status={badgeStatus}
+        text={formatDisplayValue(status, "Pending")}
+      />
+    );
+  };
 
   const columns = [
     {
@@ -257,8 +429,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       key: "student",
       render: (_, record) => (
         <div className="hostel-student-cell">
-          <strong>{record.fullName}</strong>
-          <span>{record.studentId}</span>
+          <strong>{formatDisplayValue(record.fullName)}</strong>
+          <span>{formatDisplayValue(record.studentId)}</span>
         </div>
       ),
     },
@@ -271,8 +443,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       key: "contact",
       render: (_, record) => (
         <div className="hostel-student-cell">
-          <span>{record.email}</span>
-          <span>{record.phone}</span>
+          <span>{formatDisplayValue(record.email)}</span>
+          <span>{formatDisplayValue(record.phone)}</span>
         </div>
       ),
     },
@@ -335,8 +507,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       key: "student",
       render: (_, record) => (
         <div className="hostel-student-cell">
-          <strong>{record.fullName}</strong>
-          <span>{record.studentId}</span>
+          <strong>{formatDisplayValue(record.fullName)}</strong>
+          <span>{formatDisplayValue(record.studentId)}</span>
         </div>
       ),
     },
@@ -349,9 +521,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       key: "guardian",
       render: (_, record) => (
         <div className="hostel-student-cell">
-          <strong>{record.guardianName || "Not provided"}</strong>
+          <strong>{formatDisplayValue(record.guardianName)}</strong>
           {record.guardianPhone ? (
-            <a href={`tel:${record.guardianPhone}`}>{record.guardianPhone}</a>
+            <a href={`tel:${formatDisplayValue(record.guardianPhone, "")}`}>
+              {formatDisplayValue(record.guardianPhone)}
+            </a>
           ) : (
             <span>Not provided</span>
           )}
@@ -367,9 +541,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       key: "emergency",
       render: (_, record) => (
         <div className="hostel-student-cell">
-          <strong>{record.emergencyName || "Not provided"}</strong>
+          <strong>{formatDisplayValue(record.emergencyName)}</strong>
           {record.emergencyPhone ? (
-            <a href={`tel:${record.emergencyPhone}`}>{record.emergencyPhone}</a>
+            <a href={`tel:${formatDisplayValue(record.emergencyPhone, "")}`}>
+              {formatDisplayValue(record.emergencyPhone)}
+            </a>
           ) : (
             <span>Not provided</span>
           )}
@@ -384,6 +560,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       ),
       dataIndex: "submittedAt",
       key: "submittedAt",
+      render: (date) => formatDisplayValue(date),
     },
     {
       title: (
@@ -424,10 +601,55 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   ];
 
   const newestApplication = applications[0];
+  const roomAllocation = newestApplication?.roomAllocation;
 
   return (
     <div className="hostel-page">
       {contextHolder}
+      {isApiConfigured && remoteLoading ? (
+        <Alert
+          showIcon
+          type="info"
+          message="Loading your hostel application..."
+        />
+      ) : null}
+      {remoteError ? (
+        <Alert
+          showIcon
+          type="warning"
+          message="Hostel status unavailable"
+          description={remoteError}
+        />
+      ) : null}
+      {hostelNotifications.length ? (
+        <Card
+          className="hostel-panel hostel-status-card"
+          title={
+            <Space>
+              <SafetyCertificateOutlined /> Hostel notifications
+            </Space>
+          }
+        >
+          <Space
+            direction="vertical"
+            size={8}
+            className="hostel-notification-list"
+          >
+            {hostelNotifications.map((notification) => (
+              <div key={notification._id || notification.id}>
+                <Text strong>
+                  {formatDisplayValue(notification.title, "Hostel update")}
+                </Text>
+                <div>
+                  <Text type="secondary">
+                    {formatDisplayValue(notification.message)}
+                  </Text>
+                </div>
+              </div>
+            ))}
+          </Space>
+        </Card>
+      ) : null}
 
       <section className="hostel-hero">
         <div className="hostel-hero-copy">
@@ -436,8 +658,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           </Tag>
           <Title level={1}>Find a room that feels like home.</Title>
           <Paragraph>
-            Submit your student details and emergency contact in one place. Your
-            saved applications stay available on this device.
+            Submit your student details and emergency contact in one place.
+            Track review progress and room allocation from this panel.
           </Paragraph>
           <Space wrap className="hostel-hero-meta">
             <span>
@@ -458,7 +680,19 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           <Paragraph>
             Share your personal and guardian information to create your request.
           </Paragraph>
-          <Tag color="blue">Saved automatically after submission</Tag>
+          <Tag
+            color={
+              newestApplication?.status === "Approved"
+                ? "green"
+                : newestApplication?.status === "Rejected"
+                  ? "red"
+                  : "blue"
+            }
+          >
+            {newestApplication
+              ? `Application status: ${formatDisplayValue(newestApplication.status, "Pending")}`
+              : "Application status: Pending"}
+          </Tag>
         </Card>
       </section>
 
@@ -470,10 +704,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                 <TeamOutlined /> Student Name
               </Text>
               <Title level={4}>
-                {newestApplication?.fullName || "Not provided"}
+                {formatDisplayValue(newestApplication?.fullName)}
               </Title>
               <Text type="secondary">
-                <PhoneOutlined /> {newestApplication?.phone || "Not provided"}
+                <PhoneOutlined /> {formatDisplayValue(newestApplication?.phone)}
               </Text>
             </div>
           </Card>
@@ -485,11 +719,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                 <SafetyCertificateOutlined /> Guardian Name
               </Text>
               <Title level={4}>
-                {newestApplication?.guardianName || "Not provided"}
+                {formatDisplayValue(newestApplication?.guardianName)}
               </Title>
               <Text type="secondary">
                 <PhoneOutlined />{" "}
-                {newestApplication?.guardianPhone || "Not provided"}
+                {formatDisplayValue(newestApplication?.guardianPhone)}
               </Text>
             </div>
           </Card>
@@ -501,11 +735,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                 <PhoneOutlined /> Emergency Contact Name
               </Text>
               <Title level={4}>
-                {newestApplication?.emergencyName || "Not provided"}
+                {formatDisplayValue(newestApplication?.emergencyName)}
               </Title>
               <Text type="secondary">
                 <PhoneOutlined />{" "}
-                {newestApplication?.emergencyPhone || "Not provided"}
+                {formatDisplayValue(newestApplication?.emergencyPhone)}
               </Text>
             </div>
           </Card>
@@ -517,7 +751,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                 <DollarOutlined /> Fees Status
               </Text>
               <Title level={4}>
-                {newestApplication?.feesStatus || "Pending"}
+                {formatDisplayValue(newestApplication?.feesStatus, "Pending")}
               </Title>
               <Tag
                 color={
@@ -617,6 +851,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                         required: true,
                         whitespace: true,
                         message: "Enter your phone number.",
+                      },
+                      {
+                        pattern: /^[+]?[0-9\s()-]{7,20}$/,
+                        message: "Enter a valid phone number.",
                       },
                     ]}
                   >
@@ -771,6 +1009,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                         whitespace: true,
                         message: "Enter the guardian's phone number.",
                       },
+                      {
+                        pattern: /^[+]?[0-9\s()-]{7,20}$/,
+                        message: "Enter a valid phone number.",
+                      },
                     ]}
                   >
                     <Input placeholder="e.g. +92 300 1234567" />
@@ -800,6 +1042,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                         required: true,
                         whitespace: true,
                         message: "Enter an emergency contact phone number.",
+                      },
+                      {
+                        pattern: /^[+]?[0-9\s()-]{7,20}$/,
+                        message: "Enter a valid phone number.",
                       },
                     ]}
                   >
@@ -836,9 +1082,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                   size="large"
                   icon={<SendOutlined />}
                 >
-                  {editingKey
-                    ? "Update application"
-                    : "Save hostel application"}
+                  {editingKey ? "Edit Application" : "Submit Application"}
                 </Button>
                 {editingKey && (
                   <Button
@@ -923,16 +1167,21 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                   className="hostel-latest-details"
                 >
                   <Descriptions.Item label="Application">
-                    {newestApplication.applicationNo}
+                    {formatDisplayValue(newestApplication.applicationNo)}
                   </Descriptions.Item>
                   <Descriptions.Item label="Student Name">
-                    {newestApplication.fullName}
+                    {formatDisplayValue(newestApplication.fullName)}
                   </Descriptions.Item>
                   <Descriptions.Item label="Fees Amount">
-                    PKR {newestApplication.feesPerSemester || 0}
+                    PKR{" "}
+                    {formatDisplayValue(newestApplication.feesPerSemester, "0")}
                   </Descriptions.Item>
                   <Descriptions.Item label="Fees paid this month">
-                    PKR {newestApplication.feesPaidThisMonth || 0}
+                    PKR{" "}
+                    {formatDisplayValue(
+                      newestApplication.feesPaidThisMonth,
+                      "0",
+                    )}
                   </Descriptions.Item>
                   <Descriptions.Item label="Fees Status">
                     <Tag
@@ -945,11 +1194,14 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                       }
                       style={{ width: "auto" }}
                     >
-                      {newestApplication.feesStatus || "N/A"}
+                      {formatDisplayValue(newestApplication.feesStatus, "N/A")}
                     </Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="Due Date">
-                    {newestApplication.paymentDueDate || "N/A"}
+                    {formatDisplayValue(
+                      newestApplication.paymentDueDate,
+                      "N/A",
+                    )}
                   </Descriptions.Item>
                 </Descriptions>
               ) : (
@@ -986,6 +1238,9 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               options={[
                 { value: "All", label: "All statuses" },
                 { value: "Submitted", label: "Submitted" },
+                { value: "Pending", label: "Pending" },
+                { value: "Approved", label: "Approved" },
+                { value: "Rejected", label: "Rejected" },
               ]}
             />
           </Space>
@@ -1000,6 +1255,110 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           }}
           pagination={{ pageSize: 5, hideOnSinglePage: true }}
           scroll={{ x: 820 }}
+        />
+      </Card>
+
+      {newestApplication?.status === "Approved" &&
+      roomAllocation &&
+      (roomAllocation.roomNumber ||
+        roomAllocation.block ||
+        roomAllocation.floor) ? (
+        <Card
+          className="hostel-panel hostel-records-card hostel-room-card"
+          title={
+            <Space>
+              <HomeOutlined /> Room allocation
+            </Space>
+          }
+          extra={<Tag color="green">Allocated</Tag>}
+        >
+          <Table
+            rowKey="applicationNo"
+            pagination={false}
+            dataSource={[newestApplication]}
+            columns={[
+              {
+                title: "Application",
+                key: "applicationNo",
+                render: (_, record) =>
+                  formatDisplayValue(record.applicationNo, "—"),
+              },
+              {
+                title: "Room",
+                key: "roomNumber",
+                render: (_, record) =>
+                  formatDisplayValue(record.roomAllocation?.roomNumber, "—"),
+              },
+              {
+                title: "Block",
+                key: "block",
+                render: (_, record) =>
+                  formatDisplayValue(record.roomAllocation?.block, "—"),
+              },
+              {
+                title: "Floor",
+                key: "floor",
+                render: (_, record) =>
+                  formatDisplayValue(record.roomAllocation?.floor, "—"),
+              },
+              {
+                title: "Allocated on",
+                key: "allocatedAt",
+                render: (_, record) =>
+                  formatDisplayValue(record.roomAllocation?.allocatedAt, "—"),
+              },
+            ]}
+            scroll={{ x: 700 }}
+          />
+        </Card>
+      ) : null}
+
+      <Card
+        className="hostel-panel hostel-records-card hostel-status-card"
+        title={
+          <Space>
+            <SafetyCertificateOutlined /> Application Status
+          </Space>
+        }
+        extra={newestApplication ? statusBadge(newestApplication.status) : null}
+      >
+        <Table
+          rowKey="key"
+          pagination={false}
+          dataSource={newestApplication ? [newestApplication] : []}
+          columns={[
+            {
+              title: "Application",
+              key: "applicationNo",
+              render: (_, record) =>
+                formatDisplayValue(record.applicationNo, "—"),
+            },
+            {
+              title: "Status",
+              key: "status",
+              render: (_, record) => statusBadge(record.status),
+            },
+            {
+              title: "Submitted",
+              key: "submittedAt",
+              render: (_, record) =>
+                formatDisplayValue(record.submittedAt, "—"),
+            },
+            {
+              title: "Message",
+              key: "statusMessage",
+              render: (_, record) =>
+                record.status === "Approved"
+                  ? "Approved. Room allocation details are shown above."
+                  : record.status === "Rejected"
+                    ? "Not approved. Please contact the hostel office."
+                    : "Your application is awaiting hostel office approval.",
+            },
+          ]}
+          locale={{
+            emptyText: "Submit an application to see its approval status.",
+          }}
+          scroll={{ x: 760 }}
         />
       </Card>
 
@@ -1062,27 +1421,28 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               key: "student",
               render: (_, record) => (
                 <div className="hostel-student-cell">
-                  <strong>{record.studentName}</strong>
-                  <span>{record.studentId}</span>
+                  <strong>{formatDisplayValue(record.studentName)}</strong>
+                  <span>{formatDisplayValue(record.studentId)}</span>
                 </div>
               ),
             },
             {
               title: "Application",
-              dataIndex: "applicationNo",
               key: "applicationNo",
+              render: (_, record) =>
+                formatDisplayValue(record.applicationNo, "—"),
             },
             {
               title: "Fees Amount (PKR)",
               dataIndex: "feesAmount",
               key: "feesAmount",
-              render: (amount) => `PKR ${amount}`,
+              render: (amount) => `PKR ${formatDisplayValue(amount, "0")}`,
             },
             {
               title: "Paid this month (PKR)",
               dataIndex: "feesPaidThisMonth",
               key: "feesPaidThisMonth",
-              render: (amount) => `PKR ${amount}`,
+              render: (amount) => `PKR ${formatDisplayValue(amount, "0")}`,
             },
             {
               title: "Payment Status",
@@ -1100,7 +1460,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                           : "red"
                   }
                 >
-                  {status}
+                  {formatDisplayValue(status, "N/A")}
                 </Tag>
               ),
             },
@@ -1108,11 +1468,13 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               title: "Due Date",
               dataIndex: "paymentDueDate",
               key: "paymentDueDate",
+              render: (date) => formatDisplayValue(date, "—"),
             },
             {
               title: "Record Date",
               dataIndex: "recordDate",
               key: "recordDate",
+              render: (date) => formatDisplayValue(date, "—"),
             },
           ]}
           dataSource={feesData}

@@ -17,9 +17,14 @@ function Header({
 }) {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    onLogout?.();
-    navigate("/login", { replace: true });
+  const handleLogout = async () => {
+    try {
+      await onLogout?.();
+    } catch (error) {
+      console.error("Logout request failed:", error);
+    } finally {
+      navigate("/login", { replace: true });
+    }
   };
 
   return (

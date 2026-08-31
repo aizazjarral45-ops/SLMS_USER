@@ -8,7 +8,7 @@ import {
   PlusOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Card, Flex, Form, message, Modal, Upload } from "antd";
+import { Avatar, Button, Card, Flex, Form, message, Modal, Popconfirm, Upload } from "antd";
 import { PersonalModal } from "./Modal";
 import { ContactModal } from "./contactmodal";
 import { ProfileModal } from "./profilemodal";
@@ -196,11 +196,7 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
     return Upload.LIST_IGNORE;
   };
 
-  const resetProfile = () => {
-    const confirmed = window.confirm(
-      "Reset all profile information stored for this student?",
-    );
-    if (!confirmed) return;
+  const handleResetProfile = () => {
     if (onResetProfile) onResetProfile();
     else setProfile(emptyProfile);
     personalForm.resetFields();
@@ -331,81 +327,120 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 24,
-          marginTop: 24,
+         gap: 28,
+         marginTop: 32,
           width: "100%",
-        }}
+         paddingBottom: 12,
+       }}
       >
-        <Card
-          className="personal-card"
-          title={
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avatar
-                shape="square"
-                style={{ background: "#307EF8" }}
-                icon={<UserOutlined />}
-              />
-              <span>Personal Information</span>
-            </div>
-          }
-          extra={
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => {
-                personalForm.setFieldsValue(personalData);
-                setPersonalVisible(true);
-              }}
-            >
-              Edit
-            </Button>
-          }
-          style={{ flex: "1 1 320px", minWidth: 280, width: "100%" }}
-        >
-          <div style={{ display: "grid", rowGap: 20 }}>
-            {infoRows(personalFields)}
-          </div>
-        </Card>
-        <Card
-          className="contact-card"
-          title={
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <Avatar
-                shape="square"
-                style={{ background: "#307EF8" }}
-                icon={<PhoneFilled />}
-              />
-              <span>Contact Information</span>
-            </div>
-          }
-          extra={
-            <Button
-              icon={<EditOutlined />}
-              onClick={() => {
-                contactForm.setFieldsValue(contactData);
-                setContactVisible(true);
-              }}
-            >
-              Edit
-            </Button>
-          }
-          style={{ flex: "1 1 320px", minWidth: 280, width: "100%" }}
-        >
-          <div style={{ display: "grid", rowGap: 20 }}>
-            {infoRows(contactFields)}
-          </div>
-        </Card>
+       <Card
+         className="personal-card"
+         title={
+           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+             <Avatar
+               shape="square"
+               size={40}
+               style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)" }}
+               icon={<UserOutlined />}
+             />
+             <span>Personal Information</span>
+           </div>
+         }
+         extra={
+           <Button
+             type="text"
+             size="small"
+             icon={<EditOutlined />}
+             onClick={() => {
+               personalForm.setFieldsValue(personalData);
+               setPersonalVisible(true);
+             }}
+             style={{
+               color: "#1e3a8a",
+               fontWeight: 500,
+               borderRadius: 8,
+             }}
+           >
+             Edit
+           </Button>
+         }
+         style={{ flex: "1 1 340px", minWidth: 300, width: "100%" }}
+         bodyStyle={{ padding: "20px 0" }}
+       >
+         <div style={{ display: "grid", rowGap: 0, paddingLeft: 4, paddingRight: 4 }}>
+           {infoRows(personalFields)}
+         </div>
+       </Card>
+       <Card
+         className="contact-card"
+         title={
+           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+             <Avatar
+               shape="square"
+               size={40}
+               style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)" }}
+               icon={<PhoneFilled />}
+             />
+             <span>Contact Information</span>
+           </div>
+         }
+         extra={
+           <Button
+             type="text"
+             size="small"
+             icon={<EditOutlined />}
+             onClick={() => {
+               contactForm.setFieldsValue(contactData);
+               setContactVisible(true);
+             }}
+             style={{
+               color: "#1e3a8a",
+               fontWeight: 500,
+               borderRadius: 8,
+             }}
+           >
+             Edit
+           </Button>
+         }
+         style={{ flex: "1 1 340px", minWidth: 300, width: "100%" }}
+         bodyStyle={{ padding: "20px 0" }}
+       >
+         <div style={{ display: "grid", rowGap: 0, paddingLeft: 4, paddingRight: 4 }}>
+           {infoRows(contactFields)}
+         </div>
+       </Card>
       </div>
-      <Card className="danger-card">
-        <div className="danger-title">Profile data</div>
+      <Card 
+        className="danger-card"
+        bodyStyle={{ padding: "24px 28px" }}
+      >
+        <div className="danger-title">
+          <DeleteOutlined style={{ fontSize: 18 }} />
+          Profile Data Management
+        </div>
         <div className="danger-content">
-          Reset the personal, contact, and profile information stored in this
-          student workspace. This does not remove academic, hostel, expense,
-          complaint, or settings records.
+          Permanently reset the personal, contact, and profile information stored
+          in this student workspace. This action does not affect academic, hostel,
+          expense, complaint, or settings records.
         </div>
         <div className="resetbutton">
-          <Button danger onClick={resetProfile} icon={<DeleteOutlined />}>
-            Reset Profile Data
-          </Button>
+          <Popconfirm
+            title="Reset Profile Data"
+            description="Reset all profile information stored for this student?"
+            onConfirm={handleResetProfile}
+            okText="Yes"
+            cancelText="No"
+            okButtonProps={{ danger: true }}
+          >
+            <Button 
+              danger 
+              icon={<DeleteOutlined />}
+              size="large"
+              style={{ fontSize: 14, fontWeight: 500 }}
+            >
+              Reset Profile Data
+            </Button>
+          </Popconfirm>
         </div>
       </Card>
       <ProfileModal
