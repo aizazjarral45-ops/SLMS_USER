@@ -36,7 +36,10 @@ const Login = () => {
         localStorage.removeItem("slms_remember_me");
       }
       message.success("Signed in successfully.");
-      navigate("/", { replace: true });
+      const redirect = new URLSearchParams(window.location.search).get("redirect");
+      const destination =
+        redirect?.startsWith("/") && !redirect.startsWith("//") ? redirect : "/";
+      navigate(destination, { replace: true });
     } catch (error) {
       message.error(error.message || "Unable to sign in. Please try again.");
     } finally {

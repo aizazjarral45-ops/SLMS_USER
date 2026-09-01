@@ -5,7 +5,7 @@
   --profile-muted: #64748b;
   --profile-light: #f0f9ff;
   --profile-border: #e0e7ff;
-  width: min(100%, 1400px);
+  width: min(100%, 9999px);
   margin: 16px auto 0;
   overflow: hidden;
   border: 1px solid #e0e7ff;

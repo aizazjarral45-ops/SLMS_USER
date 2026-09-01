@@ -43,13 +43,13 @@ export const ProfileModal = ({
         </Upload>
       </Form.Item>
       <Form.Item
-        label="Name"
-        name="name"
+        label="Student ID"
+        name="studentId"
         rules={[
-          { required: true, whitespace: true, message: "Enter your name." },
+          { required: true, whitespace: true, message: "Enter your student ID." },
         ]}
       >
-        <Input placeholder="Enter name" />
+        <Input placeholder="Enter student ID" />
       </Form.Item>
       <Form.Item
         label="Roll No"

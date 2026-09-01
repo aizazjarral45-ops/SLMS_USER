@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 function Header({
   profileData = {},
   unreadNotificationCount = 0,
+  onNotificationsOpen,
   onToggleSidebar,
   onLogout,
 }) {
@@ -64,10 +65,14 @@ function Header({
                 ? `${unreadNotificationCount} unread notifications`
                 : "Notifications"
             }
-            onClick={() => navigate("/notifications")}
+            onClick={() => {
+              onNotificationsOpen?.();
+              navigate("/notifications");
+            }}
           />
         </Badge>
         <div className="profile-parent">
+         
           {profileData.profileImage ? (
             <img
               className="profile-avatar"
@@ -80,7 +85,7 @@ function Header({
           )}
           <div className="header-profile-copy">
             <div className="student-name" onClick={() => navigate("/profile")}>
-              {profileData.name || "Student"}
+              {profileData.studentId || "Student"}
             </div>
             <div className="student-dept" onClick={() => navigate("/profile")}>
               {profileData.department || "Profile not completed"}

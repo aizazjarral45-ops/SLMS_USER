@@ -16,6 +16,13 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    const handleSessionExpired = () => setSession(null);
+    window.addEventListener("slms:session-expired", handleSessionExpired);
+    return () =>
+      window.removeEventListener("slms:session-expired", handleSessionExpired);
+  }, []);
+
   const value = useMemo(
     () => ({
       loading,

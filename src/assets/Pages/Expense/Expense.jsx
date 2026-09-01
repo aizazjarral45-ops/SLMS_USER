@@ -398,6 +398,25 @@ function Expense({
           setMonthlyBudget(val);
           setNewMonthlyBudget(val);
           setBudgetModal(false);
+          
+          // Send updated budget to backend
+          request(
+            "/expenses/budget/update",
+            {
+              method: "PUT",
+              body: {
+                monthlyBudget: val,
+              },
+            },
+          )
+            .then(() => {
+              message.success("Budget updated successfully");
+            })
+            .catch((error) => {
+              message.error(
+                "Failed to update budget: " + (error.message || "Unknown error"),
+              );
+            });
         }}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>

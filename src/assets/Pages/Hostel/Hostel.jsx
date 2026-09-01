@@ -114,7 +114,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   const [messageApi, contextHolder] = message.useMessage();
   const [fallbackApplications, setFallbackApplications] =
     useState(getSavedApplications);
-  const applications = Array.isArray(applicationsProp)
+  const [remoteApplications, setRemoteApplications] = useState([]);
+  const applications = isApiConfigured
+    ? remoteApplications
+    : Array.isArray(applicationsProp)
     ? applicationsProp
     : fallbackApplications;
   const setApplications = useCallback(
@@ -170,7 +173,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         const result = await request("/hostel/my-application");
         if (cancelled) return;
         const next = normalizeRemoteApplication(result?.application || result);
-        setApplications(next ? [next] : []);
+        setRemoteApplications(next ? [next] : []);
+        if (!isApiConfigured) setApplications(next ? [next] : []);
         if (next) {
           form.setFieldsValue(getApplicationFormValues(next));
           setEditingKey(next.key);
@@ -254,23 +258,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   );
 
   const submitApplication = async (values) => {
-    const applicantDetails = {
-      fullName: values.fullName.trim(),
-      studentId: values.studentId.trim(),
-      email: values.email.trim(),
-      phone: values.phone.trim(),
-      gender: values.gender,
-      program: values.program.trim(),
-      semester: values.semester,
-      guardianName: values.guardianName.trim(),
-      guardianPhone: values.guardianPhone.trim(),
-      emergencyName: values.emergencyName.trim(),
-      emergencyPhone: values.emergencyPhone.trim(),
-      feesPerSemester: Number(values.feesPerSemester) || 0,
-      feesPaidThisMonth: Number(values.feesPaidThisMonth) || 0,
-      paymentDueDate: values.paymentDueDate || "",
-      feesStatus: values.feesStatus || "Pending",
-    };
+    // Send the complete form object without trimming, coercing, or dropping fields.
+    const applicantDetails = { ...values };
 
     if (editingKey) {
       const existingApplication =
@@ -281,11 +270,12 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
             method: "PUT",
             body: { applicantDetails },
           });
+          const refreshed = await request("/hostel/my-application");
           const next = normalizeRemoteApplication(
-            result?.application || result,
+            refreshed?.application || refreshed || result?.application || result,
           );
           if (next) {
-            setApplications([next]);
+            setRemoteApplications([next]);
             form.setFieldsValue(getApplicationFormValues(next));
           }
           messageApi.success("Your hostel application has been updated.");
@@ -324,8 +314,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           method: "POST",
           body: { applicantDetails },
         });
-        const next = normalizeRemoteApplication(result?.application || result);
-        if (next) setApplications([next]);
+        const refreshed = await request("/hostel/my-application");
+        const next = normalizeRemoteApplication(
+          refreshed?.application || refreshed || result?.application || result,
+        );
+        if (next)         setRemoteApplications([next]);
         if (next) {
           setEditingKey(next.key);
           form.setFieldsValue(getApplicationFormValues(next));

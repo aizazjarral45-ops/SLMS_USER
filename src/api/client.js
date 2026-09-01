@@ -12,6 +12,46 @@ export class ApiError extends Error {
   }
 }
 
+const AUTH_STORAGE_KEYS = [
+  "slms_access_token",
+  "slms_current_session",
+  "slms_admin_session",
+  "token",
+  "user",
+  "slms_user",
+];
+
+const clearAuthStorage = () => {
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    for (const key of AUTH_STORAGE_KEYS) storage.removeItem(key);
+  }
+
+  document.cookie.split(";").forEach((cookie) => {
+    const name = cookie.split("=")[0].trim();
+    if (name) document.cookie = `${name}=; Max-Age=0; path=/`;
+  });
+};
+
+const isAuthenticationRequest = (path) =>
+  /\/auth\/(login|register|logout|password-reset)/.test(path);
+
+const handleAuthenticationFailure = (status, path) => {
+  if (![401, 403].includes(status) || isAuthenticationRequest(path)) return;
+  if (!getAccessToken()) return;
+
+  clearAuthStorage();
+  const redirectTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  window.dispatchEvent(
+    new CustomEvent("slms:session-expired", {
+      detail: {
+        message: "Your session has been expired. Please login again.",
+        redirectTo: redirectTo === "/login" ? "/" : redirectTo,
+        status,
+      },
+    }),
+  );
+};
+
 export const getAccessToken = () =>
   window.localStorage.getItem("slms_access_token") ||
   window.sessionStorage.getItem("slms_access_token");
@@ -56,6 +96,7 @@ export const request = async (path, options = {}) => {
     : null;
 
   if (!response.ok) {
+    handleAuthenticationFailure(response.status, path);
     throw new ApiError(body?.message || "The request could not be completed.", {
       status: response.status,
       details: body,

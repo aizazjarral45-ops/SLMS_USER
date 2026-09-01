@@ -66,18 +66,33 @@ function StudentLayout() {
       window.innerWidth < TABLET_BREAKPOINT,
   );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sharedData, setSharedData] = useState(studentDataService.load);
+  const [sharedData, setSharedData] = useState(() => {
+    const loaded = studentDataService.load();
+    return isApiConfigured
+      ? { ...loaded, profile: { personalData: {}, profileData: {}, contactData: {} }, academic: undefined }
+      : loaded;
+  });
 
   useEffect(() => {
-    studentDataService.save(sharedData);
+    const { profile, academic, ...otherData } = sharedData;
+    studentDataService.save(otherData);
   }, [sharedData]);
 
   useEffect(() => {
     if (!isApiConfigured || !user) return;
     let cancelled = false;
     const loadRemoteData = async () => {
-      const [complaintsResult, expensesResult, hostelResult, notificationsResult] =
+      const [
+        profileResult,
+        academicResult,
+        complaintsResult,
+        expensesResult,
+        hostelResult,
+        notificationsResult,
+      ] =
         await Promise.allSettled([
+          request("/students/profile"),
+          request("/academic"),
           request("/complaints"),
           request("/expenses"),
           request("/hostel"),
@@ -86,6 +101,25 @@ function StudentLayout() {
       if (cancelled) return;
       setSharedData((current) => ({
         ...current,
+        profile:
+          profileResult.status === "fulfilled"
+            ? {
+                personalData: profileResult.value.profile || {},
+                profileData: profileResult.value.profile || {},
+                contactData: profileResult.value.profile || {},
+              }
+            : current.profile,
+        academic:
+          academicResult.status === "fulfilled"
+            ? {
+                ...current.academic,
+                profile: academicResult.value.profile || {},
+                courses: academicResult.value.courses || [],
+                assignments: academicResult.value.assignments || [],
+                exams: academicResult.value.exams || [],
+                attendance: academicResult.value.attendance || [],
+              }
+            : current.academic,
         complaints:
           complaintsResult.status === "fulfilled"
             ? complaintsResult.value.complaints || []
@@ -160,7 +194,37 @@ function StudentLayout() {
     }));
   }, []);
 
-  const resetProfile = useCallback(() => {
+  const resetProfile = useCallback(async () => {
+    if (isApiConfigured) {
+      await request("/students/profile", {
+        method: "PUT",
+        body: {
+          studentId: "",
+          fullName: "",
+          fatherName: "",
+          gender: "",
+          dob: null,
+          cnic: "",
+          bloodGroup: "",
+          nationality: "",
+          maritalStatus: "Single",
+          universityEmail: "",
+          personalEmail: "",
+          phone: "",
+          emergencyContact: "",
+          currentAddress: "",
+          permanentAddress: "",
+          profileImage: "",
+          program: "",
+          semester: "",
+          batch: "",
+          cgpa: 0,
+          department: "",
+          sessions: "",
+          rollNo: "",
+        },
+      });
+    }
     updateSection("profile", {
       personalData: {},
       profileData: {},
@@ -178,9 +242,12 @@ function StudentLayout() {
   const unreadNotificationCount = notifications.filter(
     (item) => !item.read,
   ).length;
+  const unreadNotificationIds = notifications
+    .filter((item) => !item.read)
+    .map((item) => item.id);
 
   const markNotificationsRead = useCallback(
-    (notificationIds) => {
+    async (notificationIds) => {
       if (!notificationIds?.length) return;
       updateSection("settings", (settings) => ({
         ...settings,
@@ -191,6 +258,13 @@ function StudentLayout() {
           ]),
         ).slice(-500),
       }));
+      if (isApiConfigured) {
+        try {
+          await request("/notifications/mark-all-read", { method: "PATCH" });
+        } catch (error) {
+          console.error("Unable to mark notifications as read:", error);
+        }
+      }
     },
     [updateSection],
   );
@@ -219,6 +293,7 @@ function StudentLayout() {
         <Header
           profileData={sharedData.profile.profileData}
           unreadNotificationCount={unreadNotificationCount}
+          onNotificationsOpen={() => markNotificationsRead(unreadNotificationIds)}
           onToggleSidebar={() => setMobileSidebarOpen(true)}
           onLogout={logout}
         />

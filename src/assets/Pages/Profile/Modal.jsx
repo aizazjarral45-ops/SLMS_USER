@@ -26,7 +26,7 @@ export const PersonalModal = ({
       </Form.Item>
       <Form.Item
         label="Father's Name"
-        name="fname"
+        name="fatherName"
         rules={[{ required: true }]}
       >
         <Input type="text" placeholder="Enter Your Father Name" />

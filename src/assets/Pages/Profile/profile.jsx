@@ -8,11 +8,22 @@ import {
   PlusOutlined,
   UserOutlined,
 } from "@ant-design/icons";
-import { Avatar, Button, Card, Flex, Form, message, Modal, Popconfirm, Upload } from "antd";
+import {
+  Avatar,
+  Button,
+  Card,
+  Flex,
+  Form,
+  message,
+  Modal,
+  Popconfirm,
+  Upload,
+} from "antd";
 import { PersonalModal } from "./Modal";
 import { ContactModal } from "./contactmodal";
 import { ProfileModal } from "./profilemodal";
 import { loadSharedData, persistSharedData } from "../../../data/sharedData";
+import { isApiConfigured, request } from "../../../api/client";
 
 const emptyProfile = { personalData: {}, profileData: {}, contactData: {} };
 const getBase64 = (file) =>
@@ -23,8 +34,18 @@ const getBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 const displayValue = (value) => value || "Not provided";
+const profileSections = (profile) => ({
+  personalData: profile,
+  profileData: profile,
+  contactData: profile,
+});
 
-function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddNotification }) {
+function Profile({
+  profile: profileProp,
+  onProfileChange,
+  onResetProfile,
+  onAddNotification,
+}) {
   const [fallbackProfile, setFallbackProfile] = useState(emptyProfile);
   const profile = profileProp || fallbackProfile;
   const setProfile = (nextValue) => {
@@ -63,8 +84,18 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
     }));
   };
 
-  const savePersonal = (values) => {
-    updateSection("personalData", values);
+  const savePersonal = async (values) => {
+    const nextProfile = { ...personalData, ...values };
+    if (isApiConfigured) {
+      const result = await request("/students/profile", {
+        method: "PUT",
+        body: { ...profileData, ...contactData, ...nextProfile },
+      });
+      setProfile((current) => ({
+        ...current,
+        ...profileSections(result.profile || nextProfile),
+      }));
+    } else updateSection("personalData", values);
     setPersonalVisible(false);
     messageApi.success("Personal information updated.");
 
@@ -99,8 +130,18 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
       // non-fatal
     }
   };
-  const saveContact = (values) => {
-    updateSection("contactData", values);
+  const saveContact = async (values) => {
+    const nextContact = { ...contactData, ...values };
+    if (isApiConfigured) {
+      const result = await request("/students/profile", {
+        method: "PUT",
+        body: { ...profileData, ...personalData, ...nextContact },
+      });
+      setProfile((current) => ({
+        ...current,
+        ...profileSections(result.profile || nextContact),
+      }));
+    } else updateSection("contactData", values);
     setContactVisible(false);
     messageApi.success("Contact information updated.");
 
@@ -134,8 +175,19 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
       // non-fatal
     }
   };
-  const saveProfile = (values) => {
-    updateSection("profileData", values);
+  const saveProfile = async (values) => {
+    const nextProfile = { ...profileData, ...values };
+    if (isApiConfigured) {
+      const result = await request("/students/profile", {
+        method: "PUT",
+        body: { ...personalData, ...contactData, ...nextProfile },
+      });
+      console.log("Profile updated:", result.profile || nextProfile);
+      setProfile((current) => ({
+        ...current,
+        ...profileSections(result.profile || nextProfile),
+      }));
+    } else updateSection("profileData", values);
     setProfileVisible(false);
     messageApi.success("Profile details updated.");
 
@@ -186,7 +238,23 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
     setLoading(true);
     try {
       const profileImage = await getBase64(file);
-      updateSection("profileData", { profileImage });
+      if (isApiConfigured) {
+        const result = await request("/students/profile", {
+          method: "PUT",
+          body: {
+            ...personalData,
+            ...profileData,
+            ...contactData,
+            profileImage,
+          },
+        });
+        setProfile((current) => ({
+          ...current,
+          ...profileSections(
+            result.profile || { ...current.profileData, profileImage },
+          ),
+        }));
+      } else updateSection("profileData", { profileImage });
       messageApi.success("Profile photo updated.");
     } catch {
       messageApi.error("Unable to read this image. Please try another file.");
@@ -217,6 +285,7 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
   );
 
   const profileFields = [
+    ["Student ID", profileData.studentId],
     ["Roll No", profileData.rollNo],
     ["Department", profileData.department],
     ["Semester", profileData.semester],
@@ -225,7 +294,7 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
   ];
   const personalFields = [
     ["Full Name", personalData.fullName],
-    ["Father's Name", personalData.fname],
+    ["Father's Name", personalData.fatherName],
     ["Gender", personalData.gender],
     ["Date of Birth", personalData.dob],
     ["CNIC", personalData.cnic],
@@ -300,7 +369,7 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
           </div>
         </div>
         <div style={{ padding: "0 20px 20px", boxSizing: "border-box" }}>
-          <div className="profile-name">{profileData.name || "Your Name"}</div>
+          <div className="profile-name">{profileData.studentId || "Student"}</div>
           <div className="profile-bio">
             {profileData.department
               ? `${profileData.department} Student`
@@ -327,101 +396,118 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
         style={{
           display: "flex",
           flexWrap: "wrap",
-         gap: 28,
-         marginTop: 32,
+          gap: 28,
+          marginTop: 32,
           width: "100%",
-         paddingBottom: 12,
-       }}
+          paddingBottom: 12,
+        }}
       >
-       <Card
-         className="personal-card"
-         title={
-           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-             <Avatar
-               shape="square"
-               size={40}
-               style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)" }}
-               icon={<UserOutlined />}
-             />
-             <span>Personal Information</span>
-           </div>
-         }
-         extra={
-           <Button
-             type="text"
-             size="small"
-             icon={<EditOutlined />}
-             onClick={() => {
-               personalForm.setFieldsValue(personalData);
-               setPersonalVisible(true);
-             }}
-             style={{
-               color: "#1e3a8a",
-               fontWeight: 500,
-               borderRadius: 8,
-             }}
-           >
-             Edit
-           </Button>
-         }
-         style={{ flex: "1 1 340px", minWidth: 300, width: "100%" }}
-         bodyStyle={{ padding: "20px 0" }}
-       >
-         <div style={{ display: "grid", rowGap: 0, paddingLeft: 4, paddingRight: 4 }}>
-           {infoRows(personalFields)}
-         </div>
-       </Card>
-       <Card
-         className="contact-card"
-         title={
-           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-             <Avatar
-               shape="square"
-               size={40}
-               style={{ background: "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)" }}
-               icon={<PhoneFilled />}
-             />
-             <span>Contact Information</span>
-           </div>
-         }
-         extra={
-           <Button
-             type="text"
-             size="small"
-             icon={<EditOutlined />}
-             onClick={() => {
-               contactForm.setFieldsValue(contactData);
-               setContactVisible(true);
-             }}
-             style={{
-               color: "#1e3a8a",
-               fontWeight: 500,
-               borderRadius: 8,
-             }}
-           >
-             Edit
-           </Button>
-         }
-         style={{ flex: "1 1 340px", minWidth: 300, width: "100%" }}
-         bodyStyle={{ padding: "20px 0" }}
-       >
-         <div style={{ display: "grid", rowGap: 0, paddingLeft: 4, paddingRight: 4 }}>
-           {infoRows(contactFields)}
-         </div>
-       </Card>
+        <Card
+          className="personal-card"
+          title={
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Avatar
+                shape="square"
+                size={40}
+                style={{
+                  background:
+                    "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)",
+                }}
+                icon={<UserOutlined />}
+              />
+              <span>Personal Information</span>
+            </div>
+          }
+          extra={
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                personalForm.setFieldsValue(personalData);
+                setPersonalVisible(true);
+              }}
+              style={{
+                color: "#1e3a8a",
+                fontWeight: 500,
+                borderRadius: 8,
+              }}
+            >
+              Edit
+            </Button>
+          }
+          style={{ flex: "1 1 340px", minWidth: 300, width: "100%" }}
+          bodyStyle={{ padding: "20px 0" }}
+        >
+          <div
+            style={{
+              display: "grid",
+              rowGap: 0,
+              paddingLeft: 4,
+              paddingRight: 4,
+            }}
+          >
+            {infoRows(personalFields)}
+          </div>
+        </Card>
+        <Card
+          className="contact-card"
+          title={
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Avatar
+                shape="square"
+                size={40}
+                style={{
+                  background:
+                    "linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%)",
+                }}
+                icon={<PhoneFilled />}
+              />
+              <span>Contact Information</span>
+            </div>
+          }
+          extra={
+            <Button
+              type="text"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={() => {
+                contactForm.setFieldsValue(contactData);
+                setContactVisible(true);
+              }}
+              style={{
+                color: "#1e3a8a",
+                fontWeight: 500,
+                borderRadius: 8,
+              }}
+            >
+              Edit
+            </Button>
+          }
+          style={{ flex: "1 1 340px", minWidth: 300, width: "100%" }}
+          bodyStyle={{ padding: "20px 0" }}
+        >
+          <div
+            style={{
+              display: "grid",
+              rowGap: 0,
+              paddingLeft: 4,
+              paddingRight: 4,
+            }}
+          >
+            {infoRows(contactFields)}
+          </div>
+        </Card>
       </div>
-      <Card 
-        className="danger-card"
-        bodyStyle={{ padding: "24px 28px" }}
-      >
+      <Card className="danger-card" bodyStyle={{ padding: "24px 28px" }}>
         <div className="danger-title">
           <DeleteOutlined style={{ fontSize: 18 }} />
           Profile Data Management
         </div>
         <div className="danger-content">
-          Permanently reset the personal, contact, and profile information stored
-          in this student workspace. This action does not affect academic, hostel,
-          expense, complaint, or settings records.
+          Permanently reset the personal, contact, and profile information
+          stored in this student workspace. This action does not affect
+          academic, hostel, expense, complaint, or settings records.
         </div>
         <div className="resetbutton">
           <Popconfirm
@@ -432,8 +518,8 @@ function Profile({ profile: profileProp, onProfileChange, onResetProfile, onAddN
             cancelText="No"
             okButtonProps={{ danger: true }}
           >
-            <Button 
-              danger 
+            <Button
+              danger
               icon={<DeleteOutlined />}
               size="large"
               style={{ fontSize: 14, fontWeight: 500 }}
