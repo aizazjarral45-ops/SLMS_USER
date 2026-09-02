@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Form, Input, message } from "antd";
 import { MailOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
@@ -23,15 +23,31 @@ const Forgot = () => {
   const [step, setStep] = useState(0);
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!cooldown) return undefined;
+    const timer = window.setInterval(() => {
+      setCooldown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldown]);
+
+  const requestOtp = async (enteredEmail) => {
+    const result = await beginPasswordReset(enteredEmail);
+    setEmail(enteredEmail.trim().toLowerCase());
+    setCooldown(60);
+    return result;
+  };
+
   const sendReset = async ({ email: enteredEmail }) => {
     setLoading(true);
     try {
-      const result = await beginPasswordReset(enteredEmail);
-      setEmail(enteredEmail.trim().toLowerCase());
+      const result = await requestOtp(enteredEmail);
       if (result.delivery === "local") {
         message.info(
           `Local development code: ${result.code}. Configure VITE_API_BASE_URL to send email.`,
@@ -51,8 +67,9 @@ const Forgot = () => {
     setLoading(true);
     try {
       const cleanCode = enteredCode.trim();
-      await verifyPasswordResetCode({ email, code: cleanCode });
+      const result = await verifyPasswordResetCode({ email, code: cleanCode });
       setCode(cleanCode);
+      setResetToken(result?.resetToken || "");
       setStep(2);
       message.success("Code verified. Choose a new password.");
     } catch (error) {
@@ -62,10 +79,24 @@ const Forgot = () => {
     }
   };
 
+  const resend = async () => {
+    if (loading || cooldown) return;
+    setLoading(true);
+    try {
+      await requestOtp(email);
+      form.setFieldsValue({ code: "" });
+      message.success("A new verification code has been sent.");
+    } catch (error) {
+      message.error(error.message || "Unable to resend the verification code.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const savePassword = async ({ password }) => {
     setLoading(true);
     try {
-      await resetPassword({ email, code, password });
+      await resetPassword({ email, code, resetToken, password });
       message.success("Password updated. You can now sign in.");
       navigate("/login", { replace: true });
     } catch (error) {
@@ -80,6 +111,8 @@ const Forgot = () => {
     form.resetFields();
     setEmail("");
     setCode("");
+    setResetToken("");
+    setCooldown(0);
     setStep(0);
   };
 
@@ -157,6 +190,14 @@ const Forgot = () => {
             <div className="slms-forgot-actions">
               <Button type="link" onClick={cancel}>
                 Start over
+              </Button>
+              <Button
+                type="link"
+                className="slms-resend-btn"
+                onClick={resend}
+                disabled={loading || Boolean(cooldown)}
+              >
+                {cooldown ? `Resend in ${cooldown}s` : "Resend OTP"}
               </Button>
               <Link to="/login">Back to Login</Link>
             </div>

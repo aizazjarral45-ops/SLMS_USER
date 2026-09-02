@@ -78,10 +78,28 @@ function formatDateInput(value) {
   return date.toISOString().slice(0, 10);
 }
 
+function getStudentRollNumber(application) {
+  const details =
+    application?.applicantDetails &&
+    typeof application.applicantDetails === "object"
+      ? application.applicantDetails
+      : null;
+  const value =
+    details?.studentId ??
+    details?.rollNumber ??
+    application?.rollNumber ??
+    (typeof application?.studentId === "string"
+      ? application.studentId
+      : "");
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "";
+}
+
 function getApplicationFormValues(application) {
   return {
     fullName: formatDisplayValue(application?.fullName, ""),
-    studentId: formatDisplayValue(application?.studentId, ""),
+    studentId: getStudentRollNumber(application),
     email: formatDisplayValue(application?.email, ""),
     phone: formatDisplayValue(application?.phone, ""),
     gender: formatDisplayValue(application?.gender, ""),
@@ -135,9 +153,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   );
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [editingKey, setEditingKey] = useState(
-    applicationsProp?.[0]?.key || fallbackApplications[0]?.key || null,
-  );
+  const [editingKey, setEditingKey] = useState(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [hostelNotifications, setHostelNotifications] = useState([]);
@@ -158,6 +174,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       applicationNo:
         application.applicationNo ||
         `HST-${String(application._id || application.id || "").slice(-8)}`,
+      studentId: getStudentRollNumber(application),
       status: application.status || "Pending",
       submittedAt: application.createdAt || application.submittedAt || "",
       roomAllocation: application.roomAllocation || null,
@@ -175,13 +192,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         const next = normalizeRemoteApplication(result?.application || result);
         setRemoteApplications(next ? [next] : []);
         if (!isApiConfigured) setApplications(next ? [next] : []);
-        if (next) {
-          form.setFieldsValue(getApplicationFormValues(next));
-          setEditingKey(next.key);
-        } else {
-          setEditingKey(null);
-          form.resetFields();
-        }
         setRemoteError("");
       } catch (error) {
         if (!cancelled && error?.status !== 404) {
@@ -266,18 +276,23 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         applications.find((item) => item.key === editingKey) || {};
       if (isApiConfigured) {
         try {
-          const result = await request(`/hostel/update/${editingKey}`, {
+          const applicationId = existingApplication._id || editingKey;
+          const result = await request(`/hostel/update/${applicationId}`, {
             method: "PUT",
             body: { applicantDetails },
           });
-          const refreshed = await request("/hostel/my-application");
           const next = normalizeRemoteApplication(
-            refreshed?.application || refreshed || result?.application || result,
+            result?.application || result,
+          ) || normalizeRemoteApplication({
+            ...existingApplication,
+            ...applicantDetails,
+            _id: applicationId,
+          });
+          setRemoteApplications((current) =>
+            current.map((item) =>
+              item.key === editingKey ? { ...item, ...next } : item,
+            ),
           );
-          if (next) {
-            setRemoteApplications([next]);
-            form.setFieldsValue(getApplicationFormValues(next));
-          }
           messageApi.success("Your hostel application has been updated.");
           return;
         } catch (error) {
@@ -388,24 +403,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   };
 
   const handleEditApplication = (record) => {
-    form.setFieldsValue({
-      fullName: record.fullName,
-      studentId: record.studentId,
-      email: record.email,
-      phone: record.phone,
-      gender: record.gender,
-      program: record.program,
-      semester: record.semester,
-      guardianName: record.guardianName,
-      guardianPhone: record.guardianPhone,
-      emergencyName: record.emergencyName,
-      emergencyPhone: record.emergencyPhone,
-      feesPerSemester: record.feesPerSemester,
-      feesPaidThisMonth: record.feesPaidThisMonth,
-      paymentDueDate: record.paymentDueDate,
-      feesStatus: record.feesStatus,
-      agreement: true,
-    });
+    form.setFieldsValue(getApplicationFormValues(record));
     setEditingKey(record.key);
     document
       .getElementById("hostel-application-form")

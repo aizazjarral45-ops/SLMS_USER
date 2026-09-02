@@ -185,11 +185,11 @@ export const login = async ({ email, password, rememberMe = true }) => {
 export const beginPasswordReset = async (email) => {
   const cleanEmail = normaliseEmail(email);
   if (isApiConfigured) {
-    await request("/auth/password-reset/request", {
+    await request("/auth/forgot-password", {
       method: "POST",
       body: { email: cleanEmail },
     });
-    return { delivery: "email" };
+    return { delivery: "email", email: cleanEmail };
   }
 
   const users = readJson(USERS_STORAGE_KEY, []);
@@ -212,11 +212,11 @@ export const beginPasswordReset = async (email) => {
 export const verifyPasswordResetCode = async ({ email, code }) => {
   const cleanEmail = normaliseEmail(email);
   if (isApiConfigured) {
-    await request("/auth/password-reset/verify", {
+    const result = await request("/auth/verify-otp", {
       method: "POST",
-      body: { email: cleanEmail, code },
+      body: { email: cleanEmail, otp: code },
     });
-    return true;
+    return result;
   }
 
   const reset = JSON.parse(
@@ -233,16 +233,15 @@ export const verifyPasswordResetCode = async ({ email, code }) => {
   return true;
 };
 
-export const resetPassword = async ({ email, code, password }) => {
+export const resetPassword = async ({ email, code, resetToken, password }) => {
   const cleanEmail = normaliseEmail(email);
-  await verifyPasswordResetCode({ email: cleanEmail, code });
-
   if (isApiConfigured) {
-    await request("/auth/password-reset/confirm", {
+    await request("/auth/reset-password", {
       method: "POST",
-      body: { email: cleanEmail, code, password },
+      body: { email: cleanEmail, resetToken, newPassword: password },
     });
   } else {
+    await verifyPasswordResetCode({ email: cleanEmail, code });
     const users = readJson(USERS_STORAGE_KEY, []);
     const passwordHash = await hashPassword(password);
     window.localStorage.setItem(
