@@ -6,7 +6,7 @@ import {
   RobotOutlined,
 } from "@ant-design/icons";
 import "./header.css";
-import { Badge, Button } from "antd";
+import { Badge, Button, Popconfirm } from "antd";
 import { useNavigate } from "react-router-dom";
 
 function Header({
@@ -28,6 +28,14 @@ function Header({
     }
   };
 
+  const handleButtonMouseEnter = (event) => {
+    event.currentTarget.style.transform = "scale(1.2)";
+  };
+
+  const handleButtonMouseLeave = (event) => {
+    event.currentTarget.style.transform = "scale(1)";
+  };
+
   return (
     <header className="header">
       <div className="header-brand">
@@ -37,9 +45,22 @@ function Header({
           icon={<MenuOutlined />}
           aria-label="Open navigation menu"
           onClick={onToggleSidebar}
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
         />
-        <div className="logo">
-          <img src={logo} alt="SLMS" />
+        <div type="text" className="logo">
+          <img
+            src={logo}
+            alt="SLMS"
+            style={{ cursor: "pointer", transition: "transform 0.2s ease" }}
+            onClick={() => navigate("/dashboard")}
+            onMouseEnter={(event) => {
+              event.currentTarget.style.transform = "scale(1.08)";
+            }}
+            onMouseLeave={(event) => {
+              event.currentTarget.style.transform = "scale(1)";
+            }}
+          />
         </div>
       </div>
       <div className="icons">
@@ -49,6 +70,8 @@ function Header({
           type="text"
           icon={<RobotOutlined />}
           aria-label="Open AI Copilot"
+          onMouseEnter={handleButtonMouseEnter}
+          onMouseLeave={handleButtonMouseLeave}
         />
         <Badge
           className="header-notification-badge"
@@ -59,7 +82,7 @@ function Header({
           <Button
             className="header-icon-button"
             type="text"
-            icon={<BellOutlined />}
+            icon={<BellOutlined/>}
             aria-label={
               unreadNotificationCount
                 ? `${unreadNotificationCount} unread notifications`
@@ -69,6 +92,8 @@ function Header({
               onNotificationsOpen?.();
               navigate("/notifications");
             }}
+            onMouseEnter={handleButtonMouseEnter}
+            onMouseLeave={handleButtonMouseLeave}
           />
         </Badge>
         <div className="profile-parent">
@@ -91,13 +116,22 @@ function Header({
               {profileData.department || "Profile not completed"}
             </div>
           </div>
-          <Button
-            type="text"
-            icon={<LogoutOutlined />}
-            className="header-icon-button header-logout-button"
-            aria-label="Log out"
-            onClick={handleLogout}
-          />
+          <Popconfirm
+            title="Confirm Logout"
+            description="Are you sure you want to log out?"
+            onConfirm={handleLogout}
+            okText="Log out"
+            cancelText="Cancel"
+          >
+            <Button
+              type="text"
+              icon={<LogoutOutlined />}
+              className="header-icon-button header-logout-button"
+              aria-label="Log out"
+              onMouseEnter={handleButtonMouseEnter}
+              onMouseLeave={handleButtonMouseLeave}
+            />
+          </Popconfirm>
         </div>
       </div>
     </header>

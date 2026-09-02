@@ -378,12 +378,18 @@ function Profile({
         </div>
         <div
           className="cardrapper"
-          style={{ display: "flex", flexWrap: "wrap", gap: 16, marginTop: 16 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 16,
+            marginTop: 16,
+            width: "100%",
+          }}
         >
           {profileFields.map(([label, value]) => (
             <div
               className="card"
-              style={{ flex: "1 1 180px", minWidth: 140 }}
+              style={{ minWidth: 0, width: "100%", boxSizing: "border-box" }}
               key={label}
             >
               <div className="info">{label}</div>

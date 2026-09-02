@@ -363,7 +363,26 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     messageApi.success("Your hostel application has been saved.");
   };
 
-  const removeApplication = (key) => {
+  const removeApplication = async (key) => {
+    if (isApiConfigured) {
+      try {
+        await request(`/hostel/${key}`, { method: "DELETE" });
+        setRemoteApplications((current) =>
+          current.filter((item) => item.key !== key),
+        );
+        setEditingKey(null);
+        messageApi.success("Hostel application removed.");
+      } catch (error) {
+        messageApi.error(
+          formatDisplayValue(
+            error?.message,
+            "Unable to remove hostel application.",
+          ),
+        );
+      }
+      return;
+    }
+
     setApplications((current) => current.filter((item) => item.key !== key));
     messageApi.success("Hostel application removed.");
   };

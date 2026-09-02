@@ -381,7 +381,11 @@ function Dashboard({ data }) {
               </Row>
             </Card>
 
-            <Card className="dashboard-card" title="Module snapshot">
+            <Card
+              className="dashboard-card"
+              title="Module snapshot"
+              style={{ marginTop: 24 }}
+            >
               <Row gutter={[16, 16]}>
                 <Col xs={24} md={8}>
                   <div className="dashboard-mini-card">
@@ -448,9 +452,13 @@ function Dashboard({ data }) {
           </Col>
 
           <Col xs={24} lg={24}>
-            <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
               <Col xs={24} md={12}>
-                <Card className="dashboard-card" title="Goals & focus">
+                <Card
+                  className="dashboard-card dashboard-feature-card"
+                  title="Goals & focus"
+                  style={{ height: "100%", minHeight: 300 }}
+                >
                   <Timeline
                     items={[
                       {
@@ -488,7 +496,11 @@ function Dashboard({ data }) {
                 </Card>
               </Col>
               <Col xs={24} md={12}>
-                <Card className="dashboard-card" title="Complaint status">
+                <Card
+                  className="dashboard-card dashboard-feature-card"
+                  title="Complaint status"
+                  style={{ height: "100%", minHeight: 300 }}
+                >
                   <div className="dashboard-complaint-panel">
                     <div className="dashboard-complaint-count">
                       {dashboardData.complaintSummary.completedCount}
@@ -503,9 +515,13 @@ function Dashboard({ data }) {
                 </Card>
               </Col>
             </Row>
-            <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
               <Col xs={24} md={12}>
-                <Card className="dashboard-card" title="Notifications">
+                <Card
+                  className="dashboard-card dashboard-feature-card"
+                  title="Notifications"
+                  style={{ height: "100%", minHeight: 300 }}
+                >
                   <List
                     dataSource={[
                       {
@@ -570,7 +586,11 @@ function Dashboard({ data }) {
               </Col>
 
               <Col xs={24} md={12}>
-                <Card className="dashboard-card" title="AI features">
+                <Card
+                  className="dashboard-card dashboard-feature-card"
+                  title="AI features"
+                  style={{ height: "100%", minHeight: 300 }}
+                >
                   <Space direction="vertical" style={{ width: "100%" }}>
                     {[
                       {

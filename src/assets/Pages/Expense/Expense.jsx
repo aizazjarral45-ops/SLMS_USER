@@ -25,6 +25,7 @@ import {
   CalendarOutlined,
   DeleteOutlined,
   DollarCircleOutlined,
+  EditOutlined,
   LineChartOutlined,
   PlusOutlined,
   WalletOutlined,
@@ -171,6 +172,7 @@ function Expense({
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [open, setOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
   const [budgetModal, setBudgetModal] = useState(false);
   const [fallbackMonthlyBudget, setFallbackMonthlyBudget] = useState(() => {
     try {
@@ -261,20 +263,39 @@ function Expense({
     "Recommendation: shift entertainment and transport to lower-cost options for the next 5 days.",
   ];
   const onFinish = async (values) => {
+    const expense = {
+      ...(editingExpense || {}),
+      ...values,
+      date: values.date.format("YYYY-MM-DD"),
+      amount: Number(values.amount),
+    };
+    const expenseId =
+      editingExpense?._id || editingExpense?.id || editingExpense?.key;
     if (isApiConfigured) {
       try {
-        const result = await request("/expenses", {
-          method: "POST",
-          body: {
-            ...values,
-            date: values.date.format("YYYY-MM-DD"),
-            amount: Number(values.amount),
+        const result = await request(
+          expenseId ? `/expenses/${expenseId}` : "/expenses",
+          {
+          method: expenseId ? "PUT" : "POST",
+          body: expense,
           },
-        });
-        setExpenses((current) => [result.expense, ...current]);
+        );
+        const savedExpense = result.expense || result;
+        setExpenses((current) =>
+          expenseId
+            ? current.map((item) =>
+                String(item._id || item.id || item.key) === String(expenseId)
+                  ? savedExpense
+                  : item,
+              )
+            : [savedExpense, ...current],
+        );
         setOpen(false);
+        setEditingExpense(null);
         form.resetFields();
-        messageApi.success("Expense added successfully.");
+        messageApi.success(
+          expenseId ? "Expense updated successfully." : "Expense added successfully.",
+        );
         return;
       } catch (error) {
         messageApi.error(error.message || "Unable to add expense.");
@@ -291,13 +312,36 @@ function Expense({
       description: values.description,
       location: values.location,
     };
-    setExpenses((current) => [record, ...current]);
+    setExpenses((current) =>
+      expenseId
+        ? current.map((item) =>
+            String(item.key || item.id) === String(expenseId) ? record : item,
+          )
+        : [record, ...current],
+    );
     setOpen(false);
+    setEditingExpense(null);
     form.resetFields();
-    messageApi.success("Expense added successfully.");
+    messageApi.success(
+      expenseId ? "Expense updated successfully." : "Expense added successfully.",
+    );
   };
-  const handleDelete = (key) => {
-    setExpenses((current) => current.filter((item) => item.key !== key));
+  const handleDelete = async (record) => {
+    const expenseId = record._id || record.id || record.key;
+    if (isApiConfigured) {
+      try {
+        await request(`/expenses/${expenseId}`, { method: "DELETE" });
+      } catch (error) {
+        messageApi.error(error.message || "Unable to remove expense.");
+        return;
+      }
+    }
+    setExpenses((current) =>
+      current.filter(
+        (item) =>
+          String(item._id || item.id || item.key) !== String(expenseId),
+      ),
+    );
     messageApi.success("Expense removed.");
   };
   const columns = [
@@ -334,14 +378,30 @@ function Expense({
       title: "Actions",
       key: "actions",
       render: (_, record) => (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleDelete(record.key)}
-        >
-          Delete
-        </Button>
+        <Space size="small">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => {
+              setEditingExpense(record);
+              form.setFieldsValue({
+                ...record,
+                date: record.date ? dayjs(record.date) : undefined,
+              });
+              setOpen(true);
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            type="text"
+            danger
+            icon={<DeleteOutlined />}
+            onClick={() => handleDelete(record)}
+          >
+            Delete
+          </Button>
+        </Space>
       ),
     },
   ];
@@ -400,23 +460,20 @@ function Expense({
           setBudgetModal(false);
           
           // Send updated budget to backend
-          request(
-            "/expenses/budget/update",
-            {
+          if (isApiConfigured) {
+            request("/expenses/budget/update", {
               method: "PUT",
-              body: {
-                monthlyBudget: val,
-              },
-            },
-          )
-            .then(() => {
-              message.success("Budget updated successfully");
+              body: { monthlyBudget: val },
             })
-            .catch((error) => {
-              message.error(
-                "Failed to update budget: " + (error.message || "Unknown error"),
-              );
-            });
+              .then(() => {
+                message.success("Budget updated successfully");
+              })
+              .catch((error) => {
+                message.error(
+                  "Failed to update budget: " + (error.message || "Unknown error"),
+                );
+              });
+          }
         }}
       >
         <Paragraph type="secondary" style={{ marginBottom: 16 }}>
@@ -543,7 +600,11 @@ function Expense({
             <Button
               type="primary"
               icon={<PlusOutlined />}
-              onClick={() => setOpen(true)}
+              onClick={() => {
+                setEditingExpense(null);
+                form.resetFields();
+                setOpen(true);
+              }}
             >
               Add Expense
             </Button>
@@ -641,7 +702,7 @@ function Expense({
         </Col>
       </Row>
       <Modal
-        title="Add Expense"
+        title={editingExpense ? "Edit Expense" : "Add Expense"}
         open={open}
         onCancel={() => setOpen(false)}
         footer={null}

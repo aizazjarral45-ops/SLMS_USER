@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Avatar,
   Button,
@@ -18,7 +18,9 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import "./aicopilot.css";
+import { isApiConfigured, request } from "../../../api/client";
 
+// const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
 const { Title, Paragraph, Text } = Typography;
 
 const suggestedPrompts = [
@@ -127,7 +129,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   const messages = Array.isArray(messagesProp)
     ? messagesProp
     : fallbackMessages;
-  const setMessages = (nextValue) => {
+  const setMessages = useCallback((nextValue) => {
     if (onMessagesChange) {
       onMessagesChange((current) =>
         typeof nextValue === "function"
@@ -139,7 +141,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     setFallbackMessages((current) =>
       typeof nextValue === "function" ? nextValue(current) : nextValue,
     );
-  };
+  }, [onMessagesChange]);
   useEffect(() => {
     try {
       window.localStorage.setItem(
@@ -150,7 +152,43 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   }, [messages]);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
-  const timeoutRef = useRef(null);
+  const [conversationId, setConversationId] = useState(null);
+  const [conversationReady, setConversationReady] = useState(!isApiConfigured);
+  const normalizeMessages = (items) =>
+    (Array.isArray(items) ? items : []).map((item) => ({
+      id: item._id || item.id || createId("message"),
+      role: item.role,
+      content: item.content,
+      createdAt: item.createdAt || new Date().toISOString(),
+    }));
+
+  useEffect(() => {
+    if (!isApiConfigured) return undefined;
+    let cancelled = false;
+    const loadConversation = async () => {
+      const result = await request("/ai/conversations");
+      const existing = result.conversations?.[0];
+      const conversation = existing
+        ? (await request(`/ai/conversations/${existing._id}`)).conversation
+        : (await request("/ai/conversations", {
+            method: "POST",
+            body: { title: "New conversation" },
+          })).conversation;
+      if (cancelled) return;
+      setConversationId(conversation._id);
+      setMessages(normalizeMessages(conversation.messages));
+      setConversationReady(true);
+    };
+    loadConversation().catch((error) => {
+      if (!cancelled) {
+        console.error("Unable to load AI conversation:", error);
+        setConversationReady(true);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setMessages]);
   const recentTitle = useMemo(
     () =>
       messages
@@ -179,11 +217,9 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
         ];
   }, [messages, recentTitle]);
 
-  useEffect(() => () => window.clearTimeout(timeoutRef.current), []);
-
-  const submitPrompt = (value) => {
+  const submitPrompt = async (value) => {
     const content = value.trim();
-    if (!content || typing) return;
+    if (!content || typing || !conversationReady) return;
     const userMessage = {
       id: createId("message"),
       role: "user",
@@ -193,8 +229,15 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     setMessages((current) => [...current, userMessage]);
     setDraft("");
     setTyping(true);
-    window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = window.setTimeout(() => {
+    try {
+      if (isApiConfigured) {
+      const result = await request(`/ai/conversations/${conversationId}/message`, {
+        method: "POST",
+        body: { message: content },
+      });
+      setMessages(normalizeMessages(result.conversation?.messages));
+      } else {
+      await new Promise((resolve) => window.setTimeout(resolve, 350));
       const assistantMessage = {
         id: createId("message"),
         role: "assistant",
@@ -202,14 +245,24 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
         createdAt: new Date().toISOString(),
       };
       setMessages((current) => [...current, assistantMessage]);
+      }
+    } catch (error) {
+      console.error("Unable to generate AI reply:", error);
+      setMessages((current) => [
+      ...current,
+      {
+        id: createId("message"),
+        role: "assistant",
+        content: "I could not reach Gemini right now. Please try again.",
+        createdAt: new Date().toISOString(),
+      },
+      ]);
+    } finally {
       setTyping(false);
-      timeoutRef.current = null;
-    }, 350);
+    }
   };
 
   const undoLastPrompt = () => {
-    window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
     setTyping(false);
     setMessages((current) => {
       const last = current.at(-1);
@@ -219,8 +272,6 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   };
 
   const clearChat = () => {
-    window.clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
     setTyping(false);
     setMessages([]);
   };
