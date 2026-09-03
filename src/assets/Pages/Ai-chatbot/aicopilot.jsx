@@ -116,16 +116,7 @@ function buildResponse(prompt, data) {
 }
 
 function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
-  const [fallbackMessages, setFallbackMessages] = useState(() => {
-    try {
-      const savedMessages = window.localStorage.getItem(
-        "slms-copilot-messages",
-      );
-      return savedMessages ? JSON.parse(savedMessages) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [fallbackMessages, setFallbackMessages] = useState([]);
   const messages = Array.isArray(messagesProp)
     ? messagesProp
     : fallbackMessages;
@@ -142,14 +133,6 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       typeof nextValue === "function" ? nextValue(current) : nextValue,
     );
   }, [onMessagesChange]);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        "slms-copilot-messages",
-        JSON.stringify(messages),
-      );
-    } catch {}
-  }, [messages]);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
   const [conversationId, setConversationId] = useState(null);
@@ -231,7 +214,16 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     setTyping(true);
     try {
       if (isApiConfigured) {
-      const result = await request(`/ai/conversations/${conversationId}/message`, {
+      let activeConversationId = conversationId;
+      if (!activeConversationId) {
+        const created = await request("/ai/conversations", {
+          method: "POST",
+          body: { title: "New conversation" },
+        });
+        activeConversationId = created.conversation._id;
+        setConversationId(activeConversationId);
+      }
+      const result = await request(`/ai/conversations/${activeConversationId}/message`, {
         method: "POST",
         body: { message: content },
       });
@@ -262,8 +254,19 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     }
   };
 
-  const undoLastPrompt = () => {
+  const undoLastPrompt = async () => {
+    if (isApiConfigured && !conversationId) return;
     setTyping(false);
+    if (isApiConfigured) {
+      try {
+        await request(`/ai/history/${conversationId}`, { method: "DELETE" });
+        setMessages([]);
+        setConversationId(null);
+      } catch (error) {
+        console.error("Unable to delete AI conversation:", error);
+      }
+      return;
+    }
     setMessages((current) => {
       const last = current.at(-1);
       const removeCount = last?.role === "assistant" ? 2 : 1;
@@ -271,9 +274,19 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     });
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
     setTyping(false);
-    setMessages([]);
+    if (!isApiConfigured) {
+      setMessages([]);
+      return;
+    }
+    try {
+      await request("/ai/history", { method: "DELETE" });
+      setMessages([]);
+      setConversationId(null);
+    } catch (error) {
+      console.error("Unable to clear AI conversation history:", error);
+    }
   };
 
   return (

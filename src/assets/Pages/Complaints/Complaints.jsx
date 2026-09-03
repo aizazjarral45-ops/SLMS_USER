@@ -315,10 +315,11 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
           </Button>
         </Form>
       </Card>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={11}>
+      <Row gutter={[16, 16]} align="stretch">
+        <Col xs={24} lg={11} style={{ display: "flex" }}>
           <Card
             className="complaints-panel"
+            style={{ flex: 1 }}
             title={
               <span>
                 <ClockCircleOutlined style={{ marginRight: 8 }} />
@@ -339,9 +340,10 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
             />
           </Card>
         </Col>
-        <Col xs={24} lg={13}>
+        <Col xs={24} lg={13} style={{ display: "flex" }}>
           <Card
             className="complaints-panel"
+            style={{ flex: 1 }}
             title={
               <span>
                 <InfoCircleOutlined style={{ marginRight: 8 }} />

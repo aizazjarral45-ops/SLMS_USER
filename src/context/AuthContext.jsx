@@ -5,6 +5,7 @@ import {
   login as loginWithService,
   logout as logoutWithService,
   register as registerWithService,
+  clearUserDataStorage,
 } from "../services/authService";
 
 export const AuthProvider = ({ children }) => {
@@ -17,7 +18,10 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    const handleSessionExpired = () => setSession(null);
+    const handleSessionExpired = () => {
+      clearUserDataStorage();
+      setSession(null);
+    };
     window.addEventListener("slms:session-expired", handleSessionExpired);
     return () =>
       window.removeEventListener("slms:session-expired", handleSessionExpired);

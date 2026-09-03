@@ -89,7 +89,13 @@ const SwitchRow = ({ label, checked, onChange }) => (
   </div>
 );
 
-function Settings({ settings = {}, onSettingsChange }) {
+function Settings({
+  settings = {},
+  onSettingsChange,
+  onReminderCreate,
+  onReminderToggle,
+  onReminderDelete,
+}) {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
   const [reminderForm] = Form.useForm();
@@ -124,34 +130,60 @@ function Settings({ settings = {}, onSettingsChange }) {
     updateSettings({ aiSettings: { ...aiSettings, [key]: value } });
   };
 
-  const addReminder = (values) => {
-    updateSettings({
-      reminders: [
-        {
-          id: `${Date.now()}`,
-          title: values.title,
-          type: values.type,
-          when: values.when,
-          done: false,
-        },
-        ...reminders,
-      ],
-    });
-    reminderForm.resetFields();
-    setModalOpen(false);
-    messageApi.success("Reminder added.");
+  const addReminder = async (values) => {
+    try {
+      const reminder = onReminderCreate
+        ? await onReminderCreate({
+            title: values.title,
+            type: values.type,
+            when: values.when,
+            done: false,
+          })
+        : {
+            id: `${Date.now()}`,
+            title: values.title,
+            type: values.type,
+            when: values.when,
+            done: false,
+          };
+      if (!onReminderCreate) updateSettings({ reminders: [reminder, ...reminders] });
+      reminderForm.resetFields();
+      setModalOpen(false);
+      messageApi.success("Reminder added.");
+    } catch (error) {
+      console.error("Unable to add reminder:", error);
+      messageApi.error(error.message || "Unable to add reminder.");
+    }
   };
 
-  const completeReminder = (id) => {
-    updateSettings({
-      reminders: reminders.map((item) =>
-        item.id === id ? { ...item, done: true } : item,
-      ),
-    });
+  const completeReminder = async (id) => {
+    try {
+      if (onReminderToggle) {
+        await onReminderToggle(id);
+      } else {
+        updateSettings({
+          reminders: reminders.map((item) =>
+            item.id === id ? { ...item, done: true } : item,
+          ),
+        });
+      }
+    } catch (error) {
+      console.error("Unable to update reminder:", error);
+      messageApi.error(error.message || "Unable to update reminder.");
+    }
   };
 
-  const deleteReminder = (id) => {
-    updateSettings({ reminders: reminders.filter((item) => item.id !== id) });
+  const removeReminder = async (id) => {
+    try {
+      if (onReminderDelete) {
+        await onReminderDelete(id);
+      } else {
+        updateSettings({ reminders: reminders.filter((item) => item.id !== id) });
+      }
+    } catch (error) {
+      console.error("Unable to delete reminder:", error);
+      messageApi.error(error.message || "Unable to delete reminder.");
+    }
   };
 
   const handleLogout = () => {
@@ -304,7 +336,7 @@ function Settings({ settings = {}, onSettingsChange }) {
                       key="delete"
                       danger
                       type="link"
-                      onClick={() => deleteReminder(item.id)}
+                      onClick={() => removeReminder(item.id)}
                     >
                       Delete
                     </Button>,

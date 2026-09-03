@@ -105,7 +105,11 @@ const normalizeNotification = (notification = {}, fallback = {}) => {
   );
 
   const explicitId =
-    typeof notification.id === "string" ? notification.id.trim() : "";
+    typeof notification.id === "string"
+      ? notification.id.trim()
+      : notification._id
+        ? String(notification._id)
+        : "";
   const fallbackId = typeof fallback.id === "string" ? fallback.id.trim() : "";
   const id =
     explicitId ||

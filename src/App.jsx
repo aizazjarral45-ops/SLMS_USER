@@ -1,5 +1,5 @@
 import "./App.css";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   ConfigProvider,
@@ -39,7 +39,9 @@ import LoginHistory from "./assets/Pages/Setting/LoginHistory";
 import { useAuth } from "./hooks/useAuth";
 import { getNotifications } from "./data/notifications";
 import { studentDataService } from "./services/studentDataService";
+import { listReminders, createReminder, toggleReminder, deleteReminder } from "./services/reminderService";
 import { isApiConfigured, request } from "./api/client";
+import { createDefaultSharedData } from "./data/sharedData";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
@@ -66,21 +68,26 @@ function StudentLayout() {
       window.innerWidth < TABLET_BREAKPOINT,
   );
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [deletingNotificationIds, setDeletingNotificationIds] = useState([]);
+  const deletingNotificationIdsRef = useRef(new Set());
   const [sharedData, setSharedData] = useState(() => {
-    const loaded = studentDataService.load();
-    return isApiConfigured
-      ? { ...loaded, profile: { personalData: {}, profileData: {}, contactData: {} }, academic: undefined }
-      : loaded;
+    return isApiConfigured ? createDefaultSharedData() : studentDataService.load();
   });
 
   useEffect(() => {
+    if (isApiConfigured || !user) return;
     const { profile, academic, ...otherData } = sharedData;
     studentDataService.save(otherData);
-  }, [sharedData]);
+  }, [sharedData, user]);
+
+  useEffect(() => {
+    if (!user) setSharedData(createDefaultSharedData());
+  }, [user]);
 
   useEffect(() => {
     if (!isApiConfigured || !user) return;
     let cancelled = false;
+    setSharedData(createDefaultSharedData());
     const loadRemoteData = async () => {
       const [
         profileResult,
@@ -89,6 +96,7 @@ function StudentLayout() {
         expensesResult,
         hostelResult,
         notificationsResult,
+        remindersResult,
       ] =
         await Promise.allSettled([
           request("/students/profile"),
@@ -97,9 +105,11 @@ function StudentLayout() {
           request("/expenses"),
           request("/hostel"),
           request("/notifications"),
+          listReminders(),
         ]);
       if (cancelled) return;
       setSharedData((current) => ({
+        ...createDefaultSharedData(),
         ...current,
         profile:
           profileResult.status === "fulfilled"
@@ -133,11 +143,15 @@ function StudentLayout() {
             ? hostelResult.value.records || []
             : current.hostelApplications,
         settings:
-          notificationsResult.status === "fulfilled"
+          remindersResult.status === "fulfilled" || notificationsResult.status === "fulfilled"
             ? {
                 ...current.settings,
-                remoteNotifications:
-                  notificationsResult.value.notifications || [],
+                ...(remindersResult.status === "fulfilled"
+                  ? { reminders: remindersResult.value }
+                  : {}),
+                ...(notificationsResult.status === "fulfilled"
+                  ? { remoteNotifications: notificationsResult.value.notifications || [] }
+                  : {}),
               }
             : current.settings,
       }));
@@ -233,10 +247,10 @@ function StudentLayout() {
   }, [updateSection]);
 
   const notifications = useMemo(
-    () => [
-      ...(sharedData.settings?.remoteNotifications || []),
-      ...getNotifications(sharedData),
-    ],
+    () =>
+      isApiConfigured
+        ? sharedData.settings?.remoteNotifications || []
+        : getNotifications(sharedData),
     [sharedData],
   );
   const unreadNotificationCount = notifications.filter(
@@ -269,20 +283,65 @@ function StudentLayout() {
     [updateSection],
   );
 
-  const dismissNotifications = useCallback(
-    (notificationIds) => {
+  const deleteNotifications = useCallback(
+    async (notificationIds) => {
       if (!notificationIds?.length) return;
-      updateSection("settings", (settings) => ({
-        ...settings,
-        dismissedNotificationIds: Array.from(
-          new Set([
-            ...(settings?.dismissedNotificationIds || []),
-            ...notificationIds,
-          ]),
-        ).slice(-500),
-      }));
+      const remoteNotifications = sharedData.settings?.remoteNotifications || [];
+      const selected = notificationIds.map((id) =>
+        remoteNotifications.find(
+          (notification) =>
+            String(notification._id || notification.id) === String(id),
+        ),
+      );
+      const deletable = selected.filter((notification) => notification?._id);
+      if (deletable.length !== notificationIds.length) {
+        throw new Error("This notification is not stored in MongoDB.");
+      }
+
+      const ids = deletable.map((notification) => String(notification._id));
+      if (!ids.length) return;
+      const pendingIds = ids.filter(
+        (id) => !deletingNotificationIdsRef.current.has(id),
+      );
+      if (!pendingIds.length) return;
+      pendingIds.forEach((id) => deletingNotificationIdsRef.current.add(id));
+      setDeletingNotificationIds((current) => [
+        ...new Set([...current, ...pendingIds]),
+      ]);
+      try {
+        const results = await Promise.allSettled(
+          pendingIds.map((id) =>
+            request(`/notifications/${id}`, { method: "DELETE" }),
+          ),
+        );
+        const deletedIds = pendingIds.filter(
+          (_id, index) => results[index].status === "fulfilled",
+        );
+        const failedResults = results.filter(
+          (result) => result.status === "rejected",
+        );
+        updateSection("settings", (settings) => ({
+          ...settings,
+          remoteNotifications: (settings?.remoteNotifications || []).filter(
+            (notification) => !deletedIds.includes(String(notification._id)),
+          ),
+        }));
+        if (failedResults.length) {
+          throw failedResults[0].reason;
+        }
+      } finally {
+        pendingIds.forEach((id) =>
+          deletingNotificationIdsRef.current.delete(id),
+        );
+        setDeletingNotificationIds((current) =>
+          current.filter((id) => !pendingIds.includes(id)),
+        );
+      }
     },
-    [updateSection],
+    [
+      sharedData.settings?.remoteNotifications,
+      updateSection,
+    ],
   );
 
   return (
@@ -319,7 +378,8 @@ function StudentLayout() {
                 updateMonthlyBudget,
                 resetProfile,
                 markNotificationsRead,
-                dismissNotifications,
+                deleteNotifications,
+                deletingNotificationIds,
               }}
             />
           </Content>
@@ -356,13 +416,19 @@ function DashboardPage() {
 }
 
 function NotificationsPage() {
-  const { notifications, markNotificationsRead, dismissNotifications } =
+  const {
+    notifications,
+    markNotificationsRead,
+    deleteNotifications,
+    deletingNotificationIds,
+  } =
     useStudentData();
   return (
     <BellIcon
       notifications={notifications}
       onMarkNotificationsRead={markNotificationsRead}
-      onDismissNotifications={dismissNotifications}
+      onDeleteNotifications={deleteNotifications}
+      deletingNotificationIds={deletingNotificationIds}
     />
   );
 }
@@ -424,10 +490,30 @@ function ComplaintsPage() {
 
 function SettingsPage() {
   const { sharedData, updateSection } = useStudentData();
+  const updateReminders = (reminders) =>
+    updateSection("settings", { ...sharedData.settings, reminders });
   return (
     <Settings
       settings={sharedData.settings}
       onSettingsChange={(nextValue) => updateSection("settings", nextValue)}
+      onReminderCreate={async (reminder) => {
+        const created = await createReminder(reminder);
+        updateReminders([created, ...(sharedData.settings.reminders || [])]);
+        return created;
+      }}
+      onReminderToggle={async (id) => {
+        const updated = await toggleReminder(id);
+        updateReminders(
+          (sharedData.settings.reminders || []).map((item) =>
+            item.id === id ? updated : item,
+          ),
+        );
+        return updated;
+      }}
+      onReminderDelete={async (id) => {
+        await deleteReminder(id);
+        updateReminders((sharedData.settings.reminders || []).filter((item) => item.id !== id));
+      }}
     />
   );
 }

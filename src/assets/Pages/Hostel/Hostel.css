@@ -260,6 +260,22 @@
   display: flex;
   flex-direction: column;
   gap: 22px;
+  height: 100%;
+}
+
+.hostel-side-stack > div,
+.hostel-side-stack > .ant-card {
+  height: 100%;
+}
+
+.hostel-side-stack .ant-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.hostel-side-stack .ant-card-body {
+  flex: 1;
 }
 
 .hostel-feature-list {

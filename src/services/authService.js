@@ -3,6 +3,26 @@ import { isApiConfigured, request } from "../api/client";
 const USERS_STORAGE_KEY = "slms_local_users";
 const SESSION_STORAGE_KEY = "slms_current_session";
 const RESET_STORAGE_KEY = "slms_password_reset";
+const USER_DATA_STORAGE_KEYS = [
+  "slms-shared-app-data",
+  "personalData",
+  "profileData",
+  "contactData",
+  "slms-academic-workspace",
+  "slms-expenses",
+  "slms-monthly-budgets",
+  "slms-hostel-applications",
+  "slms-complaints",
+  "notifications",
+  "reminders",
+  "customNotifications",
+  "aiSettings",
+  "slms-copilot-messages",
+  "slms-notification-creation-times",
+  "slms_remember_me",
+  "signupEmail",
+  "slms_password_reset",
+];
 
 const normaliseEmail = (email = "") => email.trim().toLowerCase();
 
@@ -90,6 +110,12 @@ export const clearStoredSession = () => {
   });
 };
 
+export const clearUserDataStorage = () => {
+  for (const storage of [window.localStorage, window.sessionStorage]) {
+    for (const key of USER_DATA_STORAGE_KEYS) storage.removeItem(key);
+  }
+};
+
 export const logout = async () => {
   const session = getStoredSession();
   try {
@@ -101,6 +127,7 @@ export const logout = async () => {
     }
   } finally {
     clearStoredSession();
+    clearUserDataStorage();
   }
 };
 
@@ -141,11 +168,7 @@ export const register = async ({
     JSON.stringify([...users, { ...user, passwordHash }]),
   );
 
-  return saveSession({
-    token: createId("local-session"),
-    user,
-    rememberMe,
-  });
+  return { user };
 };
 
 export const login = async ({ email, password, rememberMe = true }) => {
@@ -162,8 +185,6 @@ export const login = async ({ email, password, rememberMe = true }) => {
   const users = readJson(USERS_STORAGE_KEY, []);
   const user = users.find((entry) => entry.email === cleanEmail);
   if (!user || user.passwordHash !== (await hashPassword(password))) {
-    // record failed attempt
-    await recordLoginEvent({ email: cleanEmail, status: "failed" });
     throw new Error("Incorrect email or password.");
   }
 
@@ -172,12 +193,6 @@ export const login = async ({ email, password, rememberMe = true }) => {
     token: createId("local-session"),
     user: safeUser,
     rememberMe,
-  });
-  // record successful login
-  await recordLoginEvent({
-    email: cleanEmail,
-    status: "success",
-    sessionId: session.token,
   });
   return session;
 };
@@ -260,47 +275,10 @@ export const resetPassword = async ({ email, code, resetToken, password }) => {
 export const cancelPasswordReset = () =>
   window.sessionStorage.removeItem(RESET_STORAGE_KEY);
 
-// --- New helpers for login history, password change and account deletion ---
-const LOGIN_HISTORY_KEY = "slms_login_history";
-
-export const recordLoginEvent = async ({
-  email = null,
-  status = "unknown",
-  sessionId = null,
-}) => {
-  try {
-    const history = readJson(LOGIN_HISTORY_KEY, []);
-    const entry = {
-      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      email,
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      ip: null, // no external IP resolution here; reserved for future backend enrichment
-      status,
-      sessionId,
-    };
-    window.localStorage.setItem(
-      LOGIN_HISTORY_KEY,
-      JSON.stringify([entry, ...history]),
-    );
-    return entry;
-  } catch (e) {
-    return null;
-  }
-};
-
-export const getLoginHistory = (filterEmail = null) => {
-  const history = readJson(LOGIN_HISTORY_KEY, []);
-  if (!filterEmail) return history;
-  return history.filter((h) => h.email === filterEmail);
-};
-
-export const clearLoginHistoryForEmail = (email) => {
-  const history = readJson(LOGIN_HISTORY_KEY, []);
-  window.localStorage.setItem(
-    LOGIN_HISTORY_KEY,
-    JSON.stringify(history.filter((h) => h.email !== email)),
-  );
+export const getLoginHistory = async () => {
+  if (!isApiConfigured) return [];
+  const result = await request("/auth/login/history");
+  return Array.isArray(result?.history) ? result.history : [];
 };
 
 export const changePassword = async ({
@@ -367,7 +345,6 @@ export const deleteAccount = async ({ email, password }) => {
       "personalData",
       "profileData",
       "contactData",
-      "slms_login_history",
       USERS_STORAGE_KEY,
       SESSION_STORAGE_KEY,
       "slms_access_token",

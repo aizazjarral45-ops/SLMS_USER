@@ -6,31 +6,25 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../hooks/useAuth";
-import {
-  getLoginHistory,
-  clearLoginHistoryForEmail,
-} from "../../../services/authService";
+import { getLoginHistory } from "../../../services/authService";
 import "./LoginHistory.css";
 
 export default function LoginHistory() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [history, setHistory] = useState([]);
 
-  const refresh = () => {
-    setHistory(getLoginHistory(user?.email));
+  const refresh = async () => {
+    try {
+      setHistory(await getLoginHistory());
+    } catch {
+      setHistory([]);
+    }
   };
 
   useEffect(() => {
-    refresh();
+    void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email]);
-
-  const clearForUser = () => {
-    clearLoginHistoryForEmail(user?.email);
-    refresh();
-  };
+  }, []);
 
   return (
     <div className="setting-page">
@@ -57,23 +51,41 @@ export default function LoginHistory() {
           >
             Refresh
           </Button>
-          <Button danger onClick={clearForUser}>
-            Clear History
-          </Button>
         </div>
 
         {history?.length ? (
           <List
             dataSource={history}
-            renderItem={(item) => (
-              <List.Item>
-                <List.Item.Meta
-                  title={`${new Date(item.timestamp).toLocaleString()} — ${item.status}`}
-                  description={`${item.userAgent} ${item.ip ? "• " + item.ip : ""}`}
-                />
-                <div>{item.sessionId ? "Current" : "—"}</div>
-              </List.Item>
-            )}
+            renderItem={(item, index) => {
+              const eventType = String(
+                item.eventType || item.event || ""
+              ).toUpperCase();
+              const badgeLabel = eventType.includes("SIGN_UP") ||
+                eventType.includes("SIGNUP") ||
+                eventType.includes("REGISTER")
+                ? "Sign Up"
+                : eventType.includes("LOGOUT")
+                  ? "Logout"
+                  : eventType.includes("LOGIN")
+                    ? index === 0
+                      ? "Current Active"
+                      : index === 2
+                        ? "Last Active"
+                        : index === 3
+                          ? "Previous Active"
+                          : "---"
+                    : "------";
+
+              return (
+                <List.Item>
+                  <List.Item.Meta
+                    title={`${item.eventType || item.status} — ${new Date(item.createdAt || item.timestamp).toLocaleString()}`}
+                    description={item.userAgent || item.ipAddress || ""}
+                  />
+                  <div>{badgeLabel}</div>
+                </List.Item>
+              );
+            }}
           />
         ) : (
           <Empty description="No login activity found" />

@@ -336,7 +336,10 @@ function Dashboard({ data }) {
             <Card className="dashboard-card" title="Weekly priorities">
               <Row gutter={[16, 16]}>
                 <Col xs={24} md={12}>
-                  <div className="dashboard-panel-section">
+                  <div
+                    className="dashboard-panel-section"
+                    style={{ height: "100%" }}
+                  >
                     <div className="dashboard-section-heading">
                       <Title level={4}>Upcoming deadlines</Title>
                       <Tag
@@ -350,7 +353,10 @@ function Dashboard({ data }) {
                   </div>
                 </Col>
                 <Col xs={24} md={12}>
-                  <div className="dashboard-panel-section">
+                  <div
+                    className="dashboard-panel-section"
+                    style={{ height: "100%" }}
+                  >
                     <div className="dashboard-section-heading">
                       <Title level={4}>Attendance health</Title>
                       <Tag

@@ -1,5 +1,15 @@
 import { useEffect, useMemo } from "react";
-import { Alert, Button, Card, Empty, List, Space, Tag, Typography } from "antd";
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  List,
+  Space,
+  Tag,
+  Typography,
+  message,
+} from "antd";
 import {
   ArrowRightOutlined,
   BellOutlined,
@@ -43,35 +53,19 @@ const getNotificationDate = (notification) => {
   return date && !Number.isNaN(date.getTime()) ? date : null;
 };
 
-const notificationCreationTimesKey = "slms-notification-creation-times";
+const notificationCreationTimes = new Map();
 
 const ensureNotificationCreationTime = (notification) => {
-  if (!notification.id || typeof window === "undefined") return notification;
-
-  try {
-    const storedTimes = JSON.parse(
-      window.localStorage.getItem(notificationCreationTimesKey) || "{}",
-    );
-    let createdAt = storedTimes[notification.id];
-
-    if (!createdAt) {
-      createdAt = getNotificationDate(notification)?.toISOString();
-      if (!createdAt) createdAt = new Date().toISOString();
-      window.localStorage.setItem(
-        notificationCreationTimesKey,
-        JSON.stringify({ ...storedTimes, [notification.id]: createdAt }),
-      );
-    }
-
-    return { ...notification, createdAt };
-  } catch {
-    return {
-      ...notification,
-      createdAt:
-        getNotificationDate(notification)?.toISOString() ||
-        new Date().toISOString(),
-    };
+  if (!notification.id) return notification;
+  const existingDate = getNotificationDate(notification);
+  if (existingDate) return { ...notification, createdAt: existingDate.toISOString() };
+  if (!notificationCreationTimes.has(notification.id)) {
+    notificationCreationTimes.set(notification.id, new Date().toISOString());
   }
+  return {
+    ...notification,
+    createdAt: notificationCreationTimes.get(notification.id),
+  };
 };
 
 const formatNotificationTimeOnly = (date) =>
@@ -100,9 +94,11 @@ const getDateGroupLabel = (date) => {
 function BellIcon({
   notifications = [],
   onMarkNotificationsRead,
-  onDismissNotifications,
+  onDeleteNotifications,
+  deletingNotificationIds = [],
 }) {
   const navigate = useNavigate();
+  const [messageApi, contextHolder] = message.useMessage();
   const visibleNotifications = useMemo(
     () =>
       notifications
@@ -145,7 +141,9 @@ function BellIcon({
   ).length;
 
   return (
-    <main className="bell-page">
+    <>
+      {contextHolder}
+      <main className="bell-page">
       <section className="bell-hero" aria-labelledby="bell-page-title">
         <div className="bell-hero-copy">
           <Tag icon={<BellOutlined />} className="bell-eyebrow">
@@ -260,7 +258,23 @@ function BellIcon({
                         icon={<DeleteOutlined />}
                         iconPosition="end"
                         danger
-                        onClick={() => onDismissNotifications?.([item.id])}
+                        loading={deletingNotificationIds.includes(
+                          String(item._id || item.id),
+                        )}
+                        disabled={deletingNotificationIds.includes(
+                          String(item._id || item.id),
+                        )}
+                        onClick={async () => {
+                          try {
+                            await onDeleteNotifications?.([
+                              String(item._id || item.id),
+                            ]);
+                          } catch (error) {
+                            messageApi.error(
+                              error.message || "Unable to delete notification.",
+                            );
+                          }
+                        }}
                       >
                         Delete
                       </Button>
@@ -293,7 +307,8 @@ function BellIcon({
           </Empty>
         )}
       </Card>
-    </main>
+      </main>
+    </>
   );
 }
 
