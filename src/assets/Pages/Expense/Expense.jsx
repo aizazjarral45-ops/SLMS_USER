@@ -9,6 +9,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Progress,
   Row,
   Select,
@@ -33,6 +34,7 @@ import {
 import dayjs from "dayjs";
 import "./Expense.css";
 import { isApiConfigured, request } from "../../../api/client";
+import { apiPayload, localRecord, recordId } from "../../../utils/recordIdentity";
 const { Title, Paragraph, Text } = Typography;
 const STORAGE_KEY = "slms-expenses";
 const BUDGET_STORAGE_KEY = "slms-monthly-budgets";
@@ -269,15 +271,14 @@ function Expense({
       date: values.date.format("YYYY-MM-DD"),
       amount: Number(values.amount),
     };
-    const expenseId =
-      editingExpense?._id || editingExpense?.id || editingExpense?.key;
+    const expenseId = recordId(editingExpense);
     if (isApiConfigured) {
       try {
         const result = await request(
           expenseId ? `/expenses/${expenseId}` : "/expenses",
           {
           method: expenseId ? "PUT" : "POST",
-          body: expense,
+          body: apiPayload(expense),
           },
         );
         const savedExpense = result.expense || result;
@@ -302,7 +303,7 @@ function Expense({
         return;
       }
     }
-    const record = {
+    const record = localRecord({
       key: `${Date.now()}`,
       date: values.date.format("YYYY-MM-DD"),
       title: values.title,
@@ -311,7 +312,7 @@ function Expense({
       paymentMethod: values.paymentMethod,
       description: values.description,
       location: values.location,
-    };
+    }, "expense");
     setExpenses((current) =>
       expenseId
         ? current.map((item) =>
@@ -327,7 +328,7 @@ function Expense({
     );
   };
   const handleDelete = async (record) => {
-    const expenseId = record._id || record.id || record.key;
+    const expenseId = recordId(record);
     if (isApiConfigured) {
       try {
         await request(`/expenses/${expenseId}`, { method: "DELETE" });
@@ -393,14 +394,17 @@ function Expense({
           >
             Edit
           </Button>
-          <Button
-            type="text"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record)}
+          <Popconfirm
+            title="Delete this expense?"
+            description="This action cannot be undone."
+            onConfirm={() => handleDelete(record)}
+            okText="Delete"
+            cancelText="Cancel"
           >
-            Delete
-          </Button>
+            <Button type="text" danger icon={<DeleteOutlined />}>
+              Delete
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },

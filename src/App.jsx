@@ -45,6 +45,37 @@ import { createDefaultSharedData } from "./data/sharedData";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
+const notificationRouteByModule = {
+  complaints: "/complaints",
+  complaint: "/complaints",
+  expenses: "/expense",
+  expense: "/expense",
+  hostel: "/hostel",
+  assignments: "/academic",
+  assignment: "/academic",
+  academic: "/academic",
+  attendance: "/academic",
+};
+
+const normalizeRemoteNotification = (notification) => {
+  const id = String(notification?._id || notification?.id || "");
+  const module = notification?.module || notification?.type || "general";
+  return {
+    ...notification,
+    id,
+    read: Boolean(
+      notification?.isRead !== undefined
+        ? notification.isRead
+        : notification?.read,
+    ),
+    description: notification?.message || notification?.description || "",
+    route:
+      notification?.navigationTarget ||
+      notification?.route ||
+      notificationRouteByModule[module] ||
+      "/notifications",
+  };
+};
 
 function LoadingScreen() {
   return <div className="app-route-loading">Loading SLMS...</div>;
@@ -94,6 +125,7 @@ function StudentLayout() {
         academicResult,
         complaintsResult,
         expensesResult,
+        preferencesResult,
         hostelResult,
         notificationsResult,
         remindersResult,
@@ -103,6 +135,7 @@ function StudentLayout() {
           request("/academic"),
           request("/complaints"),
           request("/expenses"),
+          request("/users/me/preferences"),
           request("/hostel"),
           request("/notifications"),
           listReminders(),
@@ -138,6 +171,15 @@ function StudentLayout() {
           expensesResult.status === "fulfilled"
             ? expensesResult.value.expenses || []
             : current.expenses,
+        monthlyBudget:
+          preferencesResult.status === "fulfilled"
+            ? Number(preferencesResult.value.preferences?.monthlyBudget || 0)
+            : current.monthlyBudget,
+        budgetHistory:
+          preferencesResult.status === "fulfilled" &&
+          Array.isArray(preferencesResult.value.preferences?.budgetHistory)
+            ? preferencesResult.value.preferences.budgetHistory
+            : current.budgetHistory,
         hostelApplications:
           hostelResult.status === "fulfilled"
             ? hostelResult.value.records || []
@@ -150,7 +192,11 @@ function StudentLayout() {
                   ? { reminders: remindersResult.value }
                   : {}),
                 ...(notificationsResult.status === "fulfilled"
-                  ? { remoteNotifications: notificationsResult.value.notifications || [] }
+                  ? {
+                      remoteNotifications: (
+                        notificationsResult.value.notifications || []
+                      ).map(normalizeRemoteNotification),
+                    }
                   : {}),
               }
             : current.settings,
@@ -256,13 +302,29 @@ function StudentLayout() {
   const unreadNotificationCount = notifications.filter(
     (item) => !item.read,
   ).length;
-  const unreadNotificationIds = notifications
-    .filter((item) => !item.read)
-    .map((item) => item.id);
-
   const markNotificationsRead = useCallback(
     async (notificationIds) => {
       if (!notificationIds?.length) return;
+      if (isApiConfigured) {
+        const ids = new Set(notificationIds.map(String));
+        updateSection("settings", (settings) => ({
+          ...settings,
+          remoteNotifications: (settings?.remoteNotifications || []).map(
+            (notification) =>
+              ids.has(String(notification.id || notification._id))
+                ? { ...notification, id: String(notification.id || notification._id), read: true, isRead: true }
+                : notification,
+          ),
+        }));
+        const results = await Promise.allSettled(
+          [...ids].map((id) =>
+            request(`/notifications/${id}/read`, { method: "PATCH" }),
+          ),
+        );
+        const failed = results.find((result) => result.status === "rejected");
+        if (failed) throw failed.reason;
+        return;
+      }
       updateSection("settings", (settings) => ({
         ...settings,
         readNotificationIds: Array.from(
@@ -272,13 +334,34 @@ function StudentLayout() {
           ]),
         ).slice(-500),
       }));
+    },
+    [updateSection],
+  );
+
+  const markNotificationUnread = useCallback(
+    async (notificationId) => {
+      if (!notificationId) return;
       if (isApiConfigured) {
-        try {
-          await request("/notifications/mark-all-read", { method: "PATCH" });
-        } catch (error) {
-          console.error("Unable to mark notifications as read:", error);
-        }
+        updateSection("settings", (settings) => ({
+          ...settings,
+          remoteNotifications: (settings?.remoteNotifications || []).map(
+            (notification) =>
+              String(notification.id || notification._id) === String(notificationId)
+                ? { ...notification, read: false, isRead: false }
+                : notification,
+          ),
+        }));
+        await request(`/notifications/${notificationId}/unread`, {
+          method: "PATCH",
+        });
+        return;
       }
+      updateSection("settings", (settings) => ({
+        ...settings,
+        readNotificationIds: (settings?.readNotificationIds || []).filter(
+          (id) => String(id) !== String(notificationId),
+        ),
+      }));
     },
     [updateSection],
   );
@@ -286,6 +369,18 @@ function StudentLayout() {
   const deleteNotifications = useCallback(
     async (notificationIds) => {
       if (!notificationIds?.length) return;
+      if (!isApiConfigured) {
+        updateSection("settings", (settings) => ({
+          ...settings,
+          dismissedNotificationIds: [
+            ...new Set([
+              ...(settings?.dismissedNotificationIds || []),
+              ...notificationIds,
+            ]),
+          ],
+        }));
+        return;
+      }
       const remoteNotifications = sharedData.settings?.remoteNotifications || [];
       const selected = notificationIds.map((id) =>
         remoteNotifications.find(
@@ -352,7 +447,7 @@ function StudentLayout() {
         <Header
           profileData={sharedData.profile.profileData}
           unreadNotificationCount={unreadNotificationCount}
-          onNotificationsOpen={() => markNotificationsRead(unreadNotificationIds)}
+          onNotificationsOpen={() => undefined}
           onToggleSidebar={() => setMobileSidebarOpen(true)}
           onLogout={logout}
         />
@@ -378,6 +473,7 @@ function StudentLayout() {
                 updateMonthlyBudget,
                 resetProfile,
                 markNotificationsRead,
+                markNotificationUnread,
                 deleteNotifications,
                 deletingNotificationIds,
               }}
@@ -419,6 +515,7 @@ function NotificationsPage() {
   const {
     notifications,
     markNotificationsRead,
+    markNotificationUnread,
     deleteNotifications,
     deletingNotificationIds,
   } =
@@ -427,6 +524,7 @@ function NotificationsPage() {
     <BellIcon
       notifications={notifications}
       onMarkNotificationsRead={markNotificationsRead}
+      onMarkNotificationUnread={markNotificationUnread}
       onDeleteNotifications={deleteNotifications}
       deletingNotificationIds={deletingNotificationIds}
     />
@@ -490,29 +588,36 @@ function ComplaintsPage() {
 
 function SettingsPage() {
   const { sharedData, updateSection } = useStudentData();
-  const updateReminders = (reminders) =>
-    updateSection("settings", { ...sharedData.settings, reminders });
   return (
     <Settings
       settings={sharedData.settings}
       onSettingsChange={(nextValue) => updateSection("settings", nextValue)}
       onReminderCreate={async (reminder) => {
         const created = await createReminder(reminder);
-        updateReminders([created, ...(sharedData.settings.reminders || [])]);
+        updateSection("settings", (settings) => ({
+          ...settings,
+          reminders: [created, ...(settings?.reminders || [])],
+        }));
         return created;
       }}
       onReminderToggle={async (id) => {
         const updated = await toggleReminder(id);
-        updateReminders(
-          (sharedData.settings.reminders || []).map((item) =>
-            item.id === id ? updated : item,
+        updateSection("settings", (settings) => ({
+          ...settings,
+          reminders: (settings?.reminders || []).map((item) =>
+            String(item.id) === String(id) ? updated : item,
           ),
-        );
+        }));
         return updated;
       }}
       onReminderDelete={async (id) => {
         await deleteReminder(id);
-        updateReminders((sharedData.settings.reminders || []).filter((item) => item.id !== id));
+        updateSection("settings", (settings) => ({
+          ...settings,
+          reminders: (settings?.reminders || []).filter(
+            (item) => String(item.id) !== String(id),
+          ),
+        }));
       }}
     />
   );

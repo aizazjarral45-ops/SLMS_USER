@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import {
   Alert,
   Button,
@@ -38,9 +38,11 @@ const typeIcons = {
   attendance: <WarningFilled />,
   expense: <DollarCircleOutlined />,
   complaints: <MessageOutlined />,
+  complaint: <MessageOutlined />,
   hostel: <HomeOutlined />,
   reminder: <ClockCircleOutlined />,
   ai: <NotificationOutlined />,
+  security: <SettingOutlined />,
 };
 
 const getNotificationDate = (notification) => {
@@ -94,6 +96,7 @@ const getDateGroupLabel = (date) => {
 function BellIcon({
   notifications = [],
   onMarkNotificationsRead,
+  onMarkNotificationUnread,
   onDeleteNotifications,
   deletingNotificationIds = [],
 }) {
@@ -132,13 +135,12 @@ function BellIcon({
     [visibleNotifications],
   );
 
-  useEffect(() => {
-    if (unreadIds.length) onMarkNotificationsRead?.(unreadIds);
-  }, [onMarkNotificationsRead, unreadIds]);
-
   const urgentCount = visibleNotifications.filter(
     (item) => item.urgency === "critical" || item.urgency === "soon",
   ).length;
+  const isSecurityActivity = (item) =>
+    item.module === "auth" ||
+    ["security", "login", "signup"].includes(String(item.type).toLowerCase());
 
   return (
     <>
@@ -242,43 +244,72 @@ function BellIcon({
                         </div>
                       </div>
                     </div>
-                    <Space>
-                      <Button
-                        type="text"
-                        className="bell-open-button"
-                        icon={<ArrowRightOutlined />}
-                        iconPosition="end"
-                        onClick={() => navigate(item.route)}
-                      >
-                        Open
-                      </Button>
-                      <Button
-                        type="text"
-                        className="bell-delete-button"
-                        icon={<DeleteOutlined />}
-                        iconPosition="end"
-                        danger
-                        loading={deletingNotificationIds.includes(
-                          String(item._id || item.id),
-                        )}
-                        disabled={deletingNotificationIds.includes(
-                          String(item._id || item.id),
-                        )}
-                        onClick={async () => {
-                          try {
-                            await onDeleteNotifications?.([
-                              String(item._id || item.id),
-                            ]);
-                          } catch (error) {
-                            messageApi.error(
-                              error.message || "Unable to delete notification.",
-                            );
-                          }
-                        }}
-                      >
-                        Delete
-                      </Button>
-                    </Space>
+                    {!isSecurityActivity(item) ? (
+                      <Space>
+                        <Button
+                          type="text"
+                          className="bell-open-button"
+                          icon={<ArrowRightOutlined />}
+                          iconPosition="end"
+                          onClick={async () => {
+                            try {
+                              if (!item.read) {
+                                await onMarkNotificationsRead?.([item.id]);
+                              }
+                              navigate(item.route || "/notifications");
+                            } catch (error) {
+                              messageApi.error(
+                                error.message || "Unable to open notification.",
+                              );
+                            }
+                          }}
+                        >
+                          Open
+                        </Button>
+                        <Button
+                          type="text"
+                          onClick={async () => {
+                            try {
+                              if (item.read) {
+                                await onMarkNotificationUnread?.(item.id);
+                              } else {
+                                await onMarkNotificationsRead?.([item.id]);
+                              }
+                            } catch (error) {
+                              messageApi.error(
+                                error.message || "Unable to update notification.",
+                              );
+                            }
+                          }}
+                        >
+                          {item.read ? "Mark as Unread" : "Mark as Read"}
+                        </Button>
+                        <Button
+                          type="text"
+                          className="bell-delete-button"
+                          icon={<DeleteOutlined />}
+                          iconPosition="end"
+                          danger
+                          loading={deletingNotificationIds.includes(
+                            String(item._id || item.id),
+                          )}
+                          disabled={deletingNotificationIds.includes(
+                            String(item._id || item.id),
+                          )}
+                          onClick={async () => {
+                            try {
+                              await onDeleteNotifications?.([item.id]);
+                            } catch (error) {
+                              messageApi.error(
+                                error.message || "Unable to delete notification.",
+                              );
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </Space>
+                    ) : null}
                   </List.Item>
                 )}
               />

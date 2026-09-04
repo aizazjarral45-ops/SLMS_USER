@@ -238,7 +238,8 @@
   width: 100%;
 }
 
-.hostel-form-card .ant-btn-primary {
+.hostel-form-card .ant-btn-primary,
+.hostel-fees-card .ant-btn-primary {
   min-width: 220px;
   border-radius: 12px;
   border: 0;
@@ -246,7 +247,8 @@
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
 }
 
-.hostel-form-card .ant-btn-primary:hover {
+.hostel-form-card .ant-btn-primary:hover,
+.hostel-fees-card .ant-btn-primary:hover {
   background: linear-gradient(
     115deg,
     var(--hostel-blue-dark),
@@ -343,10 +345,6 @@
 
 .hostel-search {
   width: 250px;
-}
-
-.hostel-status-filter {
-  width: 150px;
 }
 
 .hostel-student-cell {
@@ -464,11 +462,6 @@
   .hostel-records-card .ant-card-head-wrapper {
     flex-wrap: wrap;
     gap: 10px;
-  }
-
-  .hostel-search,
-  .hostel-status-filter {
-    width: 100%;
   }
 
   .hostel-records-card .ant-card-extra {

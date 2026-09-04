@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Avatar,
   Button,
@@ -35,6 +35,7 @@ import {
 } from "@ant-design/icons";
 import "./Academic.css";
 import { isApiConfigured, request } from "../../../api/client";
+import { apiPayload, localRecord, recordId } from "../../../utils/recordIdentity";
 
 const { Title, Paragraph, Text } = Typography;
 const createDefaultWorkspace = () => ({
@@ -72,7 +73,40 @@ function getAssignmentStatus(assignment) {
   return assignment.status || "To do";
 }
 
-const recordId = (record) => String(record?.id || record?._id || "");
+function getAttendanceRecord(response) {
+  const candidates = [
+    response?.attendance,
+    response?.["attendance record"],
+    response?.data?.attendance,
+    response?.data?.["attendance record"],
+    response?.data,
+    response?.record,
+    response,
+  ];
+  const record = candidates.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === "object" &&
+      candidate._id &&
+      candidate.course !== undefined &&
+      candidate.attended !== undefined &&
+      candidate.total !== undefined,
+  );
+  if (
+    !record ||
+    typeof record !== "object"
+  ) {
+    throw new Error("Attendance operation returned an invalid record.");
+  }
+  return {
+    _id: String(record._id),
+    course: record.course,
+    attended: record.attended,
+    total: record.total,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+}
 
 function statusColor(status) {
   if (status === "Completed") return "green";
@@ -98,22 +132,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     createDefaultWorkspace,
   );
   const workspace = workspaceProp || fallbackWorkspace;
-  useEffect(() => {
-    if (!isApiConfigured) return;
-    request("/academic")
-      .then((data) =>
-        setWorkspace((current) => ({
-          ...current,
-          profile: data.profile || {},
-          courses: (data.courses || []).map((item) => ({ ...item, id: recordId(item) })),
-          assignments: (data.assignments || []).map((item) => ({ ...item, id: recordId(item) })),
-          exams: (data.exams || []).map((item) => ({ ...item, id: recordId(item) })),
-          attendance: (data.attendance || []).map((item) => ({ ...item, id: recordId(item) })),
-        })),
-      )
-      .catch(() => {});
-  }, []);
-  const setWorkspace = (nextValue) => {
+  const setWorkspace = useCallback((nextValue) => {
     if (onWorkspaceChange) {
       onWorkspaceChange((current) => {
         const base = current || createDefaultWorkspace();
@@ -125,7 +144,26 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     setFallbackWorkspace((current) =>
       typeof nextValue === "function" ? nextValue(current) : nextValue,
     );
-  };
+  }, [onWorkspaceChange]);
+  useEffect(() => {
+    if (!isApiConfigured) return;
+    let cancelled = false;
+    request("/academic")
+      .then((data) =>
+        cancelled ? undefined : setWorkspace((current) => ({
+          ...current,
+          profile: data.profile || {},
+          courses: data.courses || [],
+          assignments: data.assignments || [],
+          exams: data.exams || [],
+          attendance: data.attendance || [],
+        })),
+      )
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [setWorkspace]);
   const attendanceRate = useMemo(() => {
     const attended = workspace.attendance.reduce(
       (total, record) => total + Number(record.attended || 0),
@@ -190,7 +228,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           ? getFormValues("course")
           : { credits: 3 },
     );
-    setCourseEditor(course ? { ...course, id: recordId(course) } : {});
+    setCourseEditor(course || {});
   };
 
   const openAssignmentEditor = (assignment) => {
@@ -210,7 +248,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     examForm.setFieldsValue(
       exam ? exam : hasFormValues("exam") ? getFormValues("exam") : {},
     );
-    setExamEditor(exam ? { ...exam, id: recordId(exam) } : {});
+    setExamEditor(exam || {});
   };
 
   const openAttendanceEditor = (record) => {
@@ -222,7 +260,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           ? getFormValues("attendance")
           : {},
     );
-    setAttendanceEditor(record ? { ...record, id: recordId(record) } : {});
+    setAttendanceEditor(record || {});
   };
 
   const saveProfile = async (values) => {
@@ -243,7 +281,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   };
 
   const saveCourse = async (values) => {
-    const courseId = courseEditor?.id;
+    const courseId = recordId(courseEditor);
     const course = {
       ...(courseEditor || {}),
       code: (values.code || "").trim(),
@@ -253,12 +291,17 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     };
 
     const saved = isApiConfigured
-      ? await request(courseId ? `/academic/courses/${courseId}` : "/academic/courses", {
-          method: courseId ? "PUT" : "POST",
-          body: course,
-        })
+      ? await request(
+          courseId ? `/academic/courses/${courseId}` : "/academic/courses",
+          {
+            method: courseId ? "PUT" : "POST",
+            body: apiPayload(course),
+          },
+        )
       : course;
-    const completeCourse = { ...(saved?.course || saved || course), id: recordId(saved?.course || saved || course) || courseId };
+    const completeCourse = isApiConfigured
+      ? saved?.course || saved || course
+      : localRecord(course, "course");
     updateCollection(
       "courses",
       courseId
@@ -274,9 +317,9 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   };
 
   const saveAssignment = async (values) => {
-    const assignmentId = assignmentEditor?.id;
+    const assignmentId = recordId(assignmentEditor);
     const assignment = {
-      id: assignmentId || `assignment-${Date.now()}`,
+      ...(assignmentEditor || {}),
       title: (values.title || "").trim(),
       course: (values.course || "").trim(),
       dueDate: values.dueDate,
@@ -285,12 +328,17 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     };
 
     const saved = isApiConfigured
-      ? await request(assignmentId ? `/assignments/${assignmentId}` : "/assignments", {
-          method: assignmentId ? "PUT" : "POST",
-          body: assignment,
-        })
-      : assignment;
-    const completeAssignment = { ...(saved?.assignment || saved || assignment), id: recordId(saved?.assignment || saved || assignment) || assignmentId };
+      ? await request(
+          assignmentId ? `/assignments/${assignmentId}` : "/assignments",
+          {
+            method: assignmentId ? "PUT" : "POST",
+            body: apiPayload(assignment),
+          },
+        )
+      : localRecord(assignment, "assignment");
+    const completeAssignment = isApiConfigured
+      ? saved?.assignment || saved || assignment
+      : localRecord(assignment, "assignment");
     updateCollection(
       "assignments",
       assignmentId
@@ -308,7 +356,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   };
 
   const saveExam = async (values) => {
-    const examId = examEditor?.id;
+    const examId = recordId(examEditor);
     const exam = {
       ...(examEditor || {}),
       title: (values.title || "").trim(),
@@ -318,16 +366,23 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     };
 
     const saved = isApiConfigured
-      ? await request(examId ? `/academic/exams/${examId}` : "/academic/exams", {
-          method: examId ? "PUT" : "POST",
-          body: exam,
-        })
+      ? await request(
+          examId ? `/academic/exams/${examId}` : "/academic/exams",
+          {
+            method: examId ? "PUT" : "POST",
+            body: apiPayload(exam),
+          },
+        )
       : exam;
-    const completeExam = { ...(saved?.exam || saved || exam), id: recordId(saved?.exam || saved || exam) || examId };
+    const completeExam = isApiConfigured
+      ? saved?.exam || saved || exam
+      : localRecord(exam, "exam");
     updateCollection(
       "exams",
       examId
-        ? workspace.exams        .map((item) => (recordId(item) === examId ? completeExam : item))
+        ? workspace.exams.map((item) =>
+            recordId(item) === examId ? completeExam : item,
+          )
         : [...workspace.exams, completeExam],
     );
     clearFormValues("exam");
@@ -337,7 +392,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   };
 
   const saveAttendance = async (values) => {
-    const attendanceId = attendanceEditor?.id;
+    const attendanceId = recordId(attendanceEditor);
     const attendance = {
       ...(attendanceEditor || {}),
       course: (values.course || "").trim(),
@@ -347,28 +402,48 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
 
     const saved = isApiConfigured
       ? await request(
-          attendanceId ? `/academic/attendance/${attendanceId}` : "/academic/attendance",
-          { method: attendanceId ? "PUT" : "POST", body: attendance },
+          attendanceId
+            ? `/academic/attendance/${attendanceId}`
+            : "/academic/attendance",
+          {
+            method: attendanceId ? "PUT" : "POST",
+            body: apiPayload(attendance),
+          },
         )
-      : attendance;
-    const completeAttendance = { ...(saved?.attendance || saved || attendance), id: recordId(saved?.attendance || saved || attendance) || attendanceId };
+      : localRecord(attendance, "attendance");
+    const completeAttendance = isApiConfigured
+      ? getAttendanceRecord(saved)
+      : localRecord(attendance, "attendance");
     updateCollection(
       "attendance",
       attendanceId
         ? workspace.attendance.map((item) =>
             recordId(item) === attendanceId ? completeAttendance : item,
           )
-        : [...workspace.attendance, completeAttendance],
+        : workspace.attendance.some(
+              (item) => recordId(item) === recordId(completeAttendance),
+            )
+          ? workspace.attendance
+          : [...workspace.attendance, completeAttendance],
     );
     clearFormValues("attendance");
     setAttendanceEditor(null);
     attendanceForm.resetFields();
     messageApi.success(
-      attendanceId ? "Attendance updated." : "Attendance added.",
+      attendanceId
+        ? "Attendance updated successfully."
+        : "Attendance submitted successfully.",
     );
   };
 
   const removeItem = async (collection, id, label) => {
+    const isMongoId = /^[a-f\d]{24}$/i.test(String(id || ""));
+    if (isApiConfigured && !isMongoId) {
+      messageApi.error(
+        `Unable to remove ${label.toLowerCase()}: a valid MongoDB record ID is required.`,
+      );
+      return;
+    }
     if (isApiConfigured) {
       const endpoint = {
         courses: "courses",
@@ -376,15 +451,22 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
         exams: "exams",
         attendance: "attendance",
       }[collection];
-      await request(`/${collection === "assignments" ? "assignments" : "academic/" + endpoint}/${id}`, {
-        method: "DELETE",
-      });
+      await request(
+        `/${collection === "assignments" ? "assignments" : "academic/" + endpoint}/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
     }
     updateCollection(
       collection,
       workspace[collection].filter((item) => recordId(item) !== id),
     );
-    messageApi.success(`${label} removed.`);
+    messageApi.success(
+      collection === "attendance"
+        ? "Attendance deleted successfully."
+        : `${label} removed.`,
+    );
   };
 
   const markAssignmentComplete = async (assignment) => {
@@ -398,7 +480,9 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
     updateCollection(
       "assignments",
       workspace.assignments.map((item) =>
-        recordId(item) === recordId(assignment) ? { ...item, ...assignment, status: "Completed" } : item,
+        recordId(item) === recordId(assignment)
+          ? { ...item, ...assignment, status: "Completed" }
+          : item,
       ),
     );
     messageApi.success("Assignment marked as completed.");
@@ -466,7 +550,9 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
             title="Delete this assignment?"
             okText="Delete"
             okButtonProps={{ danger: true }}
-            onConfirm={() => removeItem("assignments", record.id, "Assignment")}
+            onConfirm={() =>
+              removeItem("assignments", recordId(record), "Assignment")
+            }
           >
             <Button
               danger
@@ -527,7 +613,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
             okText="Delete"
             okButtonProps={{ danger: true }}
             onConfirm={() =>
-              removeItem("attendance", record.id, "Attendance record")
+              removeItem("attendance", recordId(record), "Attendance record")
             }
           >
             <Button
@@ -635,7 +721,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           >
             <Table
               className="academic-table"
-              rowKey="id"
+              rowKey={recordId}
               columns={assignmentColumns}
               dataSource={[...workspace.assignments].sort((a, b) =>
                 b.dueDate.localeCompare(a.dueDate),
@@ -713,7 +799,9 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
                       title="Delete this exam?"
                       okText="Delete"
                       okButtonProps={{ danger: true }}
-                      onConfirm={() => removeItem("exams", exam.id, "Exam")}
+                      onConfirm={() =>
+                        removeItem("exams", recordId(exam), "Exam")
+                      }
                     >
                       <Button
                         danger
@@ -787,7 +875,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
             </div>
             <Table
               className="academic-table"
-              rowKey="id"
+              rowKey={recordId}
               columns={attendanceColumns}
               dataSource={[...workspace.attendance].sort((a, b) => {
                 const aTotal = a.total || 0;
@@ -832,7 +920,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
             {workspace.courses.length ? (
               <div className="academic-course-grid">
                 {workspace.courses.map((course) => (
-                  <Card key={course.id} className="academic-course-card">
+                  <Card key={recordId(course)} className="academic-course-card">
                     <div className="academic-course-card-header">
                       <Avatar
                         icon={<ReadOutlined />}
@@ -851,7 +939,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
                           okText="Delete"
                           okButtonProps={{ danger: true }}
                           onConfirm={() =>
-                            removeItem("courses", course.id, "Course")
+                            removeItem("courses", recordId(course), "Course")
                           }
                         >
                           <Button
@@ -889,7 +977,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
       </Row>
       <datalist id="course-options">
         {workspace.courses.map((course) => (
-          <option key={course.id} value={course.title} />
+          <option key={recordId(course)} value={course.title} />
         ))}
       </datalist>
 
@@ -1104,14 +1192,14 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
       </Modal>
 
       <Modal
-        title={attendanceEditor?.id ? "Edit attendance" : "Add attendance"}
+        title={recordId(attendanceEditor) ? "Edit attendance" : "Add attendance"}
         open={attendanceEditor !== null}
         onCancel={() => {
           setAttendanceEditor(null);
           attendanceForm.resetFields();
         }}
         onOk={() => attendanceForm.submit()}
-        okText={attendanceEditor?.id ? "Save changes" : "Add record"}
+        okText={recordId(attendanceEditor) ? "Save changes" : "Add record"}
         destroyOnClose
       >
         <Form

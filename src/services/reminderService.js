@@ -2,7 +2,7 @@ import { request } from "../api/client";
 
 const normalizeReminder = (reminder) => ({
   ...reminder,
-  id: String(reminder.id || reminder._id),
+  id: String(reminder._id ?? reminder.id ?? reminder.key ?? ""),
 });
 
 export const listReminders = async () => {

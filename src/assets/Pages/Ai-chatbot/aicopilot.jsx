@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Avatar,
   Button,
@@ -6,6 +6,7 @@ import {
   Empty,
   Input,
   List,
+  Modal,
   Skeleton,
   Space,
   Tag,
@@ -137,9 +138,10 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   const [typing, setTyping] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [conversationReady, setConversationReady] = useState(!isApiConfigured);
+  const operationRef = useRef(0);
   const normalizeMessages = (items) =>
     (Array.isArray(items) ? items : []).map((item) => ({
-      id: item._id || item.id || createId("message"),
+      id: String(item._id ?? item.id ?? createId("message")),
       role: item.role,
       content: item.content,
       createdAt: item.createdAt || new Date().toISOString(),
@@ -149,6 +151,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     if (!isApiConfigured) return undefined;
     let cancelled = false;
     const loadConversation = async () => {
+      const operation = operationRef.current;
       const result = await request("/ai/conversations");
       const existing = result.conversations?.[0];
       const conversation = existing
@@ -157,7 +160,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
             method: "POST",
             body: { title: "New conversation" },
           })).conversation;
-      if (cancelled) return;
+      if (cancelled || operation !== operationRef.current) return;
       setConversationId(conversation._id);
       setMessages(normalizeMessages(conversation.messages));
       setConversationReady(true);
@@ -210,6 +213,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       createdAt: new Date().toISOString(),
     };
     setMessages((current) => [...current, userMessage]);
+    const operation = ++operationRef.current;
     setDraft("");
     setTyping(true);
     try {
@@ -227,6 +231,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
         method: "POST",
         body: { message: content },
       });
+      if (operation !== operationRef.current) return;
       setMessages(normalizeMessages(result.conversation?.messages));
       } else {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
@@ -236,10 +241,13 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
         content: buildResponse(content, data),
         createdAt: new Date().toISOString(),
       };
-      setMessages((current) => [...current, assistantMessage]);
+      if (operation === operationRef.current) {
+        setMessages((current) => [...current, assistantMessage]);
+      }
       }
     } catch (error) {
       console.error("Unable to generate AI reply:", error);
+      if (operation !== operationRef.current) return;
       setMessages((current) => [
       ...current,
       {
@@ -255,15 +263,20 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   };
 
   const undoLastPrompt = async () => {
-    if (isApiConfigured && !conversationId) return;
+    if (!messages.length) return;
+    const operation = ++operationRef.current;
     setTyping(false);
     if (isApiConfigured) {
+      if (!conversationId) return;
       try {
-        await request(`/ai/history/${conversationId}`, { method: "DELETE" });
-        setMessages([]);
-        setConversationId(null);
+        const result = await request(`/ai/history/${conversationId}`, {
+          method: "DELETE",
+        });
+        if (operation === operationRef.current)
+          setMessages(normalizeMessages(result.conversation?.messages));
       } catch (error) {
-        console.error("Unable to delete AI conversation:", error);
+        if (operation === operationRef.current)
+          console.error("Unable to undo the last AI prompt:", error);
       }
       return;
     }
@@ -275,6 +288,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   };
 
   const clearChat = async () => {
+    ++operationRef.current;
     setTyping(false);
     if (!isApiConfigured) {
       setMessages([]);
@@ -286,7 +300,24 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       setConversationId(null);
     } catch (error) {
       console.error("Unable to clear AI conversation history:", error);
+      throw error;
     }
+  };
+
+  const confirmClearChat = () => {
+    Modal.confirm({
+      title: "Clear all AI chats?",
+      content: "This permanently deletes your saved AI conversation history.",
+      okText: "Clear all",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await clearChat();
+        } catch {
+          // Keep the current chat visible when the deletion request fails.
+        }
+      },
+    });
   };
 
   return (
@@ -331,7 +362,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                 type="text"
                 danger
                 icon={<DeleteOutlined />}
-                onClick={clearChat}
+                onClick={confirmClearChat}
                 disabled={!messages.length && !typing}
                 aria-label="Clear chat"
               >

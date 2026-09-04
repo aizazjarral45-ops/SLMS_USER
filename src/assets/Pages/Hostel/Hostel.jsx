@@ -109,10 +109,6 @@ function getApplicationFormValues(application) {
     guardianPhone: formatDisplayValue(application?.guardianPhone, ""),
     emergencyName: formatDisplayValue(application?.emergencyName, ""),
     emergencyPhone: formatDisplayValue(application?.emergencyPhone, ""),
-    feesPerSemester: formatDisplayValue(application?.feesPerSemester, ""),
-    feesPaidThisMonth: formatDisplayValue(application?.feesPaidThisMonth, ""),
-    paymentDueDate: formatDateInput(application?.paymentDueDate),
-    feesStatus: formatDisplayValue(application?.feesStatus, ""),
     agreement: true,
   };
 }
@@ -151,25 +147,46 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     },
     [onApplicationsChange],
   );
-  const [searchText, setSearchText] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
   const [editingKey, setEditingKey] = useState(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState("");
   const [hostelNotifications, setHostelNotifications] = useState([]);
+  const [feeForm] = Form.useForm();
+  const [fees, setFees] = useState([]);
+  const [editingFeeId, setEditingFeeId] = useState(null);
+  const [feesLoading, setFeesLoading] = useState(false);
 
   const normalizeRemoteApplication = (application) => {
     if (!application) return null;
+    const studentInformation =
+      application.studentInformation &&
+      typeof application.studentInformation === "object"
+        ? application.studentInformation
+        : {};
+    const guardianInformation =
+      application.guardianInformation &&
+      typeof application.guardianInformation === "object"
+        ? application.guardianInformation
+        : {};
     const details =
       application.applicantDetails &&
       typeof application.applicantDetails === "object"
-        ? application.applicantDetails
-        : application;
+        ? {
+            ...application.applicantDetails,
+            ...studentInformation,
+            ...guardianInformation,
+          }
+        : { ...studentInformation, ...guardianInformation };
     return {
       ...details,
       ...application,
       key: String(
-        application._id || application.id || application.key || Date.now(),
+        application._id ||
+          application.id ||
+          application.key ||
+          application.applicationNo ||
+          application.studentId ||
+          "application",
       ),
       applicationNo:
         application.applicationNo ||
@@ -191,6 +208,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         if (cancelled) return;
         const next = normalizeRemoteApplication(result?.application || result);
         setRemoteApplications(next ? [next] : []);
+        setEditingKey(next?.key || null);
+        form.setFieldsValue(next ? getApplicationFormValues(next) : {});
         if (!isApiConfigured) setApplications(next ? [next] : []);
         setRemoteError("");
       } catch (error) {
@@ -218,8 +237,24 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         if (!cancelled) setHostelNotifications([]);
       }
     };
+    const loadFees = async () => {
+      setFeesLoading(true);
+      try {
+        const result = await request("/fees");
+        if (!cancelled) setFees(Array.isArray(result?.fees) ? result.fees : []);
+      } catch (error) {
+        if (!cancelled) {
+          setRemoteError(
+            formatDisplayValue(error?.message, "Unable to load fee records."),
+          );
+        }
+      } finally {
+        if (!cancelled) setFeesLoading(false);
+      }
+    };
     loadMyApplication();
     loadNotifications();
+    loadFees();
     const poll = window.setInterval(() => {
       loadMyApplication(false);
       loadNotifications();
@@ -227,45 +262,77 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     return () => window.clearInterval(poll);
   }, [form, setApplications]);
 
-  const filteredApplications = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-
-    return applications.filter((application) => {
-      const searchableText = [
-        application.fullName,
-        application.studentId,
-        application.program,
-        application.guardianName,
-        application.guardianPhone,
-        application.emergencyName,
-        application.emergencyPhone,
-        application.applicationNo,
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return (
-        (!query || searchableText.includes(query)) &&
-        (statusFilter === "All" || application.status === statusFilter)
-      );
-    });
-  }, [applications, searchText, statusFilter]);
-
   const feesData = useMemo(
     () =>
-      applications.map((application) => ({
-        key: application.key,
-        studentName: application.fullName,
-        studentId: application.studentId,
-        applicationNo: application.applicationNo,
-        feesAmount: application.feesPerSemester || 0,
-        feesPaidThisMonth: application.feesPaidThisMonth || 0,
-        feesStatus: application.feesStatus || "Pending",
-        paymentDueDate: application.paymentDueDate || "",
-        recordDate: application.submittedAt || "",
-      })),
-    [applications],
+      fees.map((fee) => {
+        const application = applications.find(
+          (item) =>
+            String(item._id || item.key) === String(fee.hostelApplicationId),
+        );
+        return {
+          ...fee,
+          key: fee._id,
+          studentName: application?.fullName || "",
+          studentId: application?.studentId || "",
+          applicationNo: application?.applicationNo || "",
+          feesAmount: fee.amount,
+          feesPaidThisMonth: fee.paidAmount,
+          feesStatus: fee.status,
+          paymentDueDate: fee.dueDate,
+          recordDate: fee.createdAt,
+        };
+      }),
+    [applications, fees],
   );
+
+  const submitFee = async (values) => {
+    const applicationId = newestApplication?._id || newestApplication?.key;
+    if (!applicationId) {
+      messageApi.error("Save your hostel application before adding fees.");
+      return;
+    }
+    try {
+      const result = await request(
+        editingFeeId ? `/fees/${editingFeeId}` : "/fees",
+        {
+          method: editingFeeId ? "PUT" : "POST",
+          body: { ...values, hostelApplicationId: applicationId },
+        },
+      );
+      const fee = result?.fee || result;
+      if (!fee?._id) throw new Error("The fee API returned an invalid record.");
+      setFees((current) =>
+        editingFeeId
+          ? current.map((item) =>
+              String(item._id) === String(editingFeeId) ? fee : item,
+            )
+          : [fee, ...current.filter((item) => String(item._id) !== String(fee._id))],
+      );
+      feeForm.resetFields();
+      setEditingFeeId(null);
+      messageApi.success(
+        editingFeeId ? "Fee updated successfully." : "Fee added successfully.",
+      );
+    } catch (error) {
+      messageApi.error(formatDisplayValue(error?.message, "Fee operation failed."));
+    }
+  };
+
+  const removeFee = async (feeId) => {
+    try {
+      await request(`/fees/${feeId}`, { method: "DELETE" });
+      setFees((current) =>
+        current.filter((item) => String(item._id) !== String(feeId)),
+      );
+      if (String(editingFeeId) === String(feeId)) {
+        feeForm.resetFields();
+        setEditingFeeId(null);
+      }
+      messageApi.success("Fee deleted successfully.");
+    } catch (error) {
+      messageApi.error(formatDisplayValue(error?.message, "Unable to delete fee."));
+    }
+  };
 
   const submitApplication = async (values) => {
     // Send the complete form object without trimming, coercing, or dropping fields.
@@ -273,7 +340,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
 
     if (editingKey) {
       const existingApplication =
-        applications.find((item) => item.key === editingKey) || {};
+        applications.find((item) => String(item.key) === String(editingKey)) || {};
       if (isApiConfigured) {
         try {
           const applicationId = existingApplication._id || editingKey;
@@ -290,7 +357,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           });
           setRemoteApplications((current) =>
             current.map((item) =>
-              item.key === editingKey ? { ...item, ...next } : item,
+              String(item.key) === String(editingKey) ? { ...item, ...next } : item,
             ),
           );
           messageApi.success("Your hostel application has been updated.");
@@ -329,11 +396,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           method: "POST",
           body: { applicantDetails },
         });
-        const refreshed = await request("/hostel/my-application");
         const next = normalizeRemoteApplication(
-          refreshed?.application || refreshed || result?.application || result,
+          result?.application || result,
         );
-        if (next)         setRemoteApplications([next]);
+        if (next) setRemoteApplications([next]);
         if (next) {
           setEditingKey(next.key);
           form.setFieldsValue(getApplicationFormValues(next));
@@ -378,30 +444,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     messageApi.success("Your hostel application has been saved.");
   };
 
-  const removeApplication = async (key) => {
-    if (isApiConfigured) {
-      try {
-        await request(`/hostel/${key}`, { method: "DELETE" });
-        setRemoteApplications((current) =>
-          current.filter((item) => item.key !== key),
-        );
-        setEditingKey(null);
-        messageApi.success("Hostel application removed.");
-      } catch (error) {
-        messageApi.error(
-          formatDisplayValue(
-            error?.message,
-            "Unable to remove hostel application.",
-          ),
-        );
-      }
-      return;
-    }
-
-    setApplications((current) => current.filter((item) => item.key !== key));
-    messageApi.success("Hostel application removed.");
-  };
-
   const handleEditApplication = (record) => {
     form.setFieldsValue(getApplicationFormValues(record));
     setEditingKey(record.key);
@@ -431,42 +473,46 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
 
   const columns = [
     {
-      title: (
-        <Space>
-          <TeamOutlined /> Student
-        </Space>
-      ),
-      key: "student",
-      render: (_, record) => (
-        <div className="hostel-student-cell">
-          <strong>{formatDisplayValue(record.fullName)}</strong>
-          <span>{formatDisplayValue(record.studentId)}</span>
-        </div>
-      ),
+      title: "Full Name",
+      dataIndex: "fullName",
+      key: "fullName",
+      render: (value) => formatDisplayValue(value),
     },
     {
-      title: (
-        <Space>
-          <PhoneOutlined /> Contact
-        </Space>
-      ),
-      key: "contact",
-      render: (_, record) => (
-        <div className="hostel-student-cell">
-          <span>{formatDisplayValue(record.email)}</span>
-          <span>{formatDisplayValue(record.phone)}</span>
-        </div>
-      ),
+      title: "Student ID",
+      dataIndex: "studentId",
+      key: "studentId",
+      render: (value) => formatDisplayValue(value),
     },
     {
-      title: (
-        <Space>
-          <SafetyCertificateOutlined /> Status
-        </Space>
-      ),
-      dataIndex: "status",
-      key: "status",
-      render: statusBadge,
+      title: "Department",
+      dataIndex: "program",
+      key: "program",
+      render: (value) => formatDisplayValue(value),
+    },
+    {
+      title: "Semester",
+      dataIndex: "semester",
+      key: "semester",
+      render: (value) => formatDisplayValue(value),
+    },
+    {
+      title: "Gender",
+      dataIndex: "gender",
+      key: "gender",
+      render: (value) => formatDisplayValue(value),
+    },
+    {
+      title: "Phone Number",
+      dataIndex: "phone",
+      key: "phone",
+      render: (value) => formatDisplayValue(value),
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      render: (value) => formatDisplayValue(value),
     },
     {
       title: (
@@ -485,23 +531,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               aria-label="Edit application"
             />
           </Tooltip>
-          <Popconfirm
-            title="Remove this application?"
-            description="This removes the saved record from this device."
-            okText="Remove"
-            okButtonProps={{ danger: true }}
-            cancelText="Keep"
-            onConfirm={() => removeApplication(record.key)}
-          >
-            <Tooltip title="Remove application">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                aria-label="Remove application"
-              />
-            </Tooltip>
-          </Popconfirm>
         </Space>
       ),
     },
@@ -588,29 +617,13 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               aria-label="Edit contact record"
             />
           </Tooltip>
-          <Popconfirm
-            title="Remove this contact record?"
-            description="This removes the related saved application from this device."
-            okText="Remove"
-            okButtonProps={{ danger: true }}
-            cancelText="Keep"
-            onConfirm={() => removeApplication(record.key)}
-          >
-            <Tooltip title="Remove contact record">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                aria-label="Remove contact record"
-              />
-            </Tooltip>
-          </Popconfirm>
         </Space>
       ),
     },
   ];
 
   const newestApplication = applications[0];
+  const latestFee = fees[0];
   const roomAllocation = newestApplication?.roomAllocation;
 
   return (
@@ -761,14 +774,14 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                 <DollarOutlined /> Fees Status
               </Text>
               <Title level={4}>
-                {formatDisplayValue(newestApplication?.feesStatus, "Pending")}
+                {formatDisplayValue(latestFee?.status, "Pending")}
               </Title>
               <Tag
                 color={
-                  newestApplication?.feesStatus === "Paid" ? "green" : "orange"
+                  latestFee?.status === "Paid" ? "green" : "orange"
                 }
               >
-                {newestApplication?.feesStatus === "Paid"
+                {latestFee?.status === "Paid"
                   ? "✓ Paid"
                   : "⚠ Reminder"}
               </Tag>
@@ -840,7 +853,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                 <Col xs={24} md={12}>
                   <Form.Item
                     name="email"
-                    label="University email"
+                    label="email"
                     rules={[
                       {
                         required: true,
@@ -849,7 +862,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                       },
                     ]}
                   >
-                    <Input placeholder="student@university.edu" />
+                    <Input placeholder="student@gmail.com" />
                   </Form.Item>
                 </Col>
                 <Col xs={24} md={12}>
@@ -918,71 +931,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                           value: "Prefer not to say",
                           label: "Prefer not to say",
                         },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Divider />
-              <div className="hostel-form-heading">
-                <DollarOutlined /> Hostel fees information
-              </div>
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="feesPerSemester"
-                    label="Fees per semester (PKR)"
-                    rules={[
-                      { required: true, message: "Enter the fees amount." },
-                    ]}
-                  >
-                    <Input type="number" placeholder="e.g. 50000" min="0" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="paymentDueDate"
-                    label="Payment due date"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Enter the payment due date.",
-                      },
-                    ]}
-                  >
-                    <Input type="date" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="feesPaidThisMonth"
-                    label="Fees paid this month (PKR)"
-                    rules={[
-                      {
-                        required: true,
-                        message: "Enter the amount paid this month.",
-                      },
-                    ]}
-                  >
-                    <Input type="number" placeholder="e.g. 15000" min="0" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="feesStatus"
-                    label="Payment status"
-                    rules={[
-                      { required: true, message: "Select the payment status." },
-                    ]}
-                  >
-                    <Select
-                      placeholder="Select"
-                      options={[
-                        { value: "Pending", label: "Pending" },
-                        { value: "Paid", label: "Paid" },
-                        { value: "Partially Paid", label: "Partially Paid" },
-                        { value: "Overdue", label: "Overdue" },
                       ]}
                     />
                   </Form.Item>
@@ -1182,34 +1130,34 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                   <Descriptions.Item label="Student Name">
                     {formatDisplayValue(newestApplication.fullName)}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Fees Amount">
+                  <Descriptions.Item label="Latest fee amount">
                     PKR{" "}
-                    {formatDisplayValue(newestApplication.feesPerSemester, "0")}
+                    {formatDisplayValue(latestFee?.amount, "0")}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Fees paid this month">
+                  <Descriptions.Item label="Latest paid amount">
                     PKR{" "}
                     {formatDisplayValue(
-                      newestApplication.feesPaidThisMonth,
+                      latestFee?.paidAmount,
                       "0",
                     )}
                   </Descriptions.Item>
-                  <Descriptions.Item label="Fees Status">
+                  <Descriptions.Item label="Latest fee status">
                     <Tag
                       color={
-                        newestApplication.feesStatus === "Paid"
+                        latestFee?.status === "Paid"
                           ? "green"
-                          : newestApplication.feesStatus === "Pending"
+                          : latestFee?.status === "Pending"
                             ? "orange"
                             : "red"
                       }
                       style={{ width: "auto" }}
                     >
-                      {formatDisplayValue(newestApplication.feesStatus, "N/A")}
+                      {formatDisplayValue(latestFee?.status, "N/A")}
                     </Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="Due Date">
                     {formatDisplayValue(
-                      newestApplication.paymentDueDate,
+                      latestFee?.dueDate,
                       "N/A",
                     )}
                   </Descriptions.Item>
@@ -1232,33 +1180,10 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
             <FileTextOutlined /> Saved hostel applications
           </Space>
         }
-        extra={
-          <Space wrap>
-            <Input.Search
-              allowClear
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search applications"
-              style={{ width: 210 }}
-            />
-            <Select
-              value={statusFilter}
-              onChange={setStatusFilter}
-              className="hostel-status-filter"
-              options={[
-                { value: "All", label: "All statuses" },
-                { value: "Submitted", label: "Submitted" },
-                { value: "Pending", label: "Pending" },
-                { value: "Approved", label: "Approved" },
-                { value: "Rejected", label: "Rejected" },
-              ]}
-            />
-          </Space>
-        }
       >
         <Table
           columns={columns}
-          dataSource={filteredApplications}
+          dataSource={applications}
           locale={{
             emptyText:
               "No hostel applications saved yet. Complete the form above to add one.",
@@ -1381,8 +1306,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         }
         extra={
           <Tag color="green">
-            {filteredApplications.length} saved record
-            {filteredApplications.length === 1 ? "" : "s"}
+            {applications.length} saved record
+            {applications.length === 1 ? "" : "s"}
           </Tag>
         }
       >
@@ -1394,7 +1319,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         />
         <Table
           columns={contactColumns}
-          dataSource={filteredApplications}
+          dataSource={applications}
           locale={{
             emptyText:
               "Guardian and emergency contacts will appear here after you save an application.",
@@ -1421,10 +1346,107 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           className="hostel-fees-alert"
           type="info"
           showIcon
-          message="Hostel fees information is stored with each application."
-          description="Track payment status and dues for all submitted applications."
+          message="Manage multiple fee records for your saved hostel application."
+          description="Each fee record is stored separately and can be edited or deleted without changing the application."
         />
-        <Table
+        <Form
+          form={feeForm}
+          layout="vertical"
+          onFinish={submitFee}
+          style={{ marginTop: 16 }}
+        >
+          <Row gutter={16}>
+            <Col xs={24} md={8}>
+              <Form.Item name="feeType" label="Fee type" initialValue="Tuition">
+                <Input placeholder="e.g. Hostel fee" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="amount"
+                label="Amount (PKR)"
+                rules={[{ required: true, message: "Enter the fee amount." }]}
+              >
+                <Input type="number" min="0" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="paidAmount" label="Paid amount (PKR)" initialValue={0}>
+                <Input type="number" min="0" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="dueDate" label="Due date">
+                <Input type="date" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="status" label="Payment status" initialValue="Pending">
+                <Select
+                  options={[
+                    { value: "Pending", label: "Pending" },
+                    { value: "Partial", label: "Partial" },
+                    { value: "Paid", label: "Paid" },
+                    { value: "Overdue", label: "Overdue" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="paymentMethod" label="Payment method" initialValue="Cash">
+                <Select
+                  options={[
+                    { value: "Cash", label: "Cash" },
+                    { value: "Bank transfer", label: "Bank transfer" },
+                    { value: "Card", label: "Card" },
+                    { value: "Online", label: "Online" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="invoiceNumber" label="Invoice number">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Space>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              icon={<DollarOutlined />}
+              disabled={!newestApplication}
+            >
+              {editingFeeId ? "Update Fee" : "Add Fee"}
+            </Button>
+            {editingFeeId ? (
+              <Button
+                onClick={() => {
+                  feeForm.resetFields();
+                  setEditingFeeId(null);
+                }}
+              >
+                Cancel
+              </Button>
+            ) : null}
+          </Space>
+        </Form>
+        </Card>
+
+      <Card
+        className="hostel-panel hostel-records-card hostel-fees-table-card"
+        title={
+          <Space>
+            <FileTextOutlined /> Fee records
+          </Space>
+        }
+        extra={
+          <Tag color="blue">
+            {feesData.length} fees record{feesData.length === 1 ? "" : "s"}
+          </Tag>
+        }
+      > <Table
           columns={[
             {
               title: "Student",
@@ -1486,11 +1508,50 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               key: "recordDate",
               render: (date) => formatDisplayValue(date, "—"),
             },
+            {
+              title: "Actions",
+              key: "actions",
+              render: (_, record) => (
+                <Space>
+                  <Button
+                    type="text"
+                    icon={<EditOutlined />}
+                    onClick={() => {
+                      feeForm.setFieldsValue({
+                        feeType: record.feeType,
+                        amount: record.amount,
+                        paidAmount: record.paidAmount,
+                        dueDate: formatDateInput(record.dueDate),
+                        status: record.status,
+                        paymentMethod: record.paymentMethod,
+                        invoiceNumber: record.invoiceNumber,
+                      });
+                      setEditingFeeId(record._id);
+                    }}
+                    aria-label="Edit fee"
+                  />
+                  <Popconfirm
+                    title="Delete this fee record?"
+                    onConfirm={() => removeFee(record._id)}
+                    okText="Delete"
+                    okButtonProps={{ danger: true }}
+                  >
+                    <Button
+                      type="text"
+                      danger
+                      icon={<DeleteOutlined />}
+                      aria-label="Delete fee"
+                    />
+                  </Popconfirm>
+                </Space>
+              ),
+            },
           ]}
           dataSource={feesData}
+          loading={feesLoading}
           locale={{
             emptyText:
-              "Hostel fees records will appear here after you save an application with fees information.",
+              "Add a fee record after saving your hostel application.",
           }}
           pagination={{ pageSize: 5, hideOnSinglePage: true }}
           scroll={{ x: 1000 }}
