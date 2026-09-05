@@ -252,14 +252,20 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         if (!cancelled) setFeesLoading(false);
       }
     };
+    const handleRealtimeChange = (event) => {
+      const resource = event.detail?.resource;
+      if (resource === "hostel") loadMyApplication(false);
+      if (resource === "fees") loadFees();
+      if (resource === "notifications") loadNotifications();
+    };
+    window.addEventListener("slms:data-changed", handleRealtimeChange);
     loadMyApplication();
     loadNotifications();
     loadFees();
-    const poll = window.setInterval(() => {
-      loadMyApplication(false);
-      loadNotifications();
-    }, 30000);
-    return () => window.clearInterval(poll);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("slms:data-changed", handleRealtimeChange);
+    };
   }, [form, setApplications]);
 
   const feesData = useMemo(

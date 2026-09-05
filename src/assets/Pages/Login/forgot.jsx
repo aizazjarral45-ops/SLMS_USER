@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, Form, Input, message } from "antd";
-import { MailOutlined } from "@ant-design/icons";
+import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import {
   beginPasswordReset,
@@ -119,11 +119,42 @@ const Forgot = () => {
   return (
     <div className="slms-forgot-page">
       <div className="slms-forgot-card">
-        <div className="slms-brand">
-          <h1>SLMS</h1>
-          <p>STUDENT LIFE MANAGEMENT SYSTEM</p>
-          <h2>Reset Password</h2>
-        </div>
+        <aside className="slms-forgot-visual">
+          <div className="slms-forgot-logo-mark">
+            <LockOutlined />
+          </div>
+          <div className="slms-forgot-brand">
+            <span className="slms-forgot-brand-name">SLMS</span>
+            <span className="slms-forgot-brand-caption">
+              STUDENT LIFE MANAGEMENT SYSTEM
+            </span>
+          </div>
+          <div className="slms-forgot-visual-copy">
+            <span className="slms-forgot-eyebrow">SECURE STUDENT ACCESS</span>
+            <h1>Keep your academic journey moving forward.</h1>
+            <p>
+              Recover your account securely and get back to the tools that
+              support your student life.
+            </p>
+          </div>
+          <div className="slms-forgot-orbit" aria-hidden="true" />
+        </aside>
+        <main className="slms-forgot-content">
+          <div className="slms-forgot-heading">
+            <span className="slms-forgot-heading-icon">
+              <LockOutlined />
+            </span>
+            <div>
+              <h2>{step === 2 ? "Reset Password" : "Forgot Password?"}</h2>
+              <p>
+                {step === 0
+                  ? "Enter your email and we&apos;ll help you securely regain access."
+                  : step === 1
+                    ? "Verify your code to continue securely."
+                    : "Choose a strong new password for your account."}
+              </p>
+            </div>
+          </div>
         {step === 0 && (
           <Form form={form} layout="vertical" onFinish={sendReset}>
             <Form.Item
@@ -257,6 +288,7 @@ const Forgot = () => {
             <Link to="/login">Back to Login</Link>
           </div>
         )}
+        </main>
       </div>
     </div>
   );

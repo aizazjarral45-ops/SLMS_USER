@@ -92,6 +92,8 @@ const SwitchRow = ({ label, checked, onChange }) => (
 function Settings({
   settings = {},
   onSettingsChange,
+  onNotificationChange,
+  onAiSettingChange,
   onReminderCreate,
   onReminderToggle,
   onReminderDelete,
@@ -122,11 +124,29 @@ function Settings({
   };
   const pendingReminders = reminders.filter((item) => !item.done).length;
 
-  const toggleNotification = (key, value) => {
+  const toggleNotification = async (key, value) => {
+    if (onNotificationChange) {
+      try {
+        await onNotificationChange(key, value);
+      } catch (error) {
+        console.error("Unable to save notification setting:", error);
+        messageApi.error(error.message || "Unable to save notification setting.");
+      }
+      return;
+    }
     updateSettings({ notifications: { ...notifications, [key]: value } });
   };
 
-  const toggleAiSetting = (key, value) => {
+  const toggleAiSetting = async (key, value) => {
+    if (onAiSettingChange) {
+      try {
+        await onAiSettingChange(key, value);
+      } catch (error) {
+        console.error("Unable to save AI setting:", error);
+        messageApi.error(error.message || "Unable to save AI setting.");
+      }
+      return;
+    }
     updateSettings({ aiSettings: { ...aiSettings, [key]: value } });
   };
 
@@ -482,7 +502,7 @@ function Settings({
               type="info"
               showIcon
               message="Copilot personalization"
-              description="Your AI preferences are saved in browser storage and restored on your next visit."
+              description="Your AI preferences are saved and restored on your next visit."
             />
           </Space>
         </Card>

@@ -93,9 +93,13 @@ const getDateGroupLabel = (date) => {
   }).format(date);
 };
 
+const getNotificationId = (notification) =>
+  String(notification?._id || notification?.id || "");
+
 function BellIcon({
   notifications = [],
   onMarkNotificationsRead,
+  onMarkAllNotificationsRead,
   onMarkNotificationUnread,
   onDeleteNotifications,
   deletingNotificationIds = [],
@@ -138,9 +142,18 @@ function BellIcon({
   const urgentCount = visibleNotifications.filter(
     (item) => item.urgency === "critical" || item.urgency === "soon",
   ).length;
-  const isSecurityActivity = (item) =>
+  const isInformationalNotification = (item) =>
     item.module === "auth" ||
-    ["security", "login", "signup"].includes(String(item.type).toLowerCase());
+    ["security", "login", "signup"].includes(String(item.type).toLowerCase()) ||
+    ["login activity", "signup activity", "create account"].includes(
+      String(item.title).trim().toLowerCase(),
+    );
+  const severityClass = (item) => {
+    const severity = String(item.severity || item.priority || "").toLowerCase();
+    if (severity === "critical" || severity === "error" || severity === "danger") return "critical";
+    if (severity === "warning" || severity === "alert") return "soon";
+    return item.urgency || "upcoming";
+  };
 
   return (
     <>
@@ -156,8 +169,7 @@ function BellIcon({
           </Title>
           <Paragraph>
             Relevant academic, hostel, spending, complaint, and personal
-            reminder alerts appear here. Opening this page marks the current
-            alerts as read.
+            reminder alerts appear here.             Open or manage each alert without losing your notification history.
           </Paragraph>
           <Space wrap className="bell-hero-meta">
             <span>
@@ -193,7 +205,23 @@ function BellIcon({
           </Space>
         }
         extra={
-          <Text type="secondary">{visibleNotifications.length} active</Text>
+          <Space>
+            <Text type="secondary">{visibleNotifications.length} total</Text>
+            {unreadIds.length ? (
+              <Button
+                type="link"
+                onClick={async () => {
+                  try {
+                    await onMarkAllNotificationsRead?.();
+                  } catch (error) {
+                    messageApi.error(error.message || "Unable to mark notifications as read.");
+                  }
+                }}
+              >
+                Mark all as read
+              </Button>
+            ) : null}
+          </Space>
         }
       >
         {visibleNotifications.length ? (
@@ -208,11 +236,30 @@ function BellIcon({
                 rowKey="id"
                 renderItem={(item) => (
                   <List.Item
-                    className={`bell-notification-item ${item.urgency}`}
+                    className={`bell-notification-item ${severityClass(item)} ${
+                      !item.read && !isInformationalNotification(item)
+                        ? "unread"
+                        : ""
+                    }`}
+                    style={{ marginBottom: 10 }}
+                    onClick={async () => {
+                      if (!isInformationalNotification(item) || item.read) {
+                        return;
+                      }
+                      try {
+                        await onMarkNotificationsRead?.([
+                          getNotificationId(item),
+                        ]);
+                      } catch (error) {
+                        messageApi.error(
+                          error.message || "Unable to update notification.",
+                        );
+                      }
+                    }}
                   >
                     <div className="bell-notification-content">
                       <span
-                        className={`bell-notification-icon ${item.urgency}`}
+                        className={`bell-notification-icon ${severityClass(item)}`}
                       >
                         {typeIcons[item.type] || <BellOutlined />}
                       </span>
@@ -221,9 +268,9 @@ function BellIcon({
                           <Text strong>{item.title}</Text>
                           <Tag
                             color={
-                              item.urgency === "critical"
+                              severityClass(item) === "critical"
                                 ? "red"
-                                : item.urgency === "soon"
+                                : severityClass(item) === "soon"
                                   ? "gold"
                                   : "blue"
                             }
@@ -234,9 +281,9 @@ function BellIcon({
                         <Text type="secondary">{item.description}</Text>
                         <div style={{ marginTop: 6 }}>
                           <span
-                            className={`bell-notification-time ${item.urgency}`}
+                            className={`bell-notification-time ${severityClass(item)}`}
                           >
-                            <ClockCircleOutlined />{" "}
+                            <ClockCircleOutlined />
                             {formatNotificationTimeOnly(
                               getNotificationDate(item),
                             )}
@@ -244,7 +291,7 @@ function BellIcon({
                         </div>
                       </div>
                     </div>
-                    {!isSecurityActivity(item) ? (
+                    {!isInformationalNotification(item) ? (
                       <Space>
                         <Button
                           type="text"
@@ -254,9 +301,15 @@ function BellIcon({
                           onClick={async () => {
                             try {
                               if (!item.read) {
-                                await onMarkNotificationsRead?.([item.id]);
+                                await onMarkNotificationsRead?.([
+                                  getNotificationId(item),
+                                ]);
                               }
-                              navigate(item.route || "/notifications");
+                              navigate(
+                                item.type === "fee" || item.module === "fees"
+                                  ? "/hostel"
+                                  : item.route || "/notifications",
+                              );
                             } catch (error) {
                               messageApi.error(
                                 error.message || "Unable to open notification.",
@@ -271,9 +324,13 @@ function BellIcon({
                           onClick={async () => {
                             try {
                               if (item.read) {
-                                await onMarkNotificationUnread?.(item.id);
+                                await onMarkNotificationUnread?.(
+                                  getNotificationId(item),
+                                );
                               } else {
-                                await onMarkNotificationsRead?.([item.id]);
+                                await onMarkNotificationsRead?.([
+                                  getNotificationId(item),
+                                ]);
                               }
                             } catch (error) {
                               messageApi.error(
@@ -298,7 +355,9 @@ function BellIcon({
                           )}
                           onClick={async () => {
                             try {
-                              await onDeleteNotifications?.([item.id]);
+                              await onDeleteNotifications?.([
+                                getNotificationId(item),
+                              ]);
                             } catch (error) {
                               messageApi.error(
                                 error.message || "Unable to delete notification.",

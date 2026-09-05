@@ -42,6 +42,7 @@ import { studentDataService } from "./services/studentDataService";
 import { listReminders, createReminder, toggleReminder, deleteReminder } from "./services/reminderService";
 import { isApiConfigured, request } from "./api/client";
 import { createDefaultSharedData } from "./data/sharedData";
+import { connectSocket } from "./services/socketService";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
@@ -60,21 +61,37 @@ const notificationRouteByModule = {
 const normalizeRemoteNotification = (notification) => {
   const id = String(notification?._id || notification?.id || "");
   const module = notification?.module || notification?.type || "general";
+  const isRead = Boolean(
+    notification?.isRead !== undefined
+      ? notification.isRead
+      : notification?.read,
+  );
   return {
     ...notification,
     id,
-    read: Boolean(
-      notification?.isRead !== undefined
-        ? notification.isRead
-        : notification?.read,
-    ),
+    isRead,
+    read: isRead,
     description: notification?.message || notification?.description || "",
+    severity: notification?.severity || notification?.priority || "normal",
     route:
       notification?.navigationTarget ||
       notification?.route ||
       notificationRouteByModule[module] ||
       "/notifications",
   };
+};
+
+const mergeRemoteNotifications = (existing, incoming) => {
+  const merged = [];
+  const seen = new Set();
+  [...incoming, ...existing].forEach((notification) => {
+    const normalized = normalizeRemoteNotification(notification);
+    const id = String(normalized.id || normalized._id || "");
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    merged.push(normalized);
+  });
+  return merged;
 };
 
 function LoadingScreen() {
@@ -126,6 +143,7 @@ function StudentLayout() {
         complaintsResult,
         expensesResult,
         preferencesResult,
+        settingsResult,
         hostelResult,
         notificationsResult,
         remindersResult,
@@ -136,6 +154,7 @@ function StudentLayout() {
           request("/complaints"),
           request("/expenses"),
           request("/users/me/preferences"),
+          request("/settings"),
           request("/hostel"),
           request("/notifications"),
           listReminders(),
@@ -185,17 +204,30 @@ function StudentLayout() {
             ? hostelResult.value.records || []
             : current.hostelApplications,
         settings:
-          remindersResult.status === "fulfilled" || notificationsResult.status === "fulfilled"
+          remindersResult.status === "fulfilled" || notificationsResult.status === "fulfilled" || settingsResult.status === "fulfilled"
             ? {
                 ...current.settings,
+                ...(settingsResult.status === "fulfilled"
+                  ? {
+                      notifications: {
+                        ...current.settings.notifications,
+                        ...(settingsResult.value.settings?.notifications || {}),
+                      },
+                      aiSettings: {
+                        ...current.settings.aiSettings,
+                        ...(settingsResult.value.settings?.aiSettings || {}),
+                      },
+                    }
+                  : {}),
                 ...(remindersResult.status === "fulfilled"
                   ? { reminders: remindersResult.value }
                   : {}),
                 ...(notificationsResult.status === "fulfilled"
                   ? {
-                      remoteNotifications: (
-                        notificationsResult.value.notifications || []
-                      ).map(normalizeRemoteNotification),
+                      remoteNotifications: mergeRemoteNotifications(
+                        current.settings?.remoteNotifications || [],
+                        notificationsResult.value.notifications || [],
+                      ),
                     }
                   : {}),
               }
@@ -203,8 +235,136 @@ function StudentLayout() {
       }));
     };
     loadRemoteData().catch(() => {});
+    const refreshNotifications = async () => {
+      const result = await request("/notifications");
+      if (cancelled) return;
+      setSharedData((current) => ({
+        ...current,
+        settings: {
+          ...current.settings,
+          remoteNotifications: mergeRemoteNotifications(
+            current.settings?.remoteNotifications || [],
+            result.notifications || [],
+          ),
+        },
+      }));
+    };
+    const refreshResource = async (resource) => {
+      const paths = {
+        profile: "/students/profile",
+        academic: "/academic",
+        complaints: "/complaints",
+        expenses: "/expenses",
+        hostel: "/hostel",
+        fees: "/fees",
+        reminders: "/reminders",
+        preferences: "/users/me/preferences",
+      };
+      const path = paths[resource];
+      if (!path) return;
+      const result = await request(path);
+      if (cancelled) return;
+      setSharedData((current) => {
+        const next = { ...current };
+        if (resource === "profile") {
+          next.profile = {
+            personalData: result.profile || {},
+            profileData: result.profile || {},
+            contactData: result.profile || {},
+          };
+        } else if (resource === "academic") {
+          next.academic = {
+            ...current.academic,
+            profile: result.profile || {},
+            courses: result.courses || [],
+            assignments: result.assignments || [],
+            exams: result.exams || [],
+            attendance: result.attendance || [],
+          };
+        } else if (resource === "complaints") {
+          next.complaints = result.complaints || [];
+        } else if (resource === "expenses") {
+          next.expenses = result.expenses || [];
+        } else if (resource === "hostel") {
+          next.hostelApplications = result.records || [];
+        } else if (resource === "reminders") {
+          next.settings = { ...current.settings, reminders: result };
+        } else if (resource === "preferences") {
+          next.monthlyBudget = Number(result.preferences?.monthlyBudget || 0);
+          next.budgetHistory = Array.isArray(result.preferences?.budgetHistory)
+            ? result.preferences.budgetHistory
+            : current.budgetHistory;
+        }
+        return next;
+      });
+    };
+    const socket = connectSocket();
+    if (!socket) return () => {
+      cancelled = true;
+    };
+    const upsertNotification = (incoming) => {
+      const normalized = normalizeRemoteNotification(incoming);
+      setSharedData((current) => {
+        const existing = current.settings?.remoteNotifications || [];
+        const id = String(normalized.id || normalized._id);
+        const found = existing.some(
+          (notification) => String(notification.id || notification._id) === id,
+        );
+        return {
+          ...current,
+          settings: {
+            ...current.settings,
+            remoteNotifications: found
+              ? existing.map((notification) =>
+                  String(notification.id || notification._id) === id
+                    ? { ...notification, ...normalized }
+                    : notification,
+                )
+              : [normalized, ...existing],
+          },
+        };
+      });
+    };
+    const handleNotificationUpdated = (incoming) => upsertNotification(incoming);
+    const handleNotificationDeleted = ({ id }) => {
+      setSharedData((current) => ({
+        ...current,
+        settings: {
+          ...current.settings,
+          remoteNotifications: (current.settings?.remoteNotifications || []).filter(
+            (notification) => String(notification.id || notification._id) !== String(id),
+          ),
+        },
+      }));
+    };
+    const handleReadAll = () => {
+      setSharedData((current) => ({
+        ...current,
+        settings: {
+          ...current.settings,
+          remoteNotifications: (current.settings?.remoteNotifications || []).map(
+            (notification) => ({ ...notification, read: true, isRead: true }),
+          ),
+        },
+      }));
+    };
+    const handleDataChanged = ({ resource }) => {
+      window.dispatchEvent(
+        new CustomEvent("slms:data-changed", { detail: { resource } }),
+      );
+      if (resource === "notifications") return;
+      refreshResource(resource).catch(() => {});
+    };
+    socket.on("notification:created", upsertNotification);
+    socket.on("notification:updated", handleNotificationUpdated);
+    socket.on("notification:deleted", handleNotificationDeleted);
+    socket.on("notifications:read-all", handleReadAll);
+    socket.on("data:changed", handleDataChanged);
+    socket.on("connect", () => refreshNotifications().catch(() => {}));
     return () => {
       cancelled = true;
+      socket.removeAllListeners();
+      socket.disconnect();
     };
   }, [user]);
 
@@ -300,7 +460,7 @@ function StudentLayout() {
     [sharedData],
   );
   const unreadNotificationCount = notifications.filter(
-    (item) => !item.read,
+    (item) => !(item.isRead !== undefined ? item.isRead : item.read),
   ).length;
   const markNotificationsRead = useCallback(
     async (notificationIds) => {
@@ -365,6 +525,28 @@ function StudentLayout() {
     },
     [updateSection],
   );
+
+  const markAllNotificationsRead = useCallback(async () => {
+    if (isApiConfigured) {
+      updateSection("settings", (settings) => ({
+        ...settings,
+        remoteNotifications: (settings?.remoteNotifications || []).map(
+          (notification) => ({ ...notification, read: true, isRead: true }),
+        ),
+      }));
+      await request("/notifications/mark-all-read", { method: "PATCH" });
+      return;
+    }
+    updateSection("settings", (settings) => ({
+      ...settings,
+      readNotificationIds: Array.from(
+        new Set([
+          ...(settings?.readNotificationIds || []),
+          ...notifications.map((notification) => notification.id),
+        ]),
+      ).slice(-500),
+    }));
+  }, [notifications, updateSection]);
 
   const deleteNotifications = useCallback(
     async (notificationIds) => {
@@ -473,6 +655,7 @@ function StudentLayout() {
                 updateMonthlyBudget,
                 resetProfile,
                 markNotificationsRead,
+                markAllNotificationsRead,
                 markNotificationUnread,
                 deleteNotifications,
                 deletingNotificationIds,
@@ -515,6 +698,7 @@ function NotificationsPage() {
   const {
     notifications,
     markNotificationsRead,
+    markAllNotificationsRead,
     markNotificationUnread,
     deleteNotifications,
     deletingNotificationIds,
@@ -524,6 +708,7 @@ function NotificationsPage() {
     <BellIcon
       notifications={notifications}
       onMarkNotificationsRead={markNotificationsRead}
+      onMarkAllNotificationsRead={markAllNotificationsRead}
       onMarkNotificationUnread={markNotificationUnread}
       onDeleteNotifications={deleteNotifications}
       deletingNotificationIds={deletingNotificationIds}
@@ -551,15 +736,6 @@ function ProfilePage() {
       profile={sharedData.profile}
       onProfileChange={(nextValue) => updateSection("profile", nextValue)}
       onResetProfile={resetProfile}
-      onAddNotification={(note) =>
-        updateSection("settings", (settings) => ({
-          ...settings,
-          customNotifications: [
-            ...(settings?.customNotifications || []),
-            note,
-          ],
-        }))
-      }
     />
   );
 }
@@ -588,10 +764,32 @@ function ComplaintsPage() {
 
 function SettingsPage() {
   const { sharedData, updateSection } = useStudentData();
+  const saveNotification = async (key, value) => {
+    const result = await request("/settings/notifications", {
+      method: "PUT",
+      body: { [key]: value },
+    });
+    updateSection("settings", (settings) => ({
+      ...settings,
+      notifications: result.settings?.notifications || settings.notifications,
+    }));
+  };
+  const saveAiSetting = async (key, value) => {
+    const result = await request("/settings/ai", {
+      method: "PUT",
+      body: { [key]: value },
+    });
+    updateSection("settings", (settings) => ({
+      ...settings,
+      aiSettings: result.settings?.aiSettings || settings.aiSettings,
+    }));
+  };
   return (
     <Settings
       settings={sharedData.settings}
       onSettingsChange={(nextValue) => updateSection("settings", nextValue)}
+      onNotificationChange={saveNotification}
+      onAiSettingChange={saveAiSetting}
       onReminderCreate={async (reminder) => {
         const created = await createReminder(reminder);
         updateSection("settings", (settings) => ({

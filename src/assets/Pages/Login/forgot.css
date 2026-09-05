@@ -1,50 +1,286 @@
-﻿.slms-forgot-page {
+.slms-forgot-page {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
-  max-width: 100%;
-  max-height: 100%;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #102a43 0%, #1d4ed8 100%);
-  box-shadow: 0 26px 68px rgba(15, 23, 42, 0.18);
+  padding: 32px;
   box-sizing: border-box;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 12% 15%, rgba(59, 130, 246, 0.18), transparent 32%),
+    linear-gradient(135deg, #e8f1ff 0%, #f8fbff 48%, #dbeafe 100%);
 }
 
 .slms-forgot-card {
-  width: 520px;
-  max-width: 100%;
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(390px, 1.1fr);
+  width: min(980px, 100%);
+  min-height: 560px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 30px;
   background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 30px rgba(35, 40, 50, 0.06);
-  padding: 32px;
-  box-sizing: border-box;
+  box-shadow: 0 28px 80px rgba(30, 64, 175, 0.2);
+}
+
+.slms-login-card,
+.slms-signup-card {
+  width: min(980px, 100%);
+  max-height: none;
+  padding: 0;
+}
+
+/* The shared card owns sizing for every authentication screen. */
+.slms-login-page .slms-login-card,
+.slms-signup-page .slms-signup-card {
+  height: auto;
+}
+
+.slms-signup-page::after {
+  display: none;
+}
+
+.slms-forgot-visual {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 29px 0 0 29px;
+  padding: 48px 42px;
+  color: #fff;
+  background: linear-gradient(155deg, #102a43 0%, #164e9c 58%, #2563eb 100%);
+}
+
+.slms-forgot-visual::after {
+  position: absolute;
+  right: -100px;
+  bottom: -120px;
+  width: 330px;
+  height: 330px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
+  box-shadow: 0 0 0 28px rgba(255, 255, 255, 0.05), 0 0 0 76px rgba(255, 255, 255, 0.04);
+  content: "";
+}
+
+.slms-forgot-logo-mark {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 18px;
+  border-radius: 15px;
+  color: #123b70;
+  background: #facc15;
+  font-size: 22px;
 }
 
 .slms-forgot-brand {
-  text-align: left;
-  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.slms-forgot-brand h2 {
+.slms-forgot-brand-name {
+  font-size: 29px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.slms-forgot-brand-caption {
+  max-width: 180px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.5;
+}
+
+.slms-forgot-visual-copy {
+  z-index: 1;
+  max-width: 310px;
+  margin-top: auto;
+}
+
+.slms-forgot-eyebrow {
+  color: #facc15;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.slms-forgot-visual-copy h1 {
+  margin: 14px 0;
+  color: #fff;
+  font-size: clamp(28px, 3vw, 39px);
+  line-height: 1.12;
+  letter-spacing: -0.04em;
+}
+
+.slms-forgot-visual-copy p {
   margin: 0;
-  color: #0b3a66;
+  color: rgba(219, 234, 254, 0.86);
+  line-height: 1.7;
 }
 
-.slms-forgot-brand p {
-  margin: 4px 0 0 0;
-  color: #6b7a8a;
+.slms-forgot-orbit {
+  position: absolute;
+  right: 56px;
+  bottom: 64px;
+  width: 90px;
+  height: 90px;
+  border: 2px solid rgba(250, 204, 21, 0.72);
+  border-radius: 50%;
+}
+
+.slms-forgot-orbit::before,
+.slms-forgot-orbit::after {
+  position: absolute;
+  inset: 17px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50%;
+  content: "";
+}
+
+.slms-forgot-orbit::after {
+  inset: 34px;
+  background: #facc15;
+  border: 0;
+}
+
+.slms-forgot-content {
+  align-self: center;
+  width: min(100%, 390px);
+  padding: 56px 54px;
+  box-sizing: border-box;
+}
+
+.slms-forgot-content .ant-form {
+  width: 100%;
+}
+
+.slms-forgot-content .ant-form-item {
+  margin-bottom: 20px;
+}
+
+.slms-forgot-content .ant-form-item-label {
+  padding-bottom: 7px;
+}
+
+.slms-forgot-heading {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 34px;
+}
+
+.slms-forgot-heading-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  color: #1d4ed8;
+  background: #e5efff;
+  font-size: 18px;
+}
+
+.slms-forgot-heading h2 {
+  margin: 0 0 7px;
+  color: #102a43;
+  font-size: 30px;
+  letter-spacing: -0.04em;
+}
+
+.slms-forgot-heading p {
+  margin: 0;
+  color: #718096;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.slms-forgot-content .ant-form-item-label > label {
+  color: #334e68;
+  font-weight: 650;
+}
+
+.slms-forgot-content .ant-input,
+.slms-forgot-content .ant-input-affix-wrapper {
+  border-color: #d7e2f0;
+  border-radius: 12px;
+}
+
+.slms-forgot-content .ant-input-affix-wrapper-focused,
+.slms-forgot-content .ant-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.slms-forgot-content .ant-btn-primary {
+  height: 46px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.22);
+}
+
+.slms-forgot-content .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #1e40af, #1d4ed8);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+}
+
+.slms-forgot-content .ant-checkbox-wrapper,
+.slms-forgot-content a,
+.slms-forgot-actions .ant-btn-link {
+  color: #1d4ed8;
+}
+
+.slms-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -2px 0 18px;
+}
+
+.slms-alt-actions {
+  color: #718096;
+  font-size: 14px;
+  text-align: center;
+}
+
+.slms-alt-actions p {
+  margin: 0;
+}
+
+.slms-alt-actions a,
+.slms-forgot-link {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.slms-alt-actions a:hover,
+.slms-forgot-link:hover {
+  text-decoration: underline;
 }
 
 .slms-muted {
-  margin: 0 0 12px 0;
+  margin: 0 0 12px;
   color: #8897a6;
   font-size: 13px;
 }
 
 .slms-forgot-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-top: 8px;
 }
 
@@ -52,7 +288,6 @@
   padding: 0 8px;
 }
 
-/* OTP single input styling (if needed) */
 .slms-otp-input .ant-input {
   letter-spacing: 6px;
   text-align: center;
@@ -60,14 +295,80 @@
 }
 
 @media (max-width: 768px) {
+  .slms-forgot-page {
+    display: block;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 16px;
+  }
+
   .slms-forgot-card {
+    display: block;
+    min-height: 0;
+    border-radius: 22px;
+  }
+
+  .slms-forgot-visual {
+    min-height: 245px;
+    border-radius: 21px 21px 0 0;
+    padding: 28px;
+  }
+
+  .slms-forgot-visual-copy {
+    margin-top: 28px;
+  }
+
+  .slms-forgot-visual-copy h1 {
+    margin: 8px 0;
+    font-size: 25px;
+  }
+
+  .slms-forgot-visual-copy p,
+  .slms-forgot-orbit {
+    display: none;
+  }
+
+  .slms-forgot-content {
     width: 100%;
-    padding: 22px;
+    padding: 34px 28px 30px;
+  }
+
+  .slms-form-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
   }
 }
 
 @media (max-width: 420px) {
+  .slms-forgot-page {
+    padding: 10px;
+  }
+
   .slms-forgot-card {
-    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .slms-forgot-visual {
+    min-height: 220px;
+    padding: 24px 20px;
+  }
+
+  .slms-forgot-content {
+    padding: 28px 20px 26px;
+  }
+
+  .slms-forgot-heading h2 {
+    font-size: 26px;
+  }
+
+  .slms-forgot-heading {
+    gap: 11px;
+    margin-bottom: 28px;
+  }
+
+  .slms-forgot-heading-icon {
+    width: 38px;
+    height: 38px;
   }
 }

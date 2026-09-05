@@ -4,6 +4,7 @@ import { LockOutlined, MailOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import "./login.css";
+import "./forgot.css";
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
@@ -48,13 +49,35 @@ const Login = () => {
   };
 
   return (
-    <div className="slms-login-page">
-      <div className="slms-login-card">
-        <div className="slms-brand">
-          <h1>SLMS</h1>
-          <p>STUDENT LIFE MANAGEMENT SYSTEM</p>
-          <h2>Login</h2>
-        </div>
+    <div className="slms-forgot-page slms-login-page">
+      <div className="slms-forgot-card slms-login-card">
+        <aside className="slms-forgot-visual">
+          <div className="slms-forgot-logo-mark">
+            <LockOutlined />
+          </div>
+          <div className="slms-forgot-brand">
+            <span className="slms-forgot-brand-name">SLMS</span>
+            <span className="slms-forgot-brand-caption">
+              STUDENT LIFE MANAGEMENT SYSTEM
+            </span>
+          </div>
+          <div className="slms-forgot-visual-copy">
+            <span className="slms-forgot-eyebrow">WELCOME BACK</span>
+            <h1>Continue shaping your academic journey.</h1>
+            <p>Sign in securely to stay connected to your student life.</p>
+          </div>
+          <div className="slms-forgot-orbit" aria-hidden="true" />
+        </aside>
+        <main className="slms-forgot-content">
+          <div className="slms-forgot-heading">
+            <span className="slms-forgot-heading-icon">
+              <LockOutlined />
+            </span>
+            <div>
+              <h2>Welcome back</h2>
+              <p>Sign in to continue to your SLMS workspace.</p>
+            </div>
+          </div>
         <Form
           form={form}
           name="login"
@@ -107,7 +130,6 @@ const Login = () => {
             <Button
               type="primary"
               htmlType="submit"
-              className="slms-login-button"
               block
               size="large"
               loading={loading}
@@ -121,6 +143,7 @@ const Login = () => {
             </p>
           </div>
         </Form>
+        </main>
       </div>
     </div>
   );

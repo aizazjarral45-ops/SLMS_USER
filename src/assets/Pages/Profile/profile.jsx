@@ -22,7 +22,6 @@ import {
 import { PersonalModal } from "./Modal";
 import { ContactModal } from "./contactmodal";
 import { ProfileModal } from "./profilemodal";
-import { loadSharedData, persistSharedData } from "../../../data/sharedData";
 import { isApiConfigured, request } from "../../../api/client";
 
 const emptyProfile = { personalData: {}, profileData: {}, contactData: {} };
@@ -44,7 +43,6 @@ function Profile({
   profile: profileProp,
   onProfileChange,
   onResetProfile,
-  onAddNotification,
 }) {
   const [fallbackProfile, setFallbackProfile] = useState(emptyProfile);
   const profile = profileProp || fallbackProfile;
@@ -99,36 +97,6 @@ function Profile({
     setPersonalVisible(false);
     messageApi.success("Personal information updated.");
 
-    // create a persistent notification for profile update
-    try {
-      const note = {
-        id: `profile-updated:${Date.now()}`,
-        title: "Profile submitted",
-        description: "Your personal information has been updated successfully.",
-        type: "reminder",
-        module: "profile",
-        createdAt: new Date().toISOString(),
-        date: new Date().toISOString(),
-      };
-      if (typeof onAddNotification === "function") {
-        onAddNotification(note);
-      } else {
-        const shared = loadSharedData();
-        const next = {
-          ...shared,
-          settings: {
-            ...shared.settings,
-            customNotifications: [
-              ...(shared.settings?.customNotifications || []),
-              note,
-            ],
-          },
-        };
-        persistSharedData(next);
-      }
-    } catch (e) {
-    
-    }
   };
   const saveContact = async (values) => {
     const nextContact = { ...contactData, ...values };
@@ -145,35 +113,6 @@ function Profile({
     setContactVisible(false);
     messageApi.success("Contact information updated.");
 
-    try {
-      const note = {
-        id: `profile-contact-updated:${Date.now()}`,
-        title: "Profile submitted",
-        description: "Your contact information has been updated successfully.",
-        type: "reminder",
-        module: "profile",
-        createdAt: new Date().toISOString(),
-        date: new Date().toISOString(),
-      };
-      if (typeof onAddNotification === "function") {
-        onAddNotification(note);
-      } else {
-        const shared = loadSharedData();
-        const next = {
-          ...shared,
-          settings: {
-            ...shared.settings,
-            customNotifications: [
-              ...(shared.settings?.customNotifications || []),
-              note,
-            ],
-          },
-        };
-        persistSharedData(next);
-      }
-    } catch (e) {
-  
-    }
   };
   const saveProfile = async (values) => {
     const nextProfile = { ...profileData, ...values };
@@ -191,35 +130,6 @@ function Profile({
     setProfileVisible(false);
     messageApi.success("Profile details updated.");
 
-    try {
-      const note = {
-        id: `profile-details-updated:${Date.now()}`,
-        title: "Profile submitted",
-        description: "Your profile details have been updated successfully.",
-        type: "reminder",
-        module: "profile",
-        createdAt: new Date().toISOString(),
-        date: new Date().toISOString(),
-      };
-      if (typeof onAddNotification === "function") {
-        onAddNotification(note);
-      } else {
-        const shared = loadSharedData();
-        const next = {
-          ...shared,
-          settings: {
-            ...shared.settings,
-            customNotifications: [
-              ...(shared.settings?.customNotifications || []),
-              note,
-            ],
-          },
-        };
-        persistSharedData(next);
-      }
-    } catch (e) {
-     
-    }
   };
 
   const uploadImage = async (file) => {

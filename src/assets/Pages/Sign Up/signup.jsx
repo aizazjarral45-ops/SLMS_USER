@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 
 import "./signup.css";
+import "../Login/forgot.css";
 
 const Signup = () => {
   const [loading, setLoading] = useState(false);
@@ -39,13 +40,35 @@ const Signup = () => {
   };
 
   return (
-    <div className="slms-signup-page">
-      <div className="slms-signup-card">
-        <div className="slms-brand">
-          <h1>SLMS</h1>
-          <p>STUDENT LIFE MANAGEMENT SYSTEM</p>
-        </div>
-        <h2 className="signup-title">Create Your Account</h2>
+    <div className="slms-forgot-page slms-signup-page">
+      <div className="slms-forgot-card slms-signup-card">
+        <aside className="slms-forgot-visual">
+          <div className="slms-forgot-logo-mark">
+            <UserOutlined />
+          </div>
+          <div className="slms-forgot-brand">
+            <span className="slms-forgot-brand-name">SLMS</span>
+            <span className="slms-forgot-brand-caption">
+              STUDENT LIFE MANAGEMENT SYSTEM
+            </span>
+          </div>
+          <div className="slms-forgot-visual-copy">
+            <span className="slms-forgot-eyebrow">START YOUR JOURNEY</span>
+            <h1>Build a stronger student life, one step at a time.</h1>
+            <p>Create your secure account and bring your academic experience together.</p>
+          </div>
+          <div className="slms-forgot-orbit" aria-hidden="true" />
+        </aside>
+        <main className="slms-forgot-content">
+          <div className="slms-forgot-heading">
+            <span className="slms-forgot-heading-icon">
+              <UserOutlined />
+            </span>
+            <div>
+              <h2>Create your account</h2>
+              <p>Set up your student profile to get started with SLMS.</p>
+            </div>
+          </div>
         <Form
           form={form}
           name="signup"
@@ -129,7 +152,6 @@ const Signup = () => {
             <Button
               type="primary"
               htmlType="submit"
-              className="slms-signup-button"
               block
               size="large"
               loading={loading}
@@ -143,6 +165,7 @@ const Signup = () => {
             </p>
           </div>
         </Form>
+        </main>
       </div>
     </div>
   );

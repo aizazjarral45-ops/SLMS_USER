@@ -158,7 +158,7 @@
 .bell-notification-list {
   display: grid;
 
-  gap: 12px;
+  gap: 20px;
 }
 
 .bell-notification-list .ant-list-item {
@@ -191,6 +191,14 @@
 .bell-notification-item.upcoming {
   border-left: 4px solid #3b82f6 !important;
   margin: 30px 0px;
+}
+
+.bell-notification-item.unread {
+  box-shadow: 0 0 0 2px #93c5fd;
+}
+
+.bell-notification-item.unread:hover {
+  box-shadow: 0 0 0 2px #93c5fd;
 }
 
 .bell-notification-content {
@@ -283,7 +291,7 @@
 
 @media (max-width: 700px) {
   .bell-page {
-    gap: 18px;
+    gap: 20px;
     padding: 0 0 24px;
   }
 
