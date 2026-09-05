@@ -21,15 +21,16 @@ export const ContactModal = ({
       layout="vertical"
       initialValues={initialValues}
     >
-      <Form.Item label="University Email" name="universityEmail">
-        <Input type="email" placeholder="Enter Your University Email" />
+      <Form.Item label="Personal Email " name="universityEmail"
+       rules={[{ required: true, type: "email" }]}>
+        <Input type="email" placeholder="Enter Your Personal Email" />
       </Form.Item>
       <Form.Item
-        label="Personal Email"
+        label="University Email"
         name="personalEmail"
         rules={[{ required: true, type: "email" }]}
       >
-        <Input type="email" placeholder="Enter Your Personal Email" />
+        <Input type="email" placeholder="Enter Your University Email" />
       </Form.Item>
       <Form.Item label="Phone No" name="phone" rules={[{ required: true }]}>
         <Input type="text" placeholder="Enter Your Phone" />

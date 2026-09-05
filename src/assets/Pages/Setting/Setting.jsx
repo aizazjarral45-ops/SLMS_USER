@@ -213,10 +213,7 @@ function Settings({
 
     setProcessingDelete(true);
     try {
-      await deleteAccountService({
-        email: user.email,
-        password: deletePassword,
-      });
+      await deleteAccountService({ password: deletePassword });
       messageApi.success("Account deleted permanently.");
       await logout();
       navigate("/login", { replace: true });

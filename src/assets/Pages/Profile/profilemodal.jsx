@@ -64,7 +64,14 @@ export const ProfileModal = ({
       >
         <Input placeholder="Enter roll number" />
       </Form.Item>
-      <Form.Item label="Department" name="department">
+      <Form.Item label="Department" name="department"
+       rules={[
+          {
+            required: true,
+            whitespace: true,
+            message: "Enter your department.",
+          },
+        ]}>
         <Input placeholder="Enter department" />
       </Form.Item>
       <Form.Item label="Semester" name="semester">

@@ -127,7 +127,7 @@ function Profile({
         persistSharedData(next);
       }
     } catch (e) {
-      // non-fatal
+    
     }
   };
   const saveContact = async (values) => {
@@ -172,7 +172,7 @@ function Profile({
         persistSharedData(next);
       }
     } catch (e) {
-      // non-fatal
+  
     }
   };
   const saveProfile = async (values) => {
@@ -218,7 +218,7 @@ function Profile({
         persistSharedData(next);
       }
     } catch (e) {
-      // non-fatal
+     
     }
   };
 
@@ -303,8 +303,8 @@ function Profile({
     ["Marital Status", personalData.maritalStatus],
   ];
   const contactFields = [
-    ["University Email", contactData.universityEmail],
-    ["Personal Email", contactData.personalEmail],
+    ["University Email", contactData.personalEmail],
+    ["Personal Email", contactData.universityEmail],
     ["Phone", contactData.phone],
     ["Emergency Contact", contactData.emergencyContact],
     ["Current Address", contactData.currentAddress],

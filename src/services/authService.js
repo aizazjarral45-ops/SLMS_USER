@@ -309,6 +309,16 @@ export const changePassword = async ({
 };
 
 export const deleteAccount = async ({ email, password }) => {
+  if (isApiConfigured) {
+    await request("/users/me", {
+      method: "DELETE",
+      body: { password },
+    });
+    clearStoredSession();
+    clearUserDataStorage();
+    return true;
+  }
+
   const cleanEmail = normaliseEmail(email);
   if (!cleanEmail || !String(password || "").trim()) {
     throw new Error("Enter your current account password to confirm deletion.");
