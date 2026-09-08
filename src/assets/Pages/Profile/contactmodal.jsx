@@ -7,6 +7,7 @@ export const ContactModal = ({
   form,
   initialValues,
   onFinish,
+  loading,
 }) => (
   <Modal
     title="Edit Contact Info"
@@ -44,7 +45,7 @@ export const ContactModal = ({
       <Form.Item label="Permanent Address" name="permanentAddress">
         <Input type="text" placeholder="Enter Your Permanent Address" />
       </Form.Item>
-      <Button htmlType="submit" type="primary">
+      <Button htmlType="submit" type="primary" loading={loading} disabled={loading}>
         Submit
       </Button>
     </Form>

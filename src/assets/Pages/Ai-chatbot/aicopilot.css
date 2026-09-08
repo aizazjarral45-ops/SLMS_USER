@@ -13,6 +13,9 @@
   padding: 12px 10px 32px;
   color: var(--copilot-ink);
   background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 .first-section {
   --copilot-blue: #1e3a8a;
@@ -229,9 +232,80 @@
   flex: 0 0 auto;
 }
 
-.copilot-input-wrap {
+.copilot-composer-card .ant-card-body {
   width: 100%;
+  box-sizing: border-box;
+}
+
+.copilot-input-wrap {
+  align-items: center;
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+  gap: 0;
   margin-bottom: 0;
+}
+
+.copilot-input-wrap > .ant-space-item {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.copilot-input-wrap > .ant-space-item:nth-child(1) {
+  flex: 0 0 70%;
+}
+
+.copilot-input-wrap > .ant-space-item:nth-child(2),
+.copilot-input-wrap > .ant-space-item:nth-child(3) {
+  flex: 0 0 13%;
+}
+
+.copilot-input-wrap > .ant-space-item:nth-child(3) {
+  flex-basis: 17%;
+}
+
+.copilot-input-wrap .copilot-search-bar,
+.copilot-input-wrap .copilot-undo-button,
+.copilot-input-wrap .copilot-send-button {
+  width: 100%;
+  min-width: 0 !important;
+  max-width: 100%;
+}
+
+.copilot-input-wrap .copilot-search-bar {
+  display: block;
+}
+
+@media (max-width: 576px) {
+  .copilot-composer-card .ant-card-body {
+    padding: 8px;
+  }
+
+  .copilot-input-wrap {
+    flex-wrap: nowrap;
+  }
+
+  .copilot-input-wrap > .ant-space-item:nth-child(1) {
+    flex-basis: 70%;
+  }
+
+  .copilot-input-wrap > .ant-space-item:nth-child(2),
+  .copilot-input-wrap > .ant-space-item:nth-child(3) {
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+
+  .copilot-input-wrap .copilot-undo-button,
+  .copilot-input-wrap .copilot-send-button {
+    padding-left: 2px;
+    padding-right: 2px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .copilot-input-wrap .copilot-search-bar {
+    height: auto;
+  }
 }
 
 .copilot-page .ant-input,
@@ -319,11 +393,20 @@
 @media (max-width: 992px) {
   .copilot-page {
     grid-template-columns: 1fr;
+    width: 100%;
+    padding-left: 12px;
+    padding-right: 12px;
   }
 
   .copilot-header-card {
     padding: 18px;
     border-radius: 20px;
+  }
+
+  .copilot-main,
+  .copilot-composer-card {
+    width: 100%;
+    min-width: 0;
   }
 }
 

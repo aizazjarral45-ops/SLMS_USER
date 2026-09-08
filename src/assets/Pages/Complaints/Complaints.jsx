@@ -58,7 +58,7 @@ function getInitialComplaints() {
   }
 }
 
-function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
+function Complaints({ complaints: complaintsProp, onComplaintsChange, loading = false }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [fallbackComplaints, setFallbackComplaints] =
@@ -78,6 +78,18 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
   };
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
+  const [submitting, setSubmitting] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const refreshComplaints = async () => {
+    if (!isApiConfigured) return;
+    setTableLoading(true);
+    try {
+      const result = await request("/complaints");
+      setComplaints(result.complaints || []);
+    } finally {
+      setTableLoading(false);
+    }
+  };
 
   const filteredComplaints = useMemo(() => {
     return complaints.filter((item) => {
@@ -91,13 +103,15 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
   }, [complaints, filter, query]);
 
   const submitComplaint = async (values) => {
+    setSubmitting(true);
+    try {
     if (isApiConfigured) {
       try {
-        const result = await request("/complaints", {
+        await request("/complaints", {
           method: "POST",
           body: values,
         });
-        setComplaints((current) => [result.complaint, ...current]);
+        await refreshComplaints();
         form.resetFields();
         messageApi.success("Complaint submitted successfully.");
         return;
@@ -121,6 +135,9 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
     setComplaints((current) => [record, ...current]);
     form.resetFields();
     messageApi.success("Complaint submitted successfully.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const columns = [
@@ -249,6 +266,7 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
         <Table
           columns={columns}
           dataSource={filteredComplaints}
+          loading={loading || tableLoading}
           pagination={{ pageSize: 10 }}
           scroll={{ x: 760 }}
         />
@@ -310,7 +328,7 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange }) {
               <Button icon={<PaperClipOutlined />}>Attach File</Button>
             </Upload>
           </Form.Item>
-          <Button type="primary" htmlType="submit" icon={<SendOutlined />}>
+          <Button type="primary" htmlType="submit" icon={<SendOutlined />} loading={submitting} disabled={submitting}>
             Submit
           </Button>
         </Form>

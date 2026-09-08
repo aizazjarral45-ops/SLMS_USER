@@ -23,6 +23,7 @@ import { PersonalModal } from "./Modal";
 import { ContactModal } from "./contactmodal";
 import { ProfileModal } from "./profilemodal";
 import { isApiConfigured, request } from "../../../api/client";
+import LoadingState from "../../../components/LoadingState";
 
 const emptyProfile = { personalData: {}, profileData: {}, contactData: {} };
 const getBase64 = (file) =>
@@ -43,6 +44,7 @@ function Profile({
   profile: profileProp,
   onProfileChange,
   onResetProfile,
+  loading: dataLoading = false,
 }) {
   const [fallbackProfile, setFallbackProfile] = useState(emptyProfile);
   const profile = profileProp || fallbackProfile;
@@ -65,6 +67,7 @@ function Profile({
   const [contactVisible, setContactVisible] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [personalForm] = Form.useForm();
   const [contactForm] = Form.useForm();
   const [profileForm] = Form.useForm();
@@ -74,6 +77,9 @@ function Profile({
   const profileData = profile.profileData || {};
   const contactData = profile.contactData || {};
   const imageUrl = profileData.profileImage || null;
+  if (dataLoading) {
+    return <LoadingState loading tip="Loading profile data..." />;
+  }
 
   const updateSection = (section, values) => {
     setProfile((current) => ({
@@ -83,6 +89,8 @@ function Profile({
   };
 
   const savePersonal = async (values) => {
+    setSaving(true);
+    try {
     const nextProfile = { ...personalData, ...values };
     if (isApiConfigured) {
       const result = await request("/students/profile", {
@@ -96,9 +104,13 @@ function Profile({
     } else updateSection("personalData", values);
     setPersonalVisible(false);
     messageApi.success("Personal information updated.");
-
+    } finally {
+      setSaving(false);
+    }
   };
   const saveContact = async (values) => {
+    setSaving(true);
+    try {
     const nextContact = { ...contactData, ...values };
     if (isApiConfigured) {
       const result = await request("/students/profile", {
@@ -112,9 +124,13 @@ function Profile({
     } else updateSection("contactData", values);
     setContactVisible(false);
     messageApi.success("Contact information updated.");
-
+    } finally {
+      setSaving(false);
+    }
   };
   const saveProfile = async (values) => {
+    setSaving(true);
+    try {
     const nextProfile = { ...profileData, ...values };
     if (isApiConfigured) {
       const result = await request("/students/profile", {
@@ -129,7 +145,9 @@ function Profile({
     } else updateSection("profileData", values);
     setProfileVisible(false);
     messageApi.success("Profile details updated.");
-
+    } finally {
+      setSaving(false);
+    }
   };
 
   const uploadImage = async (file) => {
@@ -451,6 +469,7 @@ function Profile({
         form={profileForm}
         initialValues={profileData}
         onFinish={saveProfile}
+        loading={saving}
         imageUrl={imageUrl}
         uploadButton={uploadButton}
         beforeUpload={uploadImage}
@@ -461,6 +480,7 @@ function Profile({
         form={personalForm}
         initialValues={personalData}
         onFinish={savePersonal}
+        loading={saving}
       />
       <ContactModal
         visible={contactVisible}
@@ -468,6 +488,7 @@ function Profile({
         form={contactForm}
         initialValues={contactData}
         onFinish={saveContact}
+        loading={saving}
       />
       <Modal
         open={previewVisible}

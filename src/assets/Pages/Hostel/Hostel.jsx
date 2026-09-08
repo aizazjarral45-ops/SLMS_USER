@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Badge,
@@ -123,7 +123,7 @@ function getSavedApplications() {
   }
 }
 
-function Hostel({ applications: applicationsProp, onApplicationsChange }) {
+function Hostel({ applications: applicationsProp, onApplicationsChange, loading = false }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [fallbackApplications, setFallbackApplications] =
@@ -155,6 +155,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
   const [fees, setFees] = useState([]);
   const [editingFeeId, setEditingFeeId] = useState(null);
   const [feesLoading, setFeesLoading] = useState(false);
+  const [feeSubmitting, setFeeSubmitting] = useState(false);
+  const [deletingFeeId, setDeletingFeeId] = useState(null);
+  const [applicationSubmitting, setApplicationSubmitting] = useState(false);
+  const loadApplicationRef = useRef(null);
+  const loadFeesRef = useRef(null);
 
   const normalizeRemoteApplication = (application) => {
     if (!application) return null;
@@ -212,6 +217,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         form.setFieldsValue(next ? getApplicationFormValues(next) : {});
         if (!isApiConfigured) setApplications(next ? [next] : []);
         setRemoteError("");
+        return next;
       } catch (error) {
         if (!cancelled && error?.status !== 404) {
           setRemoteError(
@@ -252,6 +258,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         if (!cancelled) setFeesLoading(false);
       }
     };
+    loadApplicationRef.current = loadMyApplication;
+    loadFeesRef.current = loadFees;
     const handleRealtimeChange = (event) => {
       const resource = event.detail?.resource;
       if (resource === "hostel") loadMyApplication(false);
@@ -297,6 +305,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       messageApi.error("Save your hostel application before adding fees.");
       return;
     }
+    setFeeSubmitting(true);
     try {
       const result = await request(
         editingFeeId ? `/fees/${editingFeeId}` : "/fees",
@@ -307,13 +316,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       );
       const fee = result?.fee || result;
       if (!fee?._id) throw new Error("The fee API returned an invalid record.");
-      setFees((current) =>
-        editingFeeId
-          ? current.map((item) =>
-              String(item._id) === String(editingFeeId) ? fee : item,
-            )
-          : [fee, ...current.filter((item) => String(item._id) !== String(fee._id))],
-      );
+      await loadFeesRef.current?.();
       feeForm.resetFields();
       setEditingFeeId(null);
       messageApi.success(
@@ -321,15 +324,16 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       );
     } catch (error) {
       messageApi.error(formatDisplayValue(error?.message, "Fee operation failed."));
+    } finally {
+      setFeeSubmitting(false);
     }
   };
 
   const removeFee = async (feeId) => {
+    setDeletingFeeId(feeId);
     try {
       await request(`/fees/${feeId}`, { method: "DELETE" });
-      setFees((current) =>
-        current.filter((item) => String(item._id) !== String(feeId)),
-      );
+      await loadFeesRef.current?.();
       if (String(editingFeeId) === String(feeId)) {
         feeForm.resetFields();
         setEditingFeeId(null);
@@ -337,35 +341,28 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
       messageApi.success("Fee deleted successfully.");
     } catch (error) {
       messageApi.error(formatDisplayValue(error?.message, "Unable to delete fee."));
+    } finally {
+      setDeletingFeeId(null);
     }
   };
 
   const submitApplication = async (values) => {
     // Send the complete form object without trimming, coercing, or dropping fields.
     const applicantDetails = { ...values };
+    setApplicationSubmitting(true);
 
+    try {
     if (editingKey) {
       const existingApplication =
         applications.find((item) => String(item.key) === String(editingKey)) || {};
       if (isApiConfigured) {
         try {
           const applicationId = existingApplication._id || editingKey;
-          const result = await request(`/hostel/update/${applicationId}`, {
+          await request(`/hostel/update/${applicationId}`, {
             method: "PUT",
             body: { applicantDetails },
           });
-          const next = normalizeRemoteApplication(
-            result?.application || result,
-          ) || normalizeRemoteApplication({
-            ...existingApplication,
-            ...applicantDetails,
-            _id: applicationId,
-          });
-          setRemoteApplications((current) =>
-            current.map((item) =>
-              String(item.key) === String(editingKey) ? { ...item, ...next } : item,
-            ),
-          );
+          await loadApplicationRef.current?.();
           messageApi.success("Your hostel application has been updated.");
           return;
         } catch (error) {
@@ -398,14 +395,11 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
 
     if (isApiConfigured) {
       try {
-        const result = await request("/hostel/apply", {
+        await request("/hostel/apply", {
           method: "POST",
           body: { applicantDetails },
         });
-        const next = normalizeRemoteApplication(
-          result?.application || result,
-        );
-        if (next) setRemoteApplications([next]);
+        const next = await loadApplicationRef.current?.();
         if (next) {
           setEditingKey(next.key);
           form.setFieldsValue(getApplicationFormValues(next));
@@ -448,6 +442,9 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
     setEditingKey(application.key);
     form.setFieldsValue(getApplicationFormValues(application));
     messageApi.success("Your hostel application has been saved.");
+    } finally {
+      setApplicationSubmitting(false);
+    }
   };
 
   const handleEditApplication = (record) => {
@@ -1045,6 +1042,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                   htmlType="submit"
                   size="large"
                   icon={<SendOutlined />}
+                  loading={applicationSubmitting}
+                  disabled={applicationSubmitting}
                 >
                   {editingKey ? "Edit Application" : "Submit Application"}
                 </Button>
@@ -1190,6 +1189,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         <Table
           columns={columns}
           dataSource={applications}
+          loading={loading || remoteLoading}
           locale={{
             emptyText:
               "No hostel applications saved yet. Complete the form above to add one.",
@@ -1217,6 +1217,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
             rowKey="applicationNo"
             pagination={false}
             dataSource={[newestApplication]}
+            loading={loading || remoteLoading}
             columns={[
               {
                 title: "Application",
@@ -1267,6 +1268,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
           rowKey="key"
           pagination={false}
           dataSource={newestApplication ? [newestApplication] : []}
+          loading={loading || remoteLoading}
           columns={[
             {
               title: "Application",
@@ -1326,6 +1328,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
         <Table
           columns={contactColumns}
           dataSource={applications}
+          loading={loading || remoteLoading}
           locale={{
             emptyText:
               "Guardian and emergency contacts will appear here after you save an application.",
@@ -1422,7 +1425,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
               htmlType="submit"
               size="large"
               icon={<DollarOutlined />}
-              disabled={!newestApplication}
+              loading={feeSubmitting}
+              disabled={!newestApplication || feeSubmitting}
             >
               {editingFeeId ? "Update Fee" : "Add Fee"}
             </Button>
@@ -1535,6 +1539,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                       setEditingFeeId(record._id);
                     }}
                     aria-label="Edit fee"
+                    disabled={feeSubmitting || Boolean(deletingFeeId)}
                   />
                   <Popconfirm
                     title="Delete this fee record?"
@@ -1547,6 +1552,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange }) {
                       danger
                       icon={<DeleteOutlined />}
                       aria-label="Delete fee"
+                      loading={String(deletingFeeId) === String(record._id)}
+                      disabled={feeSubmitting || Boolean(deletingFeeId)}
                     />
                   </Popconfirm>
                 </Space>

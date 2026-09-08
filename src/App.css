@@ -93,3 +93,10 @@ body {
   color: #1e3a8a;
   font-weight: 600;
 }
+
+.resource-loading {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  color: #1e3a8a;
+}

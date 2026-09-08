@@ -17,7 +17,7 @@ const ProtectedRoute = ({ children }) => {
           width: "100vw",
         }}
       >
-        <Spin size="large" tip="Loading..." />
+        <Spin size="large" description="Loading..." />
       </div>
     );
   }

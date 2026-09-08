@@ -6,6 +6,7 @@ export const ProfileModal = ({
   form,
   initialValues,
   onFinish,
+  loading,
   imageUrl,
   uploadButton,
   beforeUpload,
@@ -83,7 +84,7 @@ export const ProfileModal = ({
       <Form.Item label="Sessions" name="sessions">
         <Input placeholder="Enter sessions" />
       </Form.Item>
-      <Button htmlType="submit" type="primary">
+      <Button htmlType="submit" type="primary" loading={loading} disabled={loading}>
         Save Profile
       </Button>
     </Form>

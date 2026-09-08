@@ -6,6 +6,7 @@ import {
   Drawer,
   Layout,
   Result,
+  Spin,
   theme as antdTheme,
 } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
@@ -43,6 +44,7 @@ import { listReminders, createReminder, toggleReminder, deleteReminder } from ".
 import { isApiConfigured, request } from "./api/client";
 import { createDefaultSharedData } from "./data/sharedData";
 import { connectSocket } from "./services/socketService";
+import LoadingState from "./components/LoadingState";
 
 const MOBILE_BREAKPOINT = 768;
 const TABLET_BREAKPOINT = 1024;
@@ -95,7 +97,11 @@ const mergeRemoteNotifications = (existing, incoming) => {
 };
 
 function LoadingScreen() {
-  return <div className="app-route-loading">Loading SLMS...</div>;
+  return (
+    <div className="app-route-loading" aria-live="polite">
+      <Spin size="large" description="Loading SLMS..." />
+    </div>
+  );
 }
 
 function PublicRoute({ children }) {
@@ -121,6 +127,11 @@ function StudentLayout() {
   const [sharedData, setSharedData] = useState(() => {
     return isApiConfigured ? createDefaultSharedData() : studentDataService.load();
   });
+  const [resourceLoading, setResourceLoading] = useState({});
+  const [initialDataLoading, setInitialDataLoading] = useState(isApiConfigured);
+  const setResourceBusy = useCallback((resource, busy) => {
+    setResourceLoading((current) => ({ ...current, [resource]: busy }));
+  }, []);
 
   useEffect(() => {
     if (isApiConfigured || !user) return;
@@ -136,6 +147,12 @@ function StudentLayout() {
     if (!isApiConfigured || !user) return;
     let cancelled = false;
     setSharedData(createDefaultSharedData());
+    const resources = ["profile", "academic", "complaints", "expenses", "preferences", "settings", "hostel", "notifications", "reminders"];
+    setResourceLoading(Object.fromEntries(resources.map((resource) => [resource, true])));
+    const trackResource = (resource, promise) =>
+      promise.finally(() => {
+        if (!cancelled) setResourceBusy(resource, false);
+      });
     const loadRemoteData = async () => {
       const [
         profileResult,
@@ -149,15 +166,15 @@ function StudentLayout() {
         remindersResult,
       ] =
         await Promise.allSettled([
-          request("/students/profile"),
-          request("/academic"),
-          request("/complaints"),
-          request("/expenses"),
-          request("/users/me/preferences"),
-          request("/settings"),
-          request("/hostel"),
-          request("/notifications"),
-          listReminders(),
+          trackResource("profile", request("/students/profile")),
+          trackResource("academic", request("/academic")),
+          trackResource("complaints", request("/complaints")),
+          trackResource("expenses", request("/expenses")),
+          trackResource("preferences", request("/users/me/preferences")),
+          trackResource("settings", request("/settings")),
+          trackResource("hostel", request("/hostel")),
+          trackResource("notifications", request("/notifications")),
+          trackResource("reminders", listReminders()),
         ]);
       if (cancelled) return;
       setSharedData((current) => ({
@@ -234,20 +251,29 @@ function StudentLayout() {
             : current.settings,
       }));
     };
-    loadRemoteData().catch(() => {});
+    loadRemoteData()
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setInitialDataLoading(false);
+      });
     const refreshNotifications = async () => {
-      const result = await request("/notifications");
-      if (cancelled) return;
-      setSharedData((current) => ({
-        ...current,
-        settings: {
-          ...current.settings,
-          remoteNotifications: mergeRemoteNotifications(
-            current.settings?.remoteNotifications || [],
-            result.notifications || [],
-          ),
-        },
-      }));
+      setResourceBusy("notifications", true);
+      try {
+        const result = await request("/notifications");
+        if (cancelled) return;
+        setSharedData((current) => ({
+          ...current,
+          settings: {
+            ...current.settings,
+            remoteNotifications: mergeRemoteNotifications(
+              current.settings?.remoteNotifications || [],
+              result.notifications || [],
+            ),
+          },
+        }));
+      } finally {
+        if (!cancelled) setResourceBusy("notifications", false);
+      }
     };
     const refreshResource = async (resource) => {
       const paths = {
@@ -262,9 +288,11 @@ function StudentLayout() {
       };
       const path = paths[resource];
       if (!path) return;
-      const result = await request(path);
-      if (cancelled) return;
-      setSharedData((current) => {
+      setResourceBusy(resource, true);
+      try {
+        const result = await request(path);
+        if (cancelled) return;
+        setSharedData((current) => {
         const next = { ...current };
         if (resource === "profile") {
           next.profile = {
@@ -295,13 +323,21 @@ function StudentLayout() {
             ? result.preferences.budgetHistory
             : current.budgetHistory;
         }
-        return next;
-      });
+          return next;
+        });
+      } finally {
+        if (!cancelled) setResourceBusy(resource, false);
+      }
     };
+  }, [user]);
+
+  useEffect(() => {
+    if (!isApiConfigured || !user) {
+      setInitialDataLoading(false);
+    }
+    let cancelled = false;
     const socket = connectSocket();
-    if (!socket) return () => {
-      cancelled = true;
-    };
+    if (!socket) return undefined;
     const upsertNotification = (incoming) => {
       const normalized = normalizeRemoteNotification(incoming);
       setSharedData((current) => {
@@ -366,7 +402,7 @@ function StudentLayout() {
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [user]);
+  }, [setResourceBusy, user]);
 
   useEffect(() => {
     const syncFromAnotherTab = (event) => {
@@ -621,6 +657,8 @@ function StudentLayout() {
     ],
   );
 
+  if (initialDataLoading) return <LoadingScreen />;
+
   return (
     <ConfigProvider theme={{ algorithm: antdTheme.defaultAlgorithm }}>
       <div
@@ -659,6 +697,7 @@ function StudentLayout() {
                 markNotificationUnread,
                 deleteNotifications,
                 deletingNotificationIds,
+                resourceLoading,
               }}
             />
           </Content>
@@ -690,13 +729,14 @@ function useStudentData() {
 }
 
 function DashboardPage() {
-  const { sharedData, notifications } = useStudentData();
-  return <Dashboard data={sharedData} notifications={notifications} />;
+  const { sharedData, notifications, resourceLoading } = useStudentData();
+  return <LoadingState loading={resourceLoading?.profile || resourceLoading?.academic}><Dashboard data={sharedData} notifications={notifications} /></LoadingState>;
 }
 
 function NotificationsPage() {
   const {
     notifications,
+    resourceLoading,
     markNotificationsRead,
     markAllNotificationsRead,
     markNotificationUnread,
@@ -706,13 +746,14 @@ function NotificationsPage() {
     useStudentData();
   return (
     <BellIcon
-      notifications={notifications}
-      onMarkNotificationsRead={markNotificationsRead}
-      onMarkAllNotificationsRead={markAllNotificationsRead}
-      onMarkNotificationUnread={markNotificationUnread}
-      onDeleteNotifications={deleteNotifications}
-      deletingNotificationIds={deletingNotificationIds}
-    />
+        notifications={notifications}
+        loading={resourceLoading?.notifications}
+        onMarkNotificationsRead={markNotificationsRead}
+        onMarkAllNotificationsRead={markAllNotificationsRead}
+        onMarkNotificationUnread={markNotificationUnread}
+        onDeleteNotifications={deleteNotifications}
+        deletingNotificationIds={deletingNotificationIds}
+      />
   );
 }
 
@@ -730,40 +771,43 @@ function CopilotPage() {
 }
 
 function ProfilePage() {
-  const { sharedData, updateSection, resetProfile } = useStudentData();
+  const { sharedData, updateSection, resetProfile, resourceLoading } = useStudentData();
   return (
     <Profile
       profile={sharedData.profile}
       onProfileChange={(nextValue) => updateSection("profile", nextValue)}
       onResetProfile={resetProfile}
+      loading={resourceLoading?.profile}
     />
   );
 }
 
 function ExpensePage() {
-  const { sharedData, updateSection, updateMonthlyBudget } = useStudentData();
+  const { sharedData, updateSection, updateMonthlyBudget, resourceLoading } = useStudentData();
   return (
     <Expense
       expenses={sharedData.expenses}
       monthlyBudget={sharedData.monthlyBudget}
       onExpensesChange={(nextValue) => updateSection("expenses", nextValue)}
       onMonthlyBudgetChange={updateMonthlyBudget}
+      loading={resourceLoading?.expenses || resourceLoading?.preferences}
     />
   );
 }
 
 function ComplaintsPage() {
-  const { sharedData, updateSection } = useStudentData();
+  const { sharedData, updateSection, resourceLoading } = useStudentData();
   return (
     <Complaints
       complaints={sharedData.complaints}
       onComplaintsChange={(nextValue) => updateSection("complaints", nextValue)}
+      loading={resourceLoading?.complaints}
     />
   );
 }
 
 function SettingsPage() {
-  const { sharedData, updateSection } = useStudentData();
+  const { sharedData, updateSection, resourceLoading } = useStudentData();
   const saveNotification = async (key, value) => {
     const result = await request("/settings/notifications", {
       method: "PUT",
@@ -790,6 +834,7 @@ function SettingsPage() {
       onSettingsChange={(nextValue) => updateSection("settings", nextValue)}
       onNotificationChange={saveNotification}
       onAiSettingChange={saveAiSetting}
+      loading={resourceLoading?.settings || resourceLoading?.reminders}
       onReminderCreate={async (reminder) => {
         const created = await createReminder(reminder);
         updateSection("settings", (settings) => ({
@@ -830,23 +875,25 @@ function LoginHistoryPage() {
 }
 
 function HostelPage() {
-  const { sharedData, updateSection } = useStudentData();
+  const { sharedData, updateSection, resourceLoading } = useStudentData();
   return (
     <Hostel
       applications={sharedData.hostelApplications}
       onApplicationsChange={(nextValue) =>
         updateSection("hostelApplications", nextValue)
       }
+      loading={resourceLoading?.hostel}
     />
   );
 }
 
 function AcademicPage() {
-  const { sharedData, updateSection } = useStudentData();
+  const { sharedData, updateSection, resourceLoading } = useStudentData();
   return (
     <Academic
       workspace={sharedData.academic}
       onWorkspaceChange={(nextValue) => updateSection("academic", nextValue)}
+      loading={resourceLoading?.academic}
     />
   );
 }

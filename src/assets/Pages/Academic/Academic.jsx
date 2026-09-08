@@ -36,6 +36,7 @@ import {
 import "./Academic.css";
 import { isApiConfigured, request } from "../../../api/client";
 import { apiPayload, localRecord, recordId } from "../../../utils/recordIdentity";
+import LoadingState from "../../../components/LoadingState";
 
 const { Title, Paragraph, Text } = Typography;
 const createDefaultWorkspace = () => ({
@@ -115,7 +116,7 @@ function statusColor(status) {
   return "gold";
 }
 
-function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
+function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false }) {
   const [messageApi, contextHolder] = message.useMessage();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [courseEditor, setCourseEditor] = useState(null);
@@ -127,6 +128,11 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   const [assignmentForm] = Form.useForm();
   const [examForm] = Form.useForm();
   const [attendanceForm] = Form.useForm();
+  const [tableLoading, setTableLoading] = useState({
+    assignments: isApiConfigured,
+    exams: isApiConfigured,
+    attendance: isApiConfigured,
+  });
 
   const [fallbackWorkspace, setFallbackWorkspace] = useState(
     createDefaultWorkspace,
@@ -159,11 +165,31 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           attendance: data.attendance || [],
         })),
       )
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setTableLoading({ assignments: false, exams: false, attendance: false });
+      });
     return () => {
       cancelled = true;
     };
   }, [setWorkspace]);
+  const refreshAcademic = async (section) => {
+    if (!isApiConfigured) return;
+    setTableLoading((current) => ({ ...current, [section]: true }));
+    try {
+      const data = await request("/academic");
+      setWorkspace((current) => ({
+        ...current,
+        profile: data.profile || {},
+        courses: data.courses || [],
+        assignments: data.assignments || [],
+        exams: data.exams || [],
+        attendance: data.attendance || [],
+      }));
+    } finally {
+      setTableLoading((current) => ({ ...current, [section]: false }));
+    }
+  };
   const attendanceRate = useMemo(() => {
     const attended = workspace.attendance.reduce(
       (total, record) => total + Number(record.attended || 0),
@@ -275,6 +301,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
         cgpa: values.cgpa,
       },
     }));
+    if (isApiConfigured) await refreshAcademic("assignments");
     clearFormValues("profile");
     setProfileModalOpen(false);
     messageApi.success("Academic profile updated.");
@@ -310,6 +337,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           )
         : [...workspace.courses, completeCourse],
     );
+    if (isApiConfigured) await refreshAcademic("assignments");
     clearFormValues("course");
     setCourseEditor(null);
     courseForm.resetFields();
@@ -347,6 +375,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           )
         : [completeAssignment, ...workspace.assignments],
     );
+    if (isApiConfigured) await refreshAcademic("assignments");
     clearFormValues("assignment");
     setAssignmentEditor(null);
     assignmentForm.resetFields();
@@ -385,6 +414,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           )
         : [...workspace.exams, completeExam],
     );
+    if (isApiConfigured) await refreshAcademic("exams");
     clearFormValues("exam");
     setExamEditor(null);
     examForm.resetFields();
@@ -426,6 +456,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           ? workspace.attendance
           : [...workspace.attendance, completeAttendance],
     );
+    if (isApiConfigured) await refreshAcademic("attendance");
     clearFormValues("attendance");
     setAttendanceEditor(null);
     attendanceForm.resetFields();
@@ -462,6 +493,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
       collection,
       workspace[collection].filter((item) => recordId(item) !== id),
     );
+    if (isApiConfigured) await refreshAcademic(collection === "assignments" ? "assignments" : collection === "exams" ? "exams" : "attendance");
     messageApi.success(
       collection === "attendance"
         ? "Attendance deleted successfully."
@@ -485,6 +517,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           : item,
       ),
     );
+    if (isApiConfigured) await refreshAcademic("assignments");
     messageApi.success("Assignment marked as completed.");
   };
 
@@ -630,7 +663,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
   ];
 
   return (
-    <div className="academic-page">
+      <div className="academic-page">
       {contextHolder}
       <section className="academic-hero" aria-labelledby="academic-title">
         <div className="academic-hero-copy">
@@ -726,6 +759,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
               dataSource={[...workspace.assignments].sort((a, b) =>
                 b.dueDate.localeCompare(a.dueDate),
               )}
+              loading={loading || tableLoading.assignments}
               pagination={false}
               locale={{
                 emptyText: (
@@ -770,7 +804,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
                 </div>
               </div>
             )}
-            <List
+            <LoadingState loading={tableLoading.exams} tip="Loading exams..."><List
               className="academic-exam-list"
               dataSource={[...workspace.exams].sort((a, b) =>
                 b.examDate.localeCompare(a.examDate),
@@ -837,7 +871,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
                   />
                 </List.Item>
               )}
-            />
+            /></LoadingState>
           </Card>
         </Col>
       </Row>
@@ -882,6 +916,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
                 const bTotal = b.total || 0;
                 return bTotal - aTotal;
               })}
+              loading={loading || tableLoading.attendance}
               pagination={false}
               locale={{
                 emptyText: (
@@ -1253,7 +1288,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange }) {
           </Row>
         </Form>
       </Modal>
-    </div>
+      </div>
   );
 }
 

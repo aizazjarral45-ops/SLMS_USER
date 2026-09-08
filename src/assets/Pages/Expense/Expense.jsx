@@ -154,6 +154,7 @@ function Expense({
   monthlyBudget: monthlyBudgetProp,
   onExpensesChange,
   onMonthlyBudgetChange,
+  loading = false,
 }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
@@ -198,6 +199,18 @@ function Expense({
     setFallbackMonthlyBudget(value);
   };
   const [newMonthlyBudget, setNewMonthlyBudget] = useState(monthlyBudget);
+  const [saving, setSaving] = useState(false);
+  const [tableLoading, setTableLoading] = useState(false);
+  const refreshExpenses = async () => {
+    if (!isApiConfigured) return;
+    setTableLoading(true);
+    try {
+      const result = await request("/expenses");
+      setExpenses(result.expenses || []);
+    } finally {
+      setTableLoading(false);
+    }
+  };
 
   useEffect(() => {
     setNewMonthlyBudget(monthlyBudget);
@@ -265,6 +278,8 @@ function Expense({
     "Recommendation: shift entertainment and transport to lower-cost options for the next 5 days.",
   ];
   const onFinish = async (values) => {
+    setSaving(true);
+    try {
     const expense = {
       ...(editingExpense || {}),
       ...values,
@@ -274,23 +289,14 @@ function Expense({
     const expenseId = recordId(editingExpense);
     if (isApiConfigured) {
       try {
-        const result = await request(
+        await request(
           expenseId ? `/expenses/${expenseId}` : "/expenses",
           {
           method: expenseId ? "PUT" : "POST",
           body: apiPayload(expense),
           },
         );
-        const savedExpense = result.expense || result;
-        setExpenses((current) =>
-          expenseId
-            ? current.map((item) =>
-                String(item._id || item.id || item.key) === String(expenseId)
-                  ? savedExpense
-                  : item,
-              )
-            : [savedExpense, ...current],
-        );
+        await refreshExpenses();
         setOpen(false);
         setEditingExpense(null);
         form.resetFields();
@@ -326,8 +332,13 @@ function Expense({
     messageApi.success(
       expenseId ? "Expense updated successfully." : "Expense added successfully.",
     );
+    } finally {
+      setSaving(false);
+    }
   };
   const handleDelete = async (record) => {
+    setSaving(true);
+    try {
     const expenseId = recordId(record);
     if (isApiConfigured) {
       try {
@@ -343,7 +354,11 @@ function Expense({
           String(item._id || item.id || item.key) !== String(expenseId),
       ),
     );
+    if (isApiConfigured) await refreshExpenses();
     messageApi.success("Expense removed.");
+    } finally {
+      setSaving(false);
+    }
   };
   const columns = [
     {
@@ -457,7 +472,10 @@ function Expense({
           setNewMonthlyBudget(monthlyBudget);
           setBudgetModal(false);
         }}
-        onOk={() => {
+        confirmLoading={saving}
+        onOk={async () => {
+          setSaving(true);
+          try {
           const val = Number(newMonthlyBudget) || 0;
           setMonthlyBudget(val);
           setNewMonthlyBudget(val);
@@ -465,18 +483,16 @@ function Expense({
           
           // Send updated budget to backend
           if (isApiConfigured) {
-            request("/expenses/budget/update", {
+            await request("/expenses/budget/update", {
               method: "PUT",
               body: { monthlyBudget: val },
-            })
-              .then(() => {
-                message.success("Budget updated successfully");
-              })
-              .catch((error) => {
-                message.error(
-                  "Failed to update budget: " + (error.message || "Unknown error"),
-                );
-              });
+            });
+            message.success("Budget updated successfully");
+          }
+          } catch (error) {
+            message.error("Failed to update budget: " + (error.message || "Unknown error"));
+          } finally {
+            setSaving(false);
           }
         }}
       >
@@ -619,6 +635,7 @@ function Expense({
           className="expense-table"
           columns={columns}
           dataSource={filteredExpenses}
+          loading={loading || saving || tableLoading}
           pagination={{ pageSize: 5 }}
           scroll={{ x: 900 }}
         />
@@ -780,6 +797,8 @@ function Expense({
             <Button onClick={() => setOpen(false)}>Cancel</Button>
             <Button
               htmlType="submit"
+              loading={saving}
+              disabled={saving}
               type="primary"
               icon={<DollarCircleOutlined />}
             >

@@ -138,6 +138,8 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   const [typing, setTyping] = useState(false);
   const [conversationId, setConversationId] = useState(null);
   const [conversationReady, setConversationReady] = useState(!isApiConfigured);
+  const [conversationLoading, setConversationLoading] = useState(isApiConfigured);
+  const [historyActionLoading, setHistoryActionLoading] = useState(false);
   const operationRef = useRef(0);
   const normalizeMessages = (items) =>
     (Array.isArray(items) ? items : []).map((item) => ({
@@ -170,6 +172,8 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
         console.error("Unable to load AI conversation:", error);
         setConversationReady(true);
       }
+    }).finally(() => {
+      if (!cancelled) setConversationLoading(false);
     });
     return () => {
       cancelled = true;
@@ -269,6 +273,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     if (isApiConfigured) {
       if (!conversationId) return;
       try {
+        setHistoryActionLoading(true);
         const result = await request(`/ai/history/${conversationId}`, {
           method: "DELETE",
         });
@@ -277,6 +282,9 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       } catch (error) {
         if (operation === operationRef.current)
           console.error("Unable to undo the last AI prompt:", error);
+      }
+      finally {
+        setHistoryActionLoading(false);
       }
       return;
     }
@@ -295,12 +303,15 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       return;
     }
     try {
+      setHistoryActionLoading(true);
       await request("/ai/history", { method: "DELETE" });
       setMessages([]);
       setConversationId(null);
     } catch (error) {
       console.error("Unable to clear AI conversation history:", error);
       throw error;
+    } finally {
+      setHistoryActionLoading(false);
     }
   };
 
@@ -319,6 +330,10 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       },
     });
   };
+
+  if (conversationLoading) {
+    return <div className="first-section"><Card><Skeleton active /></Card></div>;
+  }
 
   return (
     <>
@@ -363,7 +378,8 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                 danger
                 icon={<DeleteOutlined />}
                 onClick={confirmClearChat}
-                disabled={!messages.length && !typing}
+                loading={historyActionLoading}
+                disabled={conversationLoading || (!messages.length && !typing)}
                 aria-label="Clear chat"
               >
                 Clear
@@ -393,7 +409,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                   <Button
                     key={prompt}
                     onClick={() => submitPrompt(prompt)}
-                    disabled={typing}
+                    disabled={typing || conversationLoading}
                   >
                     {prompt}
                   </Button>
@@ -407,7 +423,10 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
           style={{ flex: "1 1 auto", minWidth: 0, width: "100%" }}
         >
           <Card className="copilot-chat-card" style={{ width: "100%" }}>
-            {!messages.length && !typing ? (
+            {conversationLoading ? (
+              <Skeleton active paragraph={{ rows: 3 }} />
+            ) : null}
+            {!conversationLoading && !messages.length && !typing ? (
               <Empty
                 description="Start a conversation with your SLMS Copilot"
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -490,6 +509,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
             ) : null}
           </Card>
           <Card
+            className="copilot-composer-card"
             style={{
               maxWidth: "100%",
               alignItems: "center",
@@ -507,24 +527,25 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                     submitPrompt(draft);
                   }
                 }}
-                autoSize={{ minRows: 1, maxRows: 1 }}
+                autoSize={{ minRows: 1, maxRows: 3 }}
                 placeholder="Ask about assignments, hostel, budget, exams, or support"
+                className="copilot-search-bar"
                 style={{
-                  flex: "1 1 auto",
-                  width: "100%",
-                  maxWidth: "100%",
                   minWidth: 0,
                 }}
-                disabled={typing}
+                disabled={typing || conversationLoading}
               />
               <Button
+                className="copilot-undo-button"
                 onClick={undoLastPrompt}
-                disabled={!messages.length && !typing}
+                loading={historyActionLoading}
+                disabled={conversationLoading || (!messages.length && !typing)}
               >
                 Undo
               </Button>
               <Button
                 type="primary"
+                className="copilot-send-button"
                 icon={<SendOutlined />}
                 onClick={() => submitPrompt(draft)}
                 loading={typing}

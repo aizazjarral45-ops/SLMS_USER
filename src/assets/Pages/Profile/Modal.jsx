@@ -7,6 +7,7 @@ export const PersonalModal = ({
   form,
   initialValues,
   onFinish,
+  loading,
 }) => (
   <Modal
     title="Edit Personal info"
@@ -56,7 +57,7 @@ export const PersonalModal = ({
       <Form.Item label="Marital Status" name="maritalStatus">
         <Input type="text" placeholder="Enter Your Marital Status" />
       </Form.Item>
-      <Button htmlType="submit" type="primary">
+      <Button htmlType="submit" type="primary" loading={loading} disabled={loading}>
         Submit
       </Button>
     </Form>

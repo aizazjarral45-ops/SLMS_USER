@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Card, List, Button, Empty } from "antd";
+import { Card, List, Button, Empty, Spin } from "antd";
 import {
   ArrowLeftOutlined,
   HistoryOutlined,
@@ -12,12 +12,16 @@ import "./LoginHistory.css";
 export default function LoginHistory() {
   const navigate = useNavigate();
   const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const refresh = async () => {
+    setLoading(true);
     try {
       setHistory(await getLoginHistory());
     } catch {
       setHistory([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,13 +51,16 @@ export default function LoginHistory() {
           <Button
             icon={<ReloadOutlined />}
             onClick={refresh}
+            loading={loading}
+            disabled={loading}
             style={{ marginRight: 8 }}
           >
             Refresh
           </Button>
         </div>
 
-        {history?.length ? (
+        <Spin spinning={loading} tip="Loading login history...">
+        {!loading && history?.length ? (
           <List
             dataSource={history}
             renderItem={(item, index) => {
@@ -87,9 +94,10 @@ export default function LoginHistory() {
               );
             }}
           />
-        ) : (
+        ) : !loading ? (
           <Empty description="No login activity found" />
-        )}
+        ) : null}
+        </Spin>
       </Card>
     </div>
   );

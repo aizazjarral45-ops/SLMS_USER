@@ -9,6 +9,7 @@ import {
   Tag,
   Typography,
   message,
+  Spin,
 } from "antd";
 import {
   ArrowRightOutlined,
@@ -103,6 +104,7 @@ function BellIcon({
   onMarkNotificationUnread,
   onDeleteNotifications,
   deletingNotificationIds = [],
+  loading = false,
 }) {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
@@ -224,6 +226,7 @@ function BellIcon({
           </Space>
         }
       >
+        <Spin spinning={loading} tip="Loading notifications...">
         {visibleNotifications.length ? (
           notificationGroups.map((group) => (
             <section className="bell-notification-group" key={group.key}>
@@ -396,6 +399,7 @@ function BellIcon({
             </Button>
           </Empty>
         )}
+        </Spin>
       </Card>
       </main>
     </>

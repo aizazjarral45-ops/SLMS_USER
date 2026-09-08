@@ -23,7 +23,7 @@ function Sidebar({ onNavigate }) {
     if (path === "/expense" || path === "/expenses") return "5";
     if (path === "/complaints") return "6";
     if (path === "/profile") return "7";
-    if (path === "/setting") return "8";
+    if (path === "/setting" || path.startsWith("/setting/")) return "8";
 
     return "1";
   })();

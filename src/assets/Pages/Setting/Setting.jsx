@@ -29,6 +29,7 @@ import {
   DeleteOutlined,
 } from "@ant-design/icons";
 import "./Setting.css";
+import LoadingState from "../../../components/LoadingState";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { deleteAccount as deleteAccountService } from "../../../services/authService";
@@ -82,10 +83,10 @@ const securityItems = [
   { key: "delete-account", title: "Delete Account", icon: <DeleteOutlined /> },
 ];
 
-const SwitchRow = ({ label, checked, onChange }) => (
+const SwitchRow = ({ label, checked, onChange, loading = false }) => (
   <div className="setting-toggle-row">
     <Text>{label}</Text>
-    <Switch checked={checked} onChange={onChange} />
+    <Switch checked={checked} onChange={onChange} loading={loading} disabled={loading} />
   </div>
 );
 
@@ -97,6 +98,7 @@ function Settings({
   onReminderCreate,
   onReminderToggle,
   onReminderDelete,
+  loading = false,
 }) {
   const navigate = useNavigate();
   const [messageApi, contextHolder] = message.useMessage();
@@ -118,6 +120,7 @@ function Settings({
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeletePassword, setShowDeletePassword] = useState(false);
   const [processingDelete, setProcessingDelete] = useState(false);
+  const [pendingAction, setPendingAction] = useState("");
 
   const updateSettings = (updates) => {
     onSettingsChange?.({ ...settings, ...updates });
@@ -125,6 +128,7 @@ function Settings({
   const pendingReminders = reminders.filter((item) => !item.done).length;
 
   const toggleNotification = async (key, value) => {
+    setPendingAction(`notification:${key}`);
     if (onNotificationChange) {
       try {
         await onNotificationChange(key, value);
@@ -132,12 +136,17 @@ function Settings({
         console.error("Unable to save notification setting:", error);
         messageApi.error(error.message || "Unable to save notification setting.");
       }
+      finally {
+        setPendingAction("");
+      }
       return;
     }
     updateSettings({ notifications: { ...notifications, [key]: value } });
+    setPendingAction("");
   };
 
   const toggleAiSetting = async (key, value) => {
+    setPendingAction(`ai:${key}`);
     if (onAiSettingChange) {
       try {
         await onAiSettingChange(key, value);
@@ -145,12 +154,17 @@ function Settings({
         console.error("Unable to save AI setting:", error);
         messageApi.error(error.message || "Unable to save AI setting.");
       }
+      finally {
+        setPendingAction("");
+      }
       return;
     }
     updateSettings({ aiSettings: { ...aiSettings, [key]: value } });
+    setPendingAction("");
   };
 
   const addReminder = async (values) => {
+    setPendingAction("reminder:add");
     try {
       const reminder = onReminderCreate
         ? await onReminderCreate({
@@ -173,10 +187,13 @@ function Settings({
     } catch (error) {
       console.error("Unable to add reminder:", error);
       messageApi.error(error.message || "Unable to add reminder.");
+    } finally {
+      setPendingAction("");
     }
   };
 
   const completeReminder = async (id) => {
+    setPendingAction(`reminder:${id}`);
     try {
       if (onReminderToggle) {
         await onReminderToggle(id);
@@ -190,10 +207,13 @@ function Settings({
     } catch (error) {
       console.error("Unable to update reminder:", error);
       messageApi.error(error.message || "Unable to update reminder.");
+    } finally {
+      setPendingAction("");
     }
   };
 
   const removeReminder = async (id) => {
+    setPendingAction(`reminder:${id}`);
     try {
       if (onReminderDelete) {
         await onReminderDelete(id);
@@ -203,6 +223,8 @@ function Settings({
     } catch (error) {
       console.error("Unable to delete reminder:", error);
       messageApi.error(error.message || "Unable to delete reminder.");
+    } finally {
+      setPendingAction("");
     }
   };
 
@@ -303,6 +325,7 @@ function Settings({
                 label={label}
                 checked={notifications[key]}
                 onChange={(value) => toggleNotification(key, value)}
+                loading={pendingAction === `notification:${key}`}
               />
             ))}
           </Card>
@@ -346,6 +369,8 @@ function Settings({
                       key="done"
                       type="link"
                       onClick={() => completeReminder(item.id)}
+                      loading={pendingAction === `reminder:${item.id}`}
+                      disabled={Boolean(pendingAction)}
                     >
                       Mark Completed
                     </Button>,
@@ -354,6 +379,8 @@ function Settings({
                       danger
                       type="link"
                       onClick={() => removeReminder(item.id)}
+                      loading={pendingAction === `reminder:${item.id}`}
+                      disabled={Boolean(pendingAction)}
                     >
                       Delete
                     </Button>,
@@ -511,7 +538,8 @@ function Settings({
   ];
 
   return (
-    <div className="setting-page">
+    <LoadingState loading={loading} tip="Loading settings...">
+      <div className="setting-page">
       {contextHolder}
       <div className="setting-hero">
         <div>
@@ -577,13 +605,14 @@ function Settings({
           </Form.Item>
           <div className="setting-modal-actions">
             <Button onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button htmlType="submit" type="primary">
+            <Button htmlType="submit" type="primary" loading={pendingAction === "reminder:add"} disabled={Boolean(pendingAction)}>
               Save
             </Button>
           </div>
         </Form>
       </Modal>
-    </div>
+      </div>
+    </LoadingState>
   );
 }
 
