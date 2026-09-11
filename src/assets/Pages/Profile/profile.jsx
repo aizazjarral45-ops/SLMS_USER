@@ -137,7 +137,6 @@ function Profile({
         method: "PUT",
         body: { ...personalData, ...contactData, ...nextProfile },
       });
-      console.log("Profile updated:", result.profile || nextProfile);
       setProfile((current) => ({
         ...current,
         ...profileSections(result.profile || nextProfile),

@@ -114,6 +114,24 @@
   align-items: flex-start;
 }
 
+.copilot-recent-item {
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 10px 8px;
+  transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.copilot-recent-item:hover,
+.copilot-recent-item.is-active {
+  background: #eff6ff;
+}
+
+.copilot-sidebar-card .ant-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .copilot-chip-group .ant-btn {
   border-radius: 12px;
   padding: 8px 12px;

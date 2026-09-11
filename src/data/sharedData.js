@@ -1,56 +1,5 @@
 export const SHARED_DATA_STORAGE_KEY = "slms-shared-app-data";
 
-export const defaultExpenses = [
-  {
-    key: "1",
-    title: "Cafeteria Lunch Combo",
-    category: "Food",
-    amount: 12.5,
-    date: "2026-07-30",
-    paymentMethod: "Card",
-    description: "Lunch between lab sessions",
-    location: "Main Cafeteria",
-    status: "Approved",
-    receipt: "Available",
-  },
-  {
-    key: "2",
-    title: "Project Printing",
-    category: "Printing",
-    amount: 8.25,
-    date: "2026-07-29",
-    paymentMethod: "Cash",
-    description: "Capstone draft print",
-    location: "Campus Print Hub",
-    status: "Logged",
-    receipt: "Uploaded",
-  },
-  {
-    key: "3",
-    title: "Hostel Laundry",
-    category: "Hostel",
-    amount: 15,
-    date: "2026-07-28",
-    paymentMethod: "Wallet",
-    description: "Weekly laundry cycle",
-    location: "Hostel Block B",
-    status: "Approved",
-    receipt: "N/A",
-  },
-  {
-    key: "4",
-    title: "Ride to Internship Fair",
-    category: "Transport",
-    amount: 19.75,
-    date: "2026-07-26",
-    paymentMethod: "Wallet",
-    description: "Shared cab fare",
-    location: "City Expo Center",
-    status: "Approved",
-    receipt: "Uploaded",
-  },
-];
-
 export const createDefaultAcademicWorkspace = () => ({
   profile: {},
   courses: [],
@@ -88,8 +37,6 @@ const defaultSettings = {
     complaintDrafting: false,
   },
 };
-
-const cloneDefaultExpenses = () => defaultExpenses.map((item) => ({ ...item }));
 
 const readJSON = (key, fallback) => {
   if (typeof window === "undefined") return fallback;
@@ -217,7 +164,7 @@ export const createDefaultSharedData = () => ({
     contactData: {},
   },
   academic: createDefaultAcademicWorkspace(),
-  expenses: cloneDefaultExpenses(),
+  expenses: [],
   monthlyBudget: 0,
   budgetHistory: [],
   hostelApplications: [],
@@ -293,7 +240,7 @@ export const loadSharedData = () => {
       "slms-academic-workspace",
       createDefaultAcademicWorkspace(),
     ),
-    expenses: readJSON("slms-expenses", cloneDefaultExpenses()),
+    expenses: readJSON("slms-expenses", []),
     monthlyBudget: Number(budgetHistory.at(-1)) || 0,
     budgetHistory,
     hostelApplications: readJSON("slms-hostel-applications", []),

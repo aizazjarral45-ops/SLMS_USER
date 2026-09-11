@@ -53,62 +53,12 @@ const categories = [
   "Printing",
   "Miscellaneous",
 ];
-const seedExpenses = [
-  {
-    key: "1",
-    title: "Cafeteria Lunch Combo",
-    category: "Food",
-    amount: 12.5,
-    date: "2026-07-30",
-    paymentMethod: "Card",
-    description: "Lunch between lab sessions",
-    location: "Main Cafeteria",
-    status: "Approved",
-    receipt: "Available",
-  },
-  {
-    key: "2",
-    title: "Project Printing",
-    category: "Printing",
-    amount: 8.25,
-    date: "2026-07-29",
-    paymentMethod: "Cash",
-    description: "Capstone draft print",
-    location: "Campus Print Hub",
-    status: "Logged",
-    receipt: "Uploaded",
-  },
-  {
-    key: "3",
-    title: "Hostel Laundry",
-    category: "Hostel",
-    amount: 15,
-    date: "2026-07-28",
-    paymentMethod: "Wallet",
-    description: "Weekly laundry cycle",
-    location: "Hostel Block B",
-    status: "Approved",
-    receipt: "N/A",
-  },
-  {
-    key: "4",
-    title: "Ride to Internship Fair",
-    category: "Transport",
-    amount: 19.75,
-    date: "2026-07-26",
-    paymentMethod: "Wallet",
-    description: "Shared cab fare",
-    location: "City Expo Center",
-    status: "Approved",
-    receipt: "Uploaded",
-  },
-];
 function getInitialExpenses() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : seedExpenses;
+    return stored ? JSON.parse(stored) : [];
   } catch {
-    return seedExpenses;
+    return [];
   }
 }
 function ChartCard({ title, items, formatValue, budget }) {

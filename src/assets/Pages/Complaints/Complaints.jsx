@@ -36,8 +36,6 @@ import { guidanceItems } from "./guidelines";
 import { isApiConfigured, request } from "../../../api/client";
 
 const { Title, Paragraph, Text } = Typography;
-const STORAGE_KEY = "slms-complaints";
-
 const categories = [
   "Academic",
   "Hostel",
@@ -48,34 +46,14 @@ const categories = [
   "Medical",
   "Other",
 ];
-const initialComplaints = [];
-function getInitialComplaints() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : initialComplaints;
-  } catch {
-    return initialComplaints;
-  }
-}
+const EMPTY_COMPLAINTS = [];
 
 function Complaints({ complaints: complaintsProp, onComplaintsChange, loading = false }) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
-  const [fallbackComplaints, setFallbackComplaints] =
-    useState(getInitialComplaints);
   const complaints = Array.isArray(complaintsProp)
     ? complaintsProp
-    : fallbackComplaints;
-  const setComplaints = (nextValue) => {
-    if (onComplaintsChange) {
-      onComplaintsChange(nextValue);
-      return;
-    }
-
-    setFallbackComplaints((current) =>
-      typeof nextValue === "function" ? nextValue(current) : nextValue,
-    );
-  };
+    : EMPTY_COMPLAINTS;
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("All");
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +63,7 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange, loading = 
     setTableLoading(true);
     try {
       const result = await request("/complaints");
-      setComplaints(result.complaints || []);
+      onComplaintsChange?.(result.complaints || []);
     } finally {
       setTableLoading(false);
     }
@@ -105,36 +83,21 @@ function Complaints({ complaints: complaintsProp, onComplaintsChange, loading = 
   const submitComplaint = async (values) => {
     setSubmitting(true);
     try {
-    if (isApiConfigured) {
-      try {
-        await request("/complaints", {
-          method: "POST",
-          body: values,
-        });
-        await refreshComplaints();
-        form.resetFields();
-        messageApi.success("Complaint submitted successfully.");
-        return;
-      } catch (error) {
-        messageApi.error(error.message || "Unable to submit complaint.");
-        return;
-      }
+    if (!isApiConfigured) {
+      messageApi.error("Complaint service is unavailable.");
+      return;
     }
-    const record = {
-      key: `${Date.now()}`,
-      title: values.title,
-      category: values.category,
-      priority: values.priority,
-      description: values.description,
-      department: `${values.category} Department`,
-      status: "Submitted",
-      resolution: "Complaint logged and assigned for review.",
-      date: "2026-07-30",
-    };
-
-    setComplaints((current) => [record, ...current]);
-    form.resetFields();
-    messageApi.success("Complaint submitted successfully.");
+    try {
+      await request("/complaints", {
+        method: "POST",
+        body: values,
+      });
+      await refreshComplaints();
+      form.resetFields();
+      messageApi.success("Complaint submitted successfully.");
+    } catch (error) {
+      messageApi.error(error.message || "Unable to submit complaint.");
+    }
     } finally {
       setSubmitting(false);
     }

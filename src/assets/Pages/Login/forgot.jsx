@@ -148,7 +148,7 @@ const Forgot = () => {
               <h2>{step === 2 ? "Reset Password" : "Forgot Password?"}</h2>
               <p>
                 {step === 0
-                  ? "Enter your email and we&apos;ll help you securely regain access."
+                  ? "Enter your email to securely recover access to your account."
                   : step === 1
                     ? "Verify your code to continue securely."
                     : "Choose a strong new password for your account."}

@@ -132,10 +132,84 @@ function StudentLayout() {
   const setResourceBusy = useCallback((resource, busy) => {
     setResourceLoading((current) => ({ ...current, [resource]: busy }));
   }, []);
+  const refreshNotifications = useCallback(async () => {
+    setResourceBusy("notifications", true);
+    try {
+      const result = await request("/notifications");
+      setSharedData((current) => ({
+        ...current,
+        settings: {
+          ...current.settings,
+          remoteNotifications: mergeRemoteNotifications(
+            current.settings?.remoteNotifications || [],
+            result.notifications || [],
+          ),
+        },
+      }));
+    } finally {
+      setResourceBusy("notifications", false);
+    }
+  }, [setResourceBusy]);
+  const refreshResource = useCallback(
+    async (resource) => {
+      const paths = {
+        profile: "/students/profile",
+        academic: "/academic",
+        complaints: "/complaints",
+        expenses: "/expenses",
+        hostel: "/hostel",
+        fees: "/fees",
+        reminders: "/reminders",
+        preferences: "/users/me/preferences",
+      };
+      const path = paths[resource];
+      if (!path) return;
+      setResourceBusy(resource, true);
+      try {
+        const result = await request(path);
+        setSharedData((current) => {
+          const next = { ...current };
+          if (resource === "profile") {
+            next.profile = {
+              personalData: result.profile || {},
+              profileData: result.profile || {},
+              contactData: result.profile || {},
+            };
+          } else if (resource === "academic") {
+            next.academic = {
+              ...current.academic,
+              profile: result.profile || {},
+              courses: result.courses || [],
+              assignments: result.assignments || [],
+              exams: result.exams || [],
+              attendance: result.attendance || [],
+            };
+          } else if (resource === "complaints") {
+            next.complaints = result.complaints || [];
+          } else if (resource === "expenses") {
+            next.expenses = result.expenses || [];
+          } else if (resource === "hostel") {
+            next.hostelApplications = result.records || [];
+          } else if (resource === "reminders") {
+            next.settings = { ...current.settings, reminders: result };
+          } else if (resource === "preferences") {
+            next.monthlyBudget = Number(result.preferences?.monthlyBudget || 0);
+            next.budgetHistory = Array.isArray(result.preferences?.budgetHistory)
+              ? result.preferences.budgetHistory
+              : current.budgetHistory;
+          }
+          return next;
+        });
+      } finally {
+        setResourceBusy(resource, false);
+      }
+    },
+    [setResourceBusy],
+  );
 
   useEffect(() => {
     if (isApiConfigured || !user) return;
-    const { profile, academic, ...otherData } = sharedData;
+    const { profile: _profile, academic: _academic, ...otherData } = sharedData;
     studentDataService.save(otherData);
   }, [sharedData, user]);
 
@@ -146,6 +220,9 @@ function StudentLayout() {
   useEffect(() => {
     if (!isApiConfigured || !user) return;
     let cancelled = false;
+    const cleanup = () => {
+      cancelled = true;
+    };
     setSharedData(createDefaultSharedData());
     const resources = ["profile", "academic", "complaints", "expenses", "preferences", "settings", "hostel", "notifications", "reminders"];
     setResourceLoading(Object.fromEntries(resources.map((resource) => [resource, true])));
@@ -256,80 +333,9 @@ function StudentLayout() {
       .finally(() => {
         if (!cancelled) setInitialDataLoading(false);
       });
-    const refreshNotifications = async () => {
-      setResourceBusy("notifications", true);
-      try {
-        const result = await request("/notifications");
-        if (cancelled) return;
-        setSharedData((current) => ({
-          ...current,
-          settings: {
-            ...current.settings,
-            remoteNotifications: mergeRemoteNotifications(
-              current.settings?.remoteNotifications || [],
-              result.notifications || [],
-            ),
-          },
-        }));
-      } finally {
-        if (!cancelled) setResourceBusy("notifications", false);
-      }
-    };
-    const refreshResource = async (resource) => {
-      const paths = {
-        profile: "/students/profile",
-        academic: "/academic",
-        complaints: "/complaints",
-        expenses: "/expenses",
-        hostel: "/hostel",
-        fees: "/fees",
-        reminders: "/reminders",
-        preferences: "/users/me/preferences",
-      };
-      const path = paths[resource];
-      if (!path) return;
-      setResourceBusy(resource, true);
-      try {
-        const result = await request(path);
-        if (cancelled) return;
-        setSharedData((current) => {
-        const next = { ...current };
-        if (resource === "profile") {
-          next.profile = {
-            personalData: result.profile || {},
-            profileData: result.profile || {},
-            contactData: result.profile || {},
-          };
-        } else if (resource === "academic") {
-          next.academic = {
-            ...current.academic,
-            profile: result.profile || {},
-            courses: result.courses || [],
-            assignments: result.assignments || [],
-            exams: result.exams || [],
-            attendance: result.attendance || [],
-          };
-        } else if (resource === "complaints") {
-          next.complaints = result.complaints || [];
-        } else if (resource === "expenses") {
-          next.expenses = result.expenses || [];
-        } else if (resource === "hostel") {
-          next.hostelApplications = result.records || [];
-        } else if (resource === "reminders") {
-          next.settings = { ...current.settings, reminders: result };
-        } else if (resource === "preferences") {
-          next.monthlyBudget = Number(result.preferences?.monthlyBudget || 0);
-          next.budgetHistory = Array.isArray(result.preferences?.budgetHistory)
-            ? result.preferences.budgetHistory
-            : current.budgetHistory;
-        }
-          return next;
-        });
-      } finally {
-        if (!cancelled) setResourceBusy(resource, false);
-      }
-    };
-  }, [user]);
+
+    return cleanup;
+  }, [refreshResource, setResourceBusy, user]);
 
   useEffect(() => {
     if (!isApiConfigured || !user) {
@@ -402,7 +408,7 @@ function StudentLayout() {
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [setResourceBusy, user]);
+  }, [refreshNotifications, refreshResource, setResourceBusy, user]);
 
   useEffect(() => {
     const syncFromAnotherTab = (event) => {

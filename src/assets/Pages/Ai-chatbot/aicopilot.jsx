@@ -38,6 +38,28 @@ const currency = (value) =>
     style: "currency",
     currency: "USD",
   }).format(Number(value) || 0);
+const normalizeMessages = (items) =>
+  (Array.isArray(items) ? items : []).map((item) => ({
+    id: String(item._id ?? item.id ?? createId("message")),
+    role: item.role,
+    content: item.content,
+    createdAt: item.createdAt || new Date().toISOString(),
+  }));
+const normalizeConversation = (conversation) => ({
+  ...conversation,
+  _id: String(conversation._id),
+  messages: normalizeMessages(conversation.messages),
+});
+const completedExchangeCount = (items) => {
+  let count = 0;
+  for (let index = 0; index < (items || []).length - 1; index += 1) {
+    if (items[index].role === "user" && items[index + 1].role === "assistant") {
+      count += 1;
+      index += 1;
+    }
+  }
+  return count;
+};
 
 function buildResponse(prompt, data) {
   const text = prompt.toLowerCase();
@@ -136,18 +158,30 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   }, [onMessagesChange]);
   const [draft, setDraft] = useState("");
   const [typing, setTyping] = useState(false);
-  const [conversationId, setConversationId] = useState(null);
+  const offlineConversationRef = useRef({
+    _id: createId("conversation"),
+    title: "New conversation",
+    messages: [],
+  });
+  const [conversationId, setConversationId] = useState(
+    () => (isApiConfigured ? null : offlineConversationRef.current._id),
+  );
+  const [conversations, setConversations] = useState(() =>
+    isApiConfigured ? [] : [offlineConversationRef.current],
+  );
   const [conversationReady, setConversationReady] = useState(!isApiConfigured);
   const [conversationLoading, setConversationLoading] = useState(isApiConfigured);
   const [historyActionLoading, setHistoryActionLoading] = useState(false);
   const operationRef = useRef(0);
-  const normalizeMessages = (items) =>
-    (Array.isArray(items) ? items : []).map((item) => ({
-      id: String(item._id ?? item.id ?? createId("message")),
-      role: item.role,
-      content: item.content,
-      createdAt: item.createdAt || new Date().toISOString(),
-    }));
+  const setActiveConversation = useCallback((conversation) => {
+    const normalized = normalizeConversation(conversation);
+    setConversationId(normalized._id);
+    setMessages(normalized.messages);
+    setConversations((current) => [
+      normalized,
+      ...current.filter((item) => String(item._id) !== normalized._id),
+    ]);
+  }, [setMessages]);
 
   useEffect(() => {
     if (!isApiConfigured) return undefined;
@@ -155,16 +189,22 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     const loadConversation = async () => {
       const operation = operationRef.current;
       const result = await request("/ai/conversations");
-      const existing = result.conversations?.[0];
-      const conversation = existing
-        ? (await request(`/ai/conversations/${existing._id}`)).conversation
-        : (await request("/ai/conversations", {
+      let conversation = result.conversations?.[0];
+      if (!conversation) {
+        conversation = (await request("/ai/conversations", {
             method: "POST",
             body: { title: "New conversation" },
           })).conversation;
+      } else {
+        conversation = (
+          await request(`/ai/conversations/${conversation._id}`)
+        ).conversation;
+      }
       if (cancelled || operation !== operationRef.current) return;
-      setConversationId(conversation._id);
-      setMessages(normalizeMessages(conversation.messages));
+      setConversations(
+        (result.conversations || []).map(normalizeConversation),
+      );
+      setActiveConversation(conversation);
       setConversationReady(true);
     };
     loadConversation().catch((error) => {
@@ -178,34 +218,75 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     return () => {
       cancelled = true;
     };
-  }, [setMessages]);
-  const recentTitle = useMemo(
-    () =>
-      messages
-        .filter((item) => item.role === "user")
-        .at(-1)
-        ?.content?.slice(0, 40) || "New conversation",
-    [messages],
-  );
+  }, [setActiveConversation]);
   const recentChats = useMemo(() => {
-    const userMessages = messages.filter((item) => item.role === "user");
-    return userMessages.length
-      ? userMessages
-          .slice(-3)
-          .reverse()
-          .map((item) => ({
-            id: item.id,
-            title: item.content.slice(0, 40),
-            preview: "Recent conversation",
-          }))
-      : [
-          {
-            id: "live",
-            title: recentTitle,
-            preview: `${messages.length} saved message${messages.length === 1 ? "" : "s"}`,
-          },
-        ];
-  }, [messages, recentTitle]);
+    return conversations.map((conversation) => {
+      const firstUserMessage = conversation.messages?.find(
+        (item) => item.role === "user",
+      );
+      return {
+        id: String(conversation._id),
+        title:
+          (conversation.title &&
+            conversation.title !== "New conversation" &&
+            conversation.title) ||
+          firstUserMessage?.content?.slice(0, 40) ||
+          "New conversation",
+        preview: `${completedExchangeCount(conversation.messages)} saved message${
+          completedExchangeCount(conversation.messages) === 1 ? "" : "s"
+        }`,
+      };
+    });
+  }, [conversations]);
+
+  const openConversation = async (id) => {
+    if (!id || String(id) === String(conversationId) || typing) return;
+    const operation = ++operationRef.current;
+    setHistoryActionLoading(true);
+    try {
+      if (isApiConfigured) {
+        const result = await request(`/ai/conversations/${id}`);
+        if (operation !== operationRef.current) return;
+        setActiveConversation(result.conversation);
+      } else {
+        const conversation = conversations.find(
+          (item) => String(item._id) === String(id),
+        );
+        if (conversation) setActiveConversation(conversation);
+      }
+    } catch (error) {
+      console.error("Unable to open AI conversation:", error);
+    } finally {
+      if (operation === operationRef.current) setHistoryActionLoading(false);
+    }
+  };
+
+  const createNewChat = async () => {
+    if (typing) return;
+    const operation = ++operationRef.current;
+    setHistoryActionLoading(true);
+    try {
+      const conversation = isApiConfigured
+        ? (
+            await request("/ai/conversations", {
+              method: "POST",
+              body: { title: "New conversation" },
+            })
+          ).conversation
+        : {
+            _id: createId("conversation"),
+            title: "New conversation",
+            messages: [],
+          };
+      if (operation !== operationRef.current) return;
+      setActiveConversation(conversation);
+      setConversationReady(true);
+    } catch (error) {
+      console.error("Unable to create AI conversation:", error);
+    } finally {
+      if (operation === operationRef.current) setHistoryActionLoading(false);
+    }
+  };
 
   const submitPrompt = async (value) => {
     const content = value.trim();
@@ -236,7 +317,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
         body: { message: content },
       });
       if (operation !== operationRef.current) return;
-      setMessages(normalizeMessages(result.conversation?.messages));
+      setActiveConversation(result.conversation);
       } else {
       await new Promise((resolve) => window.setTimeout(resolve, 350));
       const assistantMessage = {
@@ -247,6 +328,20 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       };
       if (operation === operationRef.current) {
         setMessages((current) => [...current, assistantMessage]);
+        setConversations((current) =>
+          current.map((conversation) =>
+            String(conversation._id) === String(conversationId)
+              ? {
+                  ...conversation,
+                  title:
+                    conversation.title === "New conversation"
+                      ? content.slice(0, 40)
+                      : conversation.title,
+                  messages: [...(conversation.messages || []), userMessage, assistantMessage],
+                }
+              : conversation,
+          ),
+        );
       }
       }
     } catch (error) {
@@ -299,7 +394,14 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     ++operationRef.current;
     setTyping(false);
     if (!isApiConfigured) {
+      const conversation = {
+        _id: createId("conversation"),
+        title: "New conversation",
+        messages: [],
+      };
       setMessages([]);
+      setConversationId(conversation._id);
+      setConversations([conversation]);
       return;
     }
     try {
@@ -307,6 +409,8 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       await request("/ai/history", { method: "DELETE" });
       setMessages([]);
       setConversationId(null);
+      setConversations([]);
+      await createNewChat();
     } catch (error) {
       console.error("Unable to clear AI conversation history:", error);
       throw error;
@@ -379,7 +483,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                 icon={<DeleteOutlined />}
                 onClick={confirmClearChat}
                 loading={historyActionLoading}
-                disabled={conversationLoading || (!messages.length && !typing)}
+                disabled={conversationLoading || (!conversations.length && !typing)}
                 aria-label="Clear chat"
               >
                 Clear
@@ -389,7 +493,14 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
               rowKey="id"
               dataSource={recentChats}
               renderItem={(item) => (
-                <List.Item className="copilot-recent-item">
+                <List.Item
+                  className={`copilot-recent-item ${
+                    String(item.id) === String(conversationId)
+                      ? "is-active"
+                      : ""
+                  }`}
+                  onClick={() => openConversation(item.id)}
+                >
                   <List.Item.Meta
                     avatar={
                       <Avatar
@@ -403,6 +514,15 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                 </List.Item>
               )}
             />
+            <Button
+              type="primary"
+              block
+              onClick={createNewChat}
+              loading={historyActionLoading}
+              disabled={conversationLoading || typing}
+            >
+              New Chat
+            </Button>
             <Card className="copilot-panel" title="Suggested Prompts">
               <div className="copilot-chip-group">
                 {suggestedPrompts.map((prompt) => (
