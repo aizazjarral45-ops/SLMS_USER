@@ -32,7 +32,10 @@ import "./Setting.css";
 import LoadingState from "../../../components/LoadingState";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
-import { deleteAccount as deleteAccountService } from "../../../services/authService";
+import {
+  requestAccountDeletionOtp,
+  verifyAccountDeletionOtp,
+} from "../../../services/authService";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -117,8 +120,9 @@ function Settings({
   const [modalOpen, setModalOpen] = useState(false);
   const { logout, user } = useAuth();
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteStep, setDeleteStep] = useState("password");
   const [deletePassword, setDeletePassword] = useState("");
-  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deleteOtp, setDeleteOtp] = useState("");
   const [processingDelete, setProcessingDelete] = useState(false);
   const [pendingAction, setPendingAction] = useState("");
 
@@ -246,28 +250,64 @@ function Settings({
     });
   };
 
-  const handleDeleteAccount = async () => {
-    if (!user?.email) return;
-    if (!deletePassword.trim()) {
-      messageApi.error("Enter your account password to confirm deletion.");
+  const resetDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setDeleteStep("password");
+    setDeletePassword("");
+    setDeleteOtp("");
+  };
+
+  const requestDeleteOtp = async () => {
+    if (!deletePassword) {
+      messageApi.error("Enter your current account password.");
       return;
     }
 
     setProcessingDelete(true);
     try {
-      await deleteAccountService({ password: deletePassword });
-      messageApi.success("Account deleted permanently.");
-      await logout();
-      navigate("/login", { replace: true });
+      await requestAccountDeletionOtp(user.email, deletePassword);
+      setDeletePassword("");
+      setDeleteStep("otp");
+      messageApi.success("A verification code was sent to your registered email.");
     } catch (e) {
-      messageApi.error(
-        e?.message || "Incorrect password. Account was not deleted.",
-      );
+      messageApi.error(e?.message || "Unable to send the verification code.");
     } finally {
       setProcessingDelete(false);
-      setDeleteModalOpen(false);
-      setDeletePassword("");
-      setShowDeletePassword(false);
+    }
+  };
+
+  const resendDeleteOtp = async () => {
+    setProcessingDelete(true);
+    try {
+      await requestAccountDeletionOtp(user.email);
+      messageApi.success("A new verification code was sent.");
+    } catch (e) {
+      messageApi.error(e?.message || "Unable to resend the verification code.");
+    } finally {
+      setProcessingDelete(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.email || !/^\d{6}$/.test(deleteOtp.trim())) {
+      messageApi.error("Enter the six-digit verification code.");
+      return;
+    }
+
+    setProcessingDelete(true);
+    try {
+      await verifyAccountDeletionOtp({
+        email: user.email,
+        otp: deleteOtp,
+      });
+      messageApi.success("Account deleted permanently.");
+      await logout({ remote: false });
+      navigate("/login", { replace: true });
+    } catch (e) {
+      messageApi.error(e?.message || "Unable to delete the account.");
+    } finally {
+      setProcessingDelete(false);
+      resetDeleteModal();
     }
   };
 
@@ -481,28 +521,48 @@ function Settings({
           <Modal
             title="Delete account — permanent"
             open={deleteModalOpen}
-            onCancel={() => {
-              setDeleteModalOpen(false);
-              setDeletePassword("");
-              setShowDeletePassword(false);
-            }}
-            onOk={handleDeleteAccount}
+            onCancel={resetDeleteModal}
+            onOk={deleteStep === "password" ? requestDeleteOtp : handleDeleteAccount}
             okButtonProps={{ danger: true, loading: processingDelete }}
-            okText="Delete account"
+            okText={deleteStep === "password" ? "Continue" : "Verify & Delete Account"}
           >
-            <p style={{ color: "#a00", fontWeight: 600 }}>
-              This action is permanent and cannot be undone.
-            </p>
-            <p>Enter your account password to confirm deletion.</p>
-            <Input.Password
-              value={deletePassword}
-              onChange={(e) => setDeletePassword(e.target.value)}
-              placeholder="Enter your account password to confirm deletion."
-              visibilityToggle={{
-                visible: showDeletePassword,
-                onVisibleChange: setShowDeletePassword,
-              }}
-            />
+            {deleteStep === "password" ? (
+              <>
+                <p>
+                  Enter your current account password to continue with account deletion.
+                </p>
+                <Input.Password
+                  value={deletePassword}
+                  onChange={(event) => setDeletePassword(event.target.value)}
+                  placeholder="Current account password"
+                  autoComplete="current-password"
+                />
+              </>
+            ) : (
+              <>
+                <p>
+                  A verification code has been sent to your registered email address.
+                </p>
+                <Input
+                  value={deleteOtp}
+                  onChange={(event) =>
+                    setDeleteOtp(event.target.value.replace(/\D/g, "").slice(0, 6))
+                  }
+                  placeholder="Enter 6-digit OTP"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoComplete="one-time-code"
+                />
+                <Button
+                  type="link"
+                  onClick={resendDeleteOtp}
+                  loading={processingDelete}
+                  style={{ paddingLeft: 0 }}
+                >
+                  Resend Code
+                </Button>
+              </>
+            )}
           </Modal>
         </Card>
       ),

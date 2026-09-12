@@ -86,7 +86,7 @@ export const request = async (path, options = {}) => {
           ? options.body
           : JSON.stringify(options.body),
     });
-  } catch (e) {
+  } catch {
     throw new ApiError("Unable to reach the API. Please try again.");
   }
 

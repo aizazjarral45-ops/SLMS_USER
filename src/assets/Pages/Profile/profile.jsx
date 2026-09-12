@@ -45,6 +45,7 @@ function Profile({
   onProfileChange,
   onResetProfile,
   loading: dataLoading = false,
+  onProfileCompletionChange,
 }) {
   const [fallbackProfile, setFallbackProfile] = useState(emptyProfile);
   const profile = profileProp || fallbackProfile;
@@ -101,6 +102,7 @@ function Profile({
         ...current,
         ...profileSections(result.profile || nextProfile),
       }));
+      await onProfileCompletionChange?.();
     } else updateSection("personalData", values);
     setPersonalVisible(false);
     messageApi.success("Personal information updated.");
@@ -121,6 +123,7 @@ function Profile({
         ...current,
         ...profileSections(result.profile || nextContact),
       }));
+      await onProfileCompletionChange?.();
     } else updateSection("contactData", values);
     setContactVisible(false);
     messageApi.success("Contact information updated.");
@@ -141,6 +144,7 @@ function Profile({
         ...current,
         ...profileSections(result.profile || nextProfile),
       }));
+      await onProfileCompletionChange?.();
     } else updateSection("profileData", values);
     setProfileVisible(false);
     messageApi.success("Profile details updated.");

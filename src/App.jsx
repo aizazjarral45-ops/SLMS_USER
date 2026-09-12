@@ -5,11 +5,12 @@ import {
   ConfigProvider,
   Drawer,
   Layout,
+  Modal,
   Result,
   Spin,
   theme as antdTheme,
 } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
+import { CloseOutlined, UserOutlined } from "@ant-design/icons";
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import {
@@ -35,6 +36,7 @@ import Login from "./assets/Pages/Login/login";
 import Forgot from "./assets/Pages/Login/forgot";
 import ProtectedRoute from "./assets/Pages/Login/protectedRoute";
 import Signup from "./assets/Pages/Sign Up/signup";
+import VerifyEmail from "./assets/Pages/Sign Up/VerifyEmail";
 import ChangePassword from "./assets/Pages/Setting/ChangePassword";
 import LoginHistory from "./assets/Pages/Setting/LoginHistory";
 import { useAuth } from "./hooks/useAuth";
@@ -58,6 +60,17 @@ const notificationRouteByModule = {
   assignment: "/academic",
   academic: "/academic",
   attendance: "/academic",
+};
+
+const notificationSettingKey = (notification) => {
+  const module = String(notification?.module || "").toLowerCase();
+  const type = String(notification?.type || "").toLowerCase();
+  if (["expense", "expenses"].includes(module) || type === "expense") return "expense";
+  if (["complaint", "complaints"].includes(module) || type === "complaint") return "complaints";
+  if (["hostel", "application", "applications"].includes(module) || type === "hostel") return "hostel";
+  if (["assignment", "quiz", "exam", "attendance", "reminder", "ai"].includes(module)) return module;
+  if (["assignment", "quiz", "exam", "attendance", "reminder", "ai"].includes(type)) return type;
+  return null;
 };
 
 const normalizeRemoteNotification = (notification) => {
@@ -112,6 +125,7 @@ function PublicRoute({ children }) {
 
 function StudentLayout() {
   const { logout, user } = useAuth();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(
     () => window.innerWidth < MOBILE_BREAKPOINT,
@@ -129,6 +143,11 @@ function StudentLayout() {
   });
   const [resourceLoading, setResourceLoading] = useState({});
   const [initialDataLoading, setInitialDataLoading] = useState(isApiConfigured);
+  const [profileCompletion, setProfileCompletion] = useState({
+    status: isApiConfigured ? "loading" : "unknown",
+    completed: false,
+  });
+  const [profileCompletionOpen, setProfileCompletionOpen] = useState(false);
   const setResourceBusy = useCallback((resource, busy) => {
     setResourceLoading((current) => ({ ...current, [resource]: busy }));
   }, []);
@@ -150,6 +169,29 @@ function StudentLayout() {
       setResourceBusy("notifications", false);
     }
   }, [setResourceBusy]);
+
+  const refreshProfileCompletion = useCallback(async () => {
+    const result = await request("/students/profile", {
+      cache: "no-store",
+      headers: { "Cache-Control": "no-cache" },
+    });
+    if (!result || typeof result !== "object") {
+      throw new Error("The profile response was empty.");
+    }
+    const profile = result?.profile || {};
+    const completed = result?.profileCompleted === true;
+    setSharedData((current) => ({
+      ...current,
+      profile: {
+        personalData: profile,
+        profileData: profile,
+        contactData: profile,
+      },
+    }));
+    setProfileCompletion({ status: "loaded", completed });
+    setProfileCompletionOpen(!completed);
+    return completed;
+  }, []);
   const refreshResource = useCallback(
     async (resource) => {
       const paths = {
@@ -166,14 +208,19 @@ function StudentLayout() {
       if (!path) return;
       setResourceBusy(resource, true);
       try {
-        const result = await request(path);
+        const result = await request(
+          path,
+          resource === "profile"
+            ? { cache: "no-store", headers: { "Cache-Control": "no-cache" } }
+            : undefined,
+        );
         setSharedData((current) => {
           const next = { ...current };
           if (resource === "profile") {
             next.profile = {
-              personalData: result.profile || {},
-              profileData: result.profile || {},
-              contactData: result.profile || {},
+              personalData: result?.profile || {},
+              profileData: result?.profile || {},
+              contactData: result?.profile || {},
             };
           } else if (resource === "academic") {
             next.academic = {
@@ -243,7 +290,13 @@ function StudentLayout() {
         remindersResult,
       ] =
         await Promise.allSettled([
-          trackResource("profile", request("/students/profile")),
+          trackResource(
+            "profile",
+            request("/students/profile", {
+              cache: "no-store",
+              headers: { "Cache-Control": "no-cache" },
+            }),
+          ),
           trackResource("academic", request("/academic")),
           trackResource("complaints", request("/complaints")),
           trackResource("expenses", request("/expenses")),
@@ -260,9 +313,9 @@ function StudentLayout() {
         profile:
           profileResult.status === "fulfilled"
             ? {
-                personalData: profileResult.value.profile || {},
-                profileData: profileResult.value.profile || {},
-                contactData: profileResult.value.profile || {},
+                personalData: profileResult.value?.profile || {},
+                profileData: profileResult.value?.profile || {},
+                contactData: profileResult.value?.profile || {},
               }
             : current.profile,
         academic:
@@ -327,6 +380,20 @@ function StudentLayout() {
               }
             : current.settings,
       }));
+      if (
+        profileResult.status === "fulfilled" &&
+        profileResult.value &&
+        typeof profileResult.value === "object"
+      ) {
+        setProfileCompletion({
+          status: "loaded",
+          completed: profileResult.value?.profileCompleted === true,
+        });
+        setProfileCompletionOpen(profileResult.value?.profileCompleted !== true);
+      } else {
+        setProfileCompletion({ status: "error", completed: false });
+        setProfileCompletionOpen(false);
+      }
     };
     loadRemoteData()
       .catch(() => {})
@@ -341,7 +408,6 @@ function StudentLayout() {
     if (!isApiConfigured || !user) {
       setInitialDataLoading(false);
     }
-    let cancelled = false;
     const socket = connectSocket();
     if (!socket) return undefined;
     const upsertNotification = (incoming) => {
@@ -396,6 +462,9 @@ function StudentLayout() {
       );
       if (resource === "notifications") return;
       refreshResource(resource).catch(() => {});
+      if (resource === "expenses" || resource === "preferences") {
+        refreshNotifications().catch(() => {});
+      }
     };
     socket.on("notification:created", upsertNotification);
     socket.on("notification:updated", handleNotificationUpdated);
@@ -404,7 +473,6 @@ function StudentLayout() {
     socket.on("data:changed", handleDataChanged);
     socket.on("connect", () => refreshNotifications().catch(() => {}));
     return () => {
-      cancelled = true;
       socket.removeAllListeners();
       socket.disconnect();
     };
@@ -486,6 +554,8 @@ function StudentLayout() {
           rollNo: "",
         },
       });
+      setProfileCompletion({ status: "loaded", completed: false });
+      setProfileCompletionOpen(false);
     }
     updateSection("profile", {
       personalData: {},
@@ -495,10 +565,16 @@ function StudentLayout() {
   }, [updateSection]);
 
   const notifications = useMemo(
-    () =>
-      isApiConfigured
+    () => {
+      const items = isApiConfigured
         ? sharedData.settings?.remoteNotifications || []
-        : getNotifications(sharedData),
+        : getNotifications(sharedData);
+      const settings = sharedData.settings?.notifications || {};
+      return items.filter((item) => {
+        const key = notificationSettingKey(item);
+        return !key || settings[key] !== false;
+      });
+    },
     [sharedData],
   );
   const unreadNotificationCount = notifications.filter(
@@ -691,6 +767,50 @@ function StudentLayout() {
             </Sider>
           ) : null}
           <Content className="app-content">
+            <Modal
+              className="profile-completion-modal"
+              open={
+                profileCompletion.status === "loaded" &&
+                !profileCompletion.completed &&
+                profileCompletionOpen
+              }
+              centered
+              title={
+                <span className="profile-completion-title">
+                  <UserOutlined />
+                  Complete Your Profile
+                </span>
+              }
+              width="min(560px, calc(100vw - 24px))"
+              footer={[
+                <Button
+                  key="cancel"
+                  onClick={() => setProfileCompletionOpen(false)}
+                >
+                  Cancel
+                </Button>,
+                <Button
+                  key="open-profile"
+                  type="primary"
+                  onClick={() => {
+                    setProfileCompletionOpen(false);
+                    navigate("/profile");
+                  }}
+                >
+                  Open Profile
+                </Button>,
+              ]}
+              onCancel={() => setProfileCompletionOpen(false)}
+            >
+              <div className="profile-completion-content">
+                <div className="profile-completion-icon" aria-hidden="true">
+                  <UserOutlined />
+                </div>
+                <p className="profile-completion-message">
+                  Please complete your profile to get the best experience.
+                </p>
+              </div>
+            </Modal>
             <Outlet
               context={{
                 sharedData,
@@ -704,6 +824,7 @@ function StudentLayout() {
                 deleteNotifications,
                 deletingNotificationIds,
                 resourceLoading,
+                onProfileCompletionChange: refreshProfileCompletion,
               }}
             />
           </Content>
@@ -777,13 +898,20 @@ function CopilotPage() {
 }
 
 function ProfilePage() {
-  const { sharedData, updateSection, resetProfile, resourceLoading } = useStudentData();
+  const {
+    sharedData,
+    updateSection,
+    resetProfile,
+    resourceLoading,
+    onProfileCompletionChange,
+  } = useStudentData();
   return (
     <Profile
       profile={sharedData.profile}
       onProfileChange={(nextValue) => updateSection("profile", nextValue)}
       onResetProfile={resetProfile}
       loading={resourceLoading?.profile}
+      onProfileCompletionChange={onProfileCompletionChange}
     />
   );
 }
@@ -948,6 +1076,14 @@ function App() {
         element={
           <PublicRoute>
             <Forgot />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/verify-email"
+        element={
+          <PublicRoute>
+            <VerifyEmail />
           </PublicRoute>
         }
       />

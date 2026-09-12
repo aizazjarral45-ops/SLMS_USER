@@ -77,7 +77,7 @@ function getDashboardSnapshot(data) {
   const academicWorkspace =
     data?.academic ||
     readStoredJSON(ACADEMIC_STORAGE_KEY, {
-      profile: { cgpa: 3.62 },
+      profile: {},
       assignments: [],
       exams: [],
       attendance: [],

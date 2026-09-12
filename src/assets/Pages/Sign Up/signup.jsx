@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button, Form, Input, message } from "antd";
 import { LockOutlined, MailOutlined, UserOutlined } from "@ant-design/icons";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../../hooks/useAuth";
+import { startEmailVerification } from "../../../services/authService";
 
 import "./signup.css";
 import "../Login/forgot.css";
@@ -11,8 +11,6 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
   const navigate = useNavigate();
-  const { register } = useAuth();
-
   const validatePasswordMatch = (_, value) => {
     const password = form.getFieldValue("password");
     return value && password && value !== password
@@ -23,13 +21,22 @@ const Signup = () => {
   const onFinish = async ({ name, email, password }) => {
     setLoading(true);
     try {
-      await register({ name, email, password, rememberMe: true });
-
-      message.success("Your account has been created.");
-      try {
-        sessionStorage.setItem("signupEmail", (email || "").toLowerCase());
-      } catch {}
-      navigate("/login", { replace: true });
+      const result = await startEmailVerification({ name, email, password });
+      sessionStorage.setItem(
+        "slms_email_verification",
+        JSON.stringify({
+          verificationId: result?.verificationId,
+          email: (email || "").trim().toLowerCase(),
+        }),
+      );
+      message.success("A verification code was sent to your email.");
+      navigate("/verify-email", {
+        replace: true,
+        state: {
+          verificationId: result?.verificationId,
+          email: (email || "").trim().toLowerCase(),
+        },
+      });
     } catch (error) {
       message.error(
         error.message || "Unable to create the account. Please try again.",

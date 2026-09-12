@@ -41,6 +41,68 @@ body {
   background: #f3f4f6;
 }
 
+.profile-completion-modal .ant-modal-content {
+  border-top: 4px solid #1d4ed8;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  animation: profile-completion-enter 180ms ease-out;
+}
+
+.profile-completion-modal .ant-modal-header {
+  margin-bottom: 0;
+  padding-bottom: 16px;
+}
+
+.profile-completion-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #0f172a;
+  font-size: 18px;
+}
+
+.profile-completion-title .anticon {
+  color: #1d4ed8;
+}
+
+.profile-completion-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0 20px;
+}
+
+.profile-completion-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border-radius: 50%;
+  color: #1d4ed8;
+  background: #dbeafe;
+  font-size: 22px;
+}
+
+.profile-completion-message {
+  margin: 0;
+  color: #475569;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+@keyframes profile-completion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .sidebar-navigation {
   min-height: 100%;
   background: #1e3a8a;
@@ -83,6 +145,18 @@ body {
 @media (max-width: 575px) {
   .app-content {
     padding: 8px;
+  }
+
+  .profile-completion-modal {
+    max-width: calc(100vw - 24px);
+  }
+
+  .profile-completion-content {
+    align-items: flex-start;
+  }
+
+  .profile-completion-message {
+    font-size: 15px;
   }
 }
 

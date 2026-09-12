@@ -116,10 +116,10 @@ export const clearUserDataStorage = () => {
   }
 };
 
-export const logout = async () => {
+export const logout = async ({ remote = true } = {}) => {
   const session = getStoredSession();
   try {
-    if (isApiConfigured && session?.token) {
+    if (remote && isApiConfigured && session?.token) {
       await request("/auth/logout", {
         method: "POST",
         body: { sessionId: session.sessionId },
@@ -162,6 +162,7 @@ export const register = async ({
     role: "student",
     createdAt: new Date().toISOString(),
   };
+
   const passwordHash = await hashPassword(password);
   window.localStorage.setItem(
     USERS_STORAGE_KEY,
@@ -170,6 +171,28 @@ export const register = async ({
 
   return { user };
 };
+
+export const startEmailVerification = async ({ name, email, password }) =>
+  request("/auth/register/start-verification", {
+    method: "POST",
+    body: {
+      name: name.trim(),
+      email: normaliseEmail(email),
+      password,
+    },
+  });
+
+export const verifyEmail = async ({ verificationId, otp }) =>
+  request("/auth/register/verify-email", {
+    method: "POST",
+    body: { verificationId, otp },
+  });
+
+export const resendEmailVerification = async (verificationId) =>
+  request("/auth/register/resend-verification", {
+    method: "POST",
+    body: { verificationId },
+  });
 
 export const login = async ({ email, password, rememberMe = true }) => {
   const cleanEmail = normaliseEmail(email);
@@ -275,6 +298,37 @@ export const resetPassword = async ({ email, code, resetToken, password }) => {
 export const cancelPasswordReset = () =>
   window.sessionStorage.removeItem(RESET_STORAGE_KEY);
 
+export const requestAccountDeletionOtp = async (email, currentPassword) => {
+  const cleanEmail = normaliseEmail(email);
+  if (!cleanEmail || (currentPassword !== undefined && !String(currentPassword))) {
+    throw new Error("Enter your current account password.");
+  }
+  if (!isApiConfigured) {
+    throw new Error("Account deletion is only available when the API is configured.");
+  }
+
+  const body = {};
+  if (currentPassword !== undefined) body.currentPassword = currentPassword;
+  await request("/auth/delete-account/request", {
+    method: "POST",
+    body,
+  });
+  return { email: cleanEmail };
+};
+
+export const verifyAccountDeletionOtp = async ({ email, otp }) => {
+  const cleanEmail = normaliseEmail(email);
+  const code = String(otp || "").trim();
+  if (!cleanEmail || !/^\d{6}$/.test(code)) {
+    throw new Error("Enter the six-digit verification code.");
+  }
+
+  return request("/auth/delete-account/confirm", {
+    method: "POST",
+    body: { otp: code },
+  });
+};
+
 export const getLoginHistory = async () => {
   if (!isApiConfigured) return [];
   const result = await request("/auth/login/history");
@@ -306,70 +360,4 @@ export const changePassword = async ({
   users[idx] = { ...user, passwordHash: newHash };
   window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
   return true;
-};
-
-export const deleteAccount = async ({ email, password }) => {
-  if (isApiConfigured) {
-    await request("/users/me", {
-      method: "DELETE",
-      body: { password },
-    });
-    clearStoredSession();
-    clearUserDataStorage();
-    return true;
-  }
-
-  const cleanEmail = normaliseEmail(email);
-  if (!cleanEmail || !String(password || "").trim()) {
-    throw new Error("Enter your current account password to confirm deletion.");
-  }
-
-  try {
-    const users = readJson(USERS_STORAGE_KEY, []);
-    const index = users.findIndex((u) => u.email === cleanEmail);
-    if (index === -1) {
-      throw new Error("No local account exists for this email.");
-    }
-
-    const user = users[index];
-    const providedHash = await hashPassword(password);
-    if (user.passwordHash !== providedHash) {
-      throw new Error("Incorrect password. Account was not deleted.");
-    }
-
-    const remaining = users.filter((u) => u.email !== cleanEmail);
-    window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(remaining));
-    clearStoredSession();
-
-    const keysToRemove = [
-      "slms-shared-app-data",
-      "slms-academic-workspace",
-      "slms-expenses",
-      "slms-monthly-budgets",
-      "slms-hostel-applications",
-      "slms-complaints",
-      "notifications",
-      "reminders",
-      "aiSettings",
-      "slms-copilot-messages",
-      "personalData",
-      "profileData",
-      "contactData",
-      USERS_STORAGE_KEY,
-      SESSION_STORAGE_KEY,
-      "slms_access_token",
-      RESET_STORAGE_KEY,
-    ];
-    for (const key of keysToRemove) {
-      window.localStorage.removeItem(key);
-      window.sessionStorage.removeItem(key);
-    }
-
-    return true;
-  } catch (error) {
-    if (error instanceof Error) {
-      throw error;
-    }
-    throw new Error("Failed to delete account.");
-  }
 };

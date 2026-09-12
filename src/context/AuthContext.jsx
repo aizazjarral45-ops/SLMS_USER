@@ -42,9 +42,9 @@ export const AuthProvider = ({ children }) => {
         if (result?.token) setSession(result);
         return result;
       },
-      async logout() {
+      async logout(options) {
         try {
-          await logoutWithService();
+          await logoutWithService(options);
         } finally {
           setSession(null);
         }

@@ -153,7 +153,7 @@ function BellIcon({
   const severityClass = (item) => {
     const severity = String(item.severity || item.priority || "").toLowerCase();
     if (severity === "critical" || severity === "error" || severity === "danger") return "critical";
-    if (severity === "warning" || severity === "alert") return "soon";
+    if (severity === "warning" || severity === "alert" || severity === "high") return "soon";
     return item.urgency || "upcoming";
   };
 

@@ -3,11 +3,6 @@
 export const recordId = (record) =>
   String(record?._id ?? record?.id ?? record?.key ?? "");
 
-export const mongoId = (record) =>
-  record?._id === undefined || record?._id === null
-    ? ""
-    : String(record._id);
-
 export const localRecord = (record, prefix) => ({
   ...record,
   id:

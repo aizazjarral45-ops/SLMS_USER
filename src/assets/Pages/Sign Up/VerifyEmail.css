@@ -1,0 +1,13 @@
+.slms-verify-email-card {
+  min-height: 620px;
+}
+
+.slms-verify-email-page .slms-forgot-actions {
+  justify-content: space-between;
+}
+
+@media (max-width: 760px) {
+  .slms-verify-email-card {
+    min-height: 0;
+  }
+}
