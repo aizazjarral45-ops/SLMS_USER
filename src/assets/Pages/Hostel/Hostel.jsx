@@ -150,7 +150,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
   const [editingKey, setEditingKey] = useState(null);
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteError, setRemoteError] = useState("");
-  const [hostelNotifications, setHostelNotifications] = useState([]);
   const [feeForm] = Form.useForm();
   const [fees, setFees] = useState([]);
   const [editingFeeId, setEditingFeeId] = useState(null);
@@ -231,18 +230,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
         if (showLoading && !cancelled) setRemoteLoading(false);
       }
     };
-    const loadNotifications = async () => {
-      try {
-        const result = await request("/notifications");
-        const notifications = (result?.notifications || []).filter(
-          (notification) =>
-            notification.type === "hostel" || notification.module === "hostel",
-        );
-        if (!cancelled) setHostelNotifications(notifications.slice(0, 3));
-      } catch {
-        if (!cancelled) setHostelNotifications([]);
-      }
-    };
     const loadFees = async () => {
       setFeesLoading(true);
       try {
@@ -264,11 +251,9 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
       const resource = event.detail?.resource;
       if (resource === "hostel") loadMyApplication(false);
       if (resource === "fees") loadFees();
-      if (resource === "notifications") loadNotifications();
     };
     window.addEventListener("slms:data-changed", handleRealtimeChange);
     loadMyApplication();
-    loadNotifications();
     loadFees();
     return () => {
       cancelled = true;
@@ -632,13 +617,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
   return (
     <div className="hostel-page">
       {contextHolder}
-      {isApiConfigured && remoteLoading ? (
-        <Alert
-          showIcon
-          type="info"
-          message="Loading your hostel application..."
-        />
-      ) : null}
       {remoteError ? (
         <Alert
           showIcon
@@ -647,36 +625,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
           description={remoteError}
         />
       ) : null}
-      {hostelNotifications.length ? (
-        <Card
-          className="hostel-panel hostel-status-card"
-          title={
-            <Space>
-              <SafetyCertificateOutlined /> Hostel notifications
-            </Space>
-          }
-        >
-          <Space
-            direction="vertical"
-            size={8}
-            className="hostel-notification-list"
-          >
-            {hostelNotifications.map((notification) => (
-              <div key={notification._id || notification.id}>
-                <Text strong>
-                  {formatDisplayValue(notification.title, "Hostel update")}
-                </Text>
-                <div>
-                  <Text type="secondary">
-                    {formatDisplayValue(notification.message)}
-                  </Text>
-                </div>
-              </div>
-            ))}
-          </Space>
-        </Card>
-      ) : null}
-
       <section className="hostel-hero">
         <div className="hostel-hero-copy">
           <Tag icon={<HomeOutlined />} className="hostel-eyebrow">

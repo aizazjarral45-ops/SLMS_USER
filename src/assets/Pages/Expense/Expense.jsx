@@ -104,6 +104,7 @@ function Expense({
   monthlyBudget: monthlyBudgetProp,
   onExpensesChange,
   onMonthlyBudgetChange,
+  onExpenseMutation,
   loading = false,
 }) {
   const [form] = Form.useForm();
@@ -187,6 +188,9 @@ function Expense({
   const weeklySpent = expenses
     .filter((item) => dayjs(item.date).isAfter(today.subtract(7, "day")))
     .reduce((sum, item) => sum + Number(item.amount), 0);
+  const monthlySpent = expenses
+    .filter((item) => dayjs(item.date).isSame(today, "month"))
+    .reduce((sum, item) => sum + Number(item.amount), 0);
   const remainingBudget = Math.max(monthlyBudget - totalSpent, 0);
   const highestExpense = expenses.reduce((largest, item) => {
     return Number(item.amount) > Number(largest.amount || 0) ? item : largest;
@@ -215,7 +219,8 @@ function Expense({
   const weeklyComparison = [
     { label: "Today", value: Number(todaySpent.toFixed(2)) },
     { label: "This Week", value: Number(weeklySpent.toFixed(2)) },
-    { label: "This Month", value: Number(weeklySpent.toFixed(2)) },
+    { label: "This Month", value: Number(monthlySpent.toFixed(2)) },
+    { label: "Overall Expense", value: Number(totalSpent.toFixed(2)) },
   ];
   const financialInsights = [
     monthlyBudget
@@ -247,6 +252,10 @@ function Expense({
           },
         );
         await refreshExpenses();
+        const notificationRefresh = onExpenseMutation?.();
+        notificationRefresh?.catch((error) => {
+          console.error("Unable to refresh notifications after expense change:", error);
+        });
         setOpen(false);
         setEditingExpense(null);
         form.resetFields();
@@ -487,7 +496,7 @@ function Expense({
             },
             {
               title: "Monthly Expense",
-              value: totalSpent,
+              value: monthlySpent,
               icon: (
                 <BarChartOutlined
                   style={{ fontSize: "24px", color: "#faad14" }}

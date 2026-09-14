@@ -815,6 +815,7 @@ function StudentLayout() {
               context={{
                 sharedData,
                 notifications,
+                refreshNotifications,
                 updateSection,
                 updateMonthlyBudget,
                 resetProfile,
@@ -917,13 +918,20 @@ function ProfilePage() {
 }
 
 function ExpensePage() {
-  const { sharedData, updateSection, updateMonthlyBudget, resourceLoading } = useStudentData();
+  const {
+    sharedData,
+    updateSection,
+    updateMonthlyBudget,
+    refreshNotifications,
+    resourceLoading,
+  } = useStudentData();
   return (
     <Expense
       expenses={sharedData.expenses}
       monthlyBudget={sharedData.monthlyBudget}
       onExpensesChange={(nextValue) => updateSection("expenses", nextValue)}
       onMonthlyBudgetChange={updateMonthlyBudget}
+      onExpenseMutation={refreshNotifications}
       loading={resourceLoading?.expenses || resourceLoading?.preferences}
     />
   );

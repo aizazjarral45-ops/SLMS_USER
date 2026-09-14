@@ -289,6 +289,92 @@
   max-width: 340px;
 }
 
+@media (min-width: 701px) and (max-width: 1100px) {
+  .bell-page {
+    gap: 18px;
+    padding: 4px 0 28px;
+  }
+
+  .bell-hero {
+    min-height: 230px;
+    padding: 30px 32px;
+    border-radius: 20px;
+  }
+
+  .bell-hero-copy {
+    max-width: min(650px, calc(100% - 150px));
+  }
+
+  .bell-hero-copy > .ant-typography {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .bell-hero-orb {
+    width: 116px;
+    height: 116px;
+  }
+
+  .bell-hero-orb .anticon {
+    font-size: 46px;
+  }
+
+  .bell-feed-card .ant-card-head {
+    min-height: 60px;
+    padding-inline: 18px;
+  }
+
+  .bell-feed-card .ant-card-head-wrapper {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .bell-feed-card .ant-card-extra {
+    max-width: 100%;
+  }
+
+  .bell-notification-list .ant-list-item {
+    box-sizing: border-box;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .bell-notification-content {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .bell-notification-copy {
+    overflow: hidden;
+  }
+
+  .bell-notification-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+  }
+
+  .bell-notification-heading .ant-typography {
+    max-width: 100%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .bell-notification-copy > .ant-typography {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+
+  .bell-open-button.ant-btn {
+    flex: 0 0 auto;
+    padding-inline: 4px;
+  }
+}
+
 @media (max-width: 700px) {
   .bell-page {
     gap: 20px;
