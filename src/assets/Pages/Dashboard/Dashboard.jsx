@@ -61,12 +61,35 @@ function formatCurrency(value) {
   }).format(value);
 }
 
+function parseSafeDate(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const rawValue = String(value).trim();
+  if (!rawValue) {
+    return null;
+  }
+
+  const directDate = new Date(rawValue);
+  if (!Number.isNaN(directDate.getTime())) {
+    return directDate;
+  }
+
+  const localDate = new Date(rawValue + "T00:00:00");
+  if (!Number.isNaN(localDate.getTime())) {
+    return localDate;
+  }
+
+  return null;
+}
+
 function formatShortDate(value) {
-  if (!value) {
+  const parsedDate = parseSafeDate(value);
+  if (!parsedDate) {
     return "No date";
   }
 
-  const parsedDate = new Date(value + "T00:00:00");
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
     day: "numeric",
@@ -131,15 +154,20 @@ function getDashboardSnapshot(data) {
     };
   });
 
+  const isOpenAcademicItem = (item) => {
+    const status = String(item?.status || "").trim().toLowerCase();
+    return status === "to do" || status === "in progress";
+  };
   const assignments = Array.isArray(academicWorkspace.assignments)
-    ? academicWorkspace.assignments.filter(
-        (item) => item.status !== "Completed",
-      )
+    ? academicWorkspace.assignments.filter(isOpenAcademicItem)
+    : [];
+  const quizzes = Array.isArray(academicWorkspace.quizzes)
+    ? academicWorkspace.quizzes.filter(isOpenAcademicItem)
     : [];
   const exams = Array.isArray(academicWorkspace.exams)
     ? academicWorkspace.exams
     : [];
-  const remainingAcademicItems = assignments.length + exams.length;
+  const openAssignmentsAndQuizzes = assignments.length + quizzes.length;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -165,13 +193,19 @@ function getDashboardSnapshot(data) {
       })),
   ]
     .filter((item) => {
-      const itemDate = new Date(item.dueDate + "T00:00:00");
-      return itemDate >= today;
+      const itemDate = parseSafeDate(item.dueDate);
+      return itemDate && itemDate >= today;
     })
-    .sort(
-      (a, b) =>
-        new Date(a.dueDate + "T00:00:00") - new Date(b.dueDate + "T00:00:00"),
-    )
+    .sort((a, b) => {
+      const firstDate = parseSafeDate(a.dueDate);
+      const secondDate = parseSafeDate(b.dueDate);
+
+      if (!firstDate || !secondDate) {
+        return 0;
+      }
+
+      return firstDate - secondDate;
+    })
     .slice(0, 3);
 
   const completedComplaints = complaints.filter((item) =>
@@ -198,9 +232,9 @@ function getDashboardSnapshot(data) {
       },
       {
         title: "Assignments & Quizzes",
-        value: String(remainingAcademicItems),
+        value: String(openAssignmentsAndQuizzes),
         icon: <BookOutlined />,
-        hint: "Remaining from academic data",
+        hint: "Open assignments and quizzes",
         accent: "violet",
       },
       {

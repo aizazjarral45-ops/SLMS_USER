@@ -58,6 +58,10 @@ const notificationRouteByModule = {
   hostel: "/hostel",
   assignments: "/academic",
   assignment: "/academic",
+  quizzes: "/academic",
+  quiz: "/academic",
+  exams: "/academic",
+  exam: "/academic",
   academic: "/academic",
   attendance: "/academic",
 };
@@ -73,9 +77,22 @@ const notificationSettingKey = (notification) => {
   return null;
 };
 
+const getCanonicalNotificationType = (notification) => {
+  const type = String(notification?.type || "").toLowerCase();
+  const module = String(notification?.module || "").toLowerCase();
+  const relatedModel = String(notification?.relatedModel || "").toLowerCase();
+  const source = `${type} ${module} ${relatedModel}`;
+
+  if (source.includes("quiz")) return "quiz";
+  if (source.includes("exam")) return "exam";
+  if (source.includes("assignment")) return "assignment";
+  return notification?.type || notification?.module || "general";
+};
+
 const normalizeRemoteNotification = (notification) => {
   const id = String(notification?._id || notification?.id || "");
   const module = notification?.module || notification?.type || "general";
+  const type = getCanonicalNotificationType(notification);
   const isRead = Boolean(
     notification?.isRead !== undefined
       ? notification.isRead
@@ -84,6 +101,7 @@ const normalizeRemoteNotification = (notification) => {
   return {
     ...notification,
     id,
+    type,
     isRead,
     read: isRead,
     description: notification?.message || notification?.description || "",
@@ -228,6 +246,7 @@ function StudentLayout() {
               profile: result.profile || {},
               courses: result.courses || [],
               assignments: result.assignments || [],
+              quizzes: result.quizzes || [],
               exams: result.exams || [],
               attendance: result.attendance || [],
             };
@@ -325,6 +344,7 @@ function StudentLayout() {
                 profile: academicResult.value.profile || {},
                 courses: academicResult.value.courses || [],
                 assignments: academicResult.value.assignments || [],
+                quizzes: academicResult.value.quizzes || [],
                 exams: academicResult.value.exams || [],
                 attendance: academicResult.value.attendance || [],
               }
@@ -409,7 +429,6 @@ function StudentLayout() {
       setInitialDataLoading(false);
     }
     const socket = connectSocket();
-    if (!socket) return undefined;
     const upsertNotification = (incoming) => {
       const normalized = normalizeRemoteNotification(incoming);
       setSharedData((current) => {
@@ -462,19 +481,35 @@ function StudentLayout() {
       );
       if (resource === "notifications") return;
       refreshResource(resource).catch(() => {});
-      if (resource === "expenses" || resource === "preferences") {
-        refreshNotifications().catch(() => {});
-      }
+      refreshNotifications().catch(() => {});
     };
-    socket.on("notification:created", upsertNotification);
-    socket.on("notification:updated", handleNotificationUpdated);
-    socket.on("notification:deleted", handleNotificationDeleted);
-    socket.on("notifications:read-all", handleReadAll);
-    socket.on("data:changed", handleDataChanged);
-    socket.on("connect", () => refreshNotifications().catch(() => {}));
+    const handleSocketConnect = () => refreshNotifications().catch(() => {});
+    const handleSocketRecovery = () => refreshNotifications().catch(() => {});
+    socket?.on("notification:created", upsertNotification);
+    socket?.on("notification:updated", handleNotificationUpdated);
+    socket?.on("notification:deleted", handleNotificationDeleted);
+    socket?.on("notifications:read-all", handleReadAll);
+    socket?.on("data:changed", handleDataChanged);
+    socket?.on("connect", handleSocketConnect);
+    socket?.on("connect_error", handleSocketRecovery);
+    socket?.on("disconnect", handleSocketRecovery);
+    const notificationPollId =
+      isApiConfigured && user
+        ? window.setInterval(() => {
+            refreshNotifications().catch(() => {});
+          }, 60 * 1000)
+        : null;
     return () => {
-      socket.removeAllListeners();
-      socket.disconnect();
+      if (notificationPollId) window.clearInterval(notificationPollId);
+      socket?.off("notification:created", upsertNotification);
+      socket?.off("notification:updated", handleNotificationUpdated);
+      socket?.off("notification:deleted", handleNotificationDeleted);
+      socket?.off("notifications:read-all", handleReadAll);
+      socket?.off("data:changed", handleDataChanged);
+      socket?.off("connect", handleSocketConnect);
+      socket?.off("connect_error", handleSocketRecovery);
+      socket?.off("disconnect", handleSocketRecovery);
+      socket?.disconnect();
     };
   }, [refreshNotifications, refreshResource, setResourceBusy, user]);
 

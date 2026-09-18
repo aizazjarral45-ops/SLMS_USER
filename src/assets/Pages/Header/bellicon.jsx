@@ -59,15 +59,25 @@ const getNotificationDate = (notification) => {
 const notificationCreationTimes = new Map();
 
 const ensureNotificationCreationTime = (notification) => {
-  if (!notification.id) return notification;
+  const id = String(notification?._id || notification?.id || "");
+  if (!id) return notification;
   const existingDate = getNotificationDate(notification);
-  if (existingDate) return { ...notification, createdAt: existingDate.toISOString() };
-  if (!notificationCreationTimes.has(notification.id)) {
-    notificationCreationTimes.set(notification.id, new Date().toISOString());
+  if (existingDate) {
+    return {
+      ...notification,
+      id,
+      createdAt: existingDate.toISOString(),
+      description: notification.description ?? notification.message ?? "",
+    };
+  }
+  if (!notificationCreationTimes.has(id)) {
+    notificationCreationTimes.set(id, new Date().toISOString());
   }
   return {
     ...notification,
-    createdAt: notificationCreationTimes.get(notification.id),
+    id,
+    createdAt: notificationCreationTimes.get(id),
+    description: notification.description ?? notification.message ?? "",
   };
 };
 
@@ -96,6 +106,44 @@ const getDateGroupLabel = (date) => {
 
 const getNotificationId = (notification) =>
   String(notification?._id || notification?.id || "");
+
+const getNotificationType = (notification) => {
+  const type = String(notification?.type || "").toLowerCase();
+  const module = String(notification?.module || "").toLowerCase();
+  const relatedModel = String(notification?.relatedModel || "").toLowerCase();
+  const source = `${type} ${module} ${relatedModel}`;
+
+  if (source.includes("quiz")) return "quiz";
+  if (source.includes("exam")) return "exam";
+  if (source.includes("assignment")) return "assignment";
+
+  return String(
+    notification?.type ||
+      notification?.module ||
+      notification?.category ||
+      notification?.entityType ||
+      "reminder",
+  )
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "");
+};
+
+const getNotificationTitle = (notification) =>
+  notification?.title ||
+  notification?.name ||
+  notification?.quiz?.title ||
+  notification?.quiz?.name ||
+  notification?.exam?.title ||
+  notification?.exam?.name ||
+  "Notification";
+
+const getNotificationDescription = (notification) =>
+  notification?.description ??
+  notification?.message ??
+  notification?.body ??
+  notification?.quiz?.description ??
+  notification?.exam?.description ??
+  "";
 
 function BellIcon({
   notifications = [],
@@ -145,8 +193,8 @@ function BellIcon({
     (item) => item.urgency === "critical" || item.urgency === "soon",
   ).length;
   const isInformationalNotification = (item) =>
-    item.module === "auth" ||
-    ["security", "login", "signup"].includes(String(item.type).toLowerCase()) ||
+    String(item.module || "").toLowerCase() === "auth" ||
+    ["security", "login", "signup"].includes(getNotificationType(item)) ||
     ["login activity", "signup activity", "create account"].includes(
       String(item.title).trim().toLowerCase(),
     );
@@ -236,7 +284,7 @@ function BellIcon({
               <List
                 className="bell-notification-list"
                 dataSource={group.items}
-                rowKey="id"
+                rowKey={(item) => getNotificationId(item)}
                 renderItem={(item) => (
                   <List.Item
                     className={`bell-notification-item ${severityClass(item)} ${
@@ -246,7 +294,7 @@ function BellIcon({
                     }`}
                     style={{ marginBottom: 10 }}
                     onClick={async () => {
-                      if (!isInformationalNotification(item) || item.read) {
+                      if (item.read) {
                         return;
                       }
                       try {
@@ -264,11 +312,11 @@ function BellIcon({
                       <span
                         className={`bell-notification-icon ${severityClass(item)}`}
                       >
-                        {typeIcons[item.type] || <BellOutlined />}
+                        {typeIcons[getNotificationType(item)] || <BellOutlined />}
                       </span>
                       <div className="bell-notification-copy">
                         <div className="bell-notification-heading">
-                          <Text strong>{item.title}</Text>
+                          <Text strong>{getNotificationTitle(item)}</Text>
                           <Tag
                             color={
                               severityClass(item) === "critical"
@@ -278,10 +326,12 @@ function BellIcon({
                                   : "blue"
                             }
                           >
-                            {getNotificationLabel(item.type)}
+                            {getNotificationLabel(getNotificationType(item))}
                           </Tag>
                         </div>
-                        <Text type="secondary">{item.description}</Text>
+                        <Text type="secondary">
+                          {getNotificationDescription(item)}
+                        </Text>
                         <div style={{ marginTop: 6 }}>
                           <span
                             className={`bell-notification-time ${severityClass(item)}`}
@@ -309,7 +359,7 @@ function BellIcon({
                                 ]);
                               }
                               navigate(
-                                item.type === "fee" || item.module === "fees"
+                                  getNotificationType(item) === "fee" || item.module === "fees"
                                   ? "/hostel"
                                   : item.route || "/notifications",
                               );

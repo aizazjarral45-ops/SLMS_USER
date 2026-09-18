@@ -160,8 +160,13 @@ const daysFromToday = (value) => {
   const date = toLocalDate(value);
   if (!date) return null;
 
-  date.setHours(0, 0, 0, 0);
-  return Math.round((date.getTime() - getStartOfToday().getTime()) / DAY_IN_MS);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(value).trim())) {
+    date.setHours(0, 0, 0, 0);
+    return Math.round((date.getTime() - getStartOfToday().getTime()) / DAY_IN_MS);
+  }
+
+  const difference = date.getTime() - Date.now();
+  return difference < 0 ? -1 : Math.ceil(difference / DAY_IN_MS);
 };
 
 const relativeDeadline = (days) => {
@@ -195,21 +200,31 @@ const reminderCategory = (type = "") => {
   return "reminder";
 };
 
-const isQuiz = (item) => /quiz/i.test(item.title || "");
-
-const buildDeadline = ({ id, type, title, course, date, route, detail }) => {
+const buildDeadline = ({
+  id,
+  type,
+  course,
+  date,
+  route,
+  detail,
+  thresholds = [0, 1, 2],
+}) => {
   const days = daysFromToday(date);
-  if (days === null || days > 2) return null;
+  if (days === null || (!thresholds.includes(days) && days >= 0)) return null;
+  const label = type === "assignment" ? "Assignment" : type === "quiz" ? "Quiz" : "Exam";
+  const overdue = days < 0;
 
   return {
     id,
     type,
-    title,
-    description: [course, detail, formatDate(date)].filter(Boolean).join(" · "),
-    relativeTime: relativeDeadline(days),
+    title: overdue ? `${label}: Due date overdue` : `${label}: ${days} days remaining`,
+    description: overdue
+      ? `${label} due date has passed.`
+      : [course, detail, formatDate(date)].filter(Boolean).join(" · "),
+    relativeTime: overdue ? "Overdue" : relativeDeadline(days),
     date,
     route,
-    urgency: days <= 0 ? "critical" : days === 1 ? "soon" : "upcoming",
+    urgency: overdue ? "critical" : days === 1 ? "soon" : "upcoming",
   };
 };
 
@@ -239,25 +254,37 @@ export const getNotifications = (data) => {
           date: item.dueDate,
           route: "/academic",
           detail: "Assignment deadline",
+          thresholds: [3, 2, 1],
         }),
       );
     });
 
-  asArray(academic.exams).forEach((item) => {
-    const quiz = isQuiz(item);
+  asArray(academic.quizzes).forEach((item) => {
     add(
       buildDeadline({
-        id: `${quiz ? "quiz" : "exam"}:${item.id || item.title}:${item.examDate}`,
-        type: quiz ? "quiz" : "exam",
-        title: `${item.title || (quiz ? "Quiz" : "Exam")} is coming up`,
+        id: `quiz:${item.id || item.title}:${item.dueDate}`,
+        type: "quiz",
+        title: `${item.title || "Quiz"} is coming up`,
+        course: item.course,
+        date: item.dueDate,
+        route: "/academic",
+        detail: "Quiz deadline",
+        thresholds: [3, 2, 1],
+      }),
+    );
+  });
+
+  asArray(academic.exams).forEach((item) => {
+    add(
+      buildDeadline({
+        id: `exam:${item.id || item.title}:${item.examDate}`,
+        type: "exam",
+        title: `${item.title || "Exam"} is coming up`,
         course: item.course,
         date: item.examDate,
         route: "/academic",
-        detail: item.venue
-          ? `Venue: ${item.venue}`
-          : quiz
-            ? "Quiz date"
-            : "Exam date",
+        detail: item.venue ? `Venue: ${item.venue}` : "Exam date",
+        thresholds: [7, 3, 2, 1],
       }),
     );
   });

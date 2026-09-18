@@ -43,12 +43,14 @@ const createDefaultWorkspace = () => ({
   profile: {},
   courses: [],
   assignments: [],
+  quizzes: [],
   exams: [],
   attendance: [],
   formValues: {
     profile: {},
     course: {},
     assignment: {},
+    quiz: {},
     exam: {},
     attendance: {},
   },
@@ -60,17 +62,10 @@ function formatDate(value) {
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(`${value}T00:00:00`));
+  }).format(new Date(value));
 }
 
 function getAssignmentStatus(assignment) {
-  if (assignment.status === "Completed") return "Completed";
-  if (
-    assignment.dueDate &&
-    assignment.dueDate < new Date().toISOString().slice(0, 10)
-  ) {
-    return "Overdue";
-  }
   return assignment.status || "To do";
 }
 
@@ -121,15 +116,18 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [courseEditor, setCourseEditor] = useState(null);
   const [assignmentEditor, setAssignmentEditor] = useState(null);
+  const [quizEditor, setQuizEditor] = useState(null);
   const [examEditor, setExamEditor] = useState(null);
   const [attendanceEditor, setAttendanceEditor] = useState(null);
   const [profileForm] = Form.useForm();
   const [courseForm] = Form.useForm();
   const [assignmentForm] = Form.useForm();
+  const [quizForm] = Form.useForm();
   const [examForm] = Form.useForm();
   const [attendanceForm] = Form.useForm();
   const [tableLoading, setTableLoading] = useState({
     assignments: isApiConfigured,
+    quizzes: isApiConfigured,
     exams: isApiConfigured,
     attendance: isApiConfigured,
   });
@@ -161,13 +159,14 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
           profile: data.profile || {},
           courses: data.courses || [],
           assignments: data.assignments || [],
+          quizzes: data.quizzes || [],
           exams: data.exams || [],
           attendance: data.attendance || [],
         })),
       )
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setTableLoading({ assignments: false, exams: false, attendance: false });
+        if (!cancelled) setTableLoading({ assignments: false, quizzes: false, exams: false, attendance: false });
       });
     return () => {
       cancelled = true;
@@ -183,6 +182,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
         profile: data.profile || {},
         courses: data.courses || [],
         assignments: data.assignments || [],
+        quizzes: data.quizzes || [],
         exams: data.exams || [],
         attendance: data.attendance || [],
       }));
@@ -190,6 +190,31 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
       setTableLoading((current) => ({ ...current, [section]: false }));
     }
   };
+
+  useEffect(() => {
+    if (!isApiConfigured) return undefined;
+
+    const synchronizeStatuses = async () => {
+      try {
+        const data = await request("/academic");
+        setWorkspace((current) => ({
+          ...current,
+          profile: data.profile || {},
+          courses: data.courses || [],
+          assignments: data.assignments || [],
+          quizzes: data.quizzes || [],
+          exams: data.exams || [],
+          attendance: data.attendance || [],
+        }));
+      } catch (error) {
+        console.error("Unable to synchronize academic statuses.", error);
+      }
+    };
+
+    const intervalId = window.setInterval(synchronizeStatuses, 60 * 1000);
+    return () => window.clearInterval(intervalId);
+  }, [setWorkspace]);
+
   const attendanceRate = useMemo(() => {
     const attended = workspace.attendance.reduce(
       (total, record) => total + Number(record.attended || 0),
@@ -267,6 +292,18 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
           : { priority: "Medium", status: "To do" },
     );
     setAssignmentEditor(assignment || {});
+  };
+
+  const openQuizEditor = (quiz) => {
+    quizForm.resetFields();
+    quizForm.setFieldsValue(
+      quiz
+        ? quiz
+        : hasFormValues("quiz")
+          ? getFormValues("quiz")
+          : { priority: "Medium", status: "To do" },
+    );
+    setQuizEditor(quiz || {});
   };
 
   const openExamEditor = (exam) => {
@@ -384,6 +421,39 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
     );
   };
 
+  const saveQuiz = async (values) => {
+    const quizId = recordId(quizEditor);
+    const quiz = {
+      ...(quizEditor || {}),
+      title: (values.title || "").trim(),
+      course: (values.course || "").trim(),
+      dueDate: values.dueDate,
+      priority: values.priority,
+      status: values.status,
+      description: values.description || "",
+    };
+    const saved = isApiConfigured
+      ? await request(quizId ? `/quizzes/${quizId}` : "/quizzes", {
+          method: quizId ? "PUT" : "POST",
+          body: apiPayload(quiz),
+        })
+      : localRecord(quiz, "quiz");
+    const completeQuiz = isApiConfigured ? saved?.quiz || saved || quiz : saved;
+    updateCollection(
+      "quizzes",
+      quizId
+        ? workspace.quizzes.map((item) =>
+            recordId(item) === quizId ? completeQuiz : item,
+          )
+        : [completeQuiz, ...workspace.quizzes],
+    );
+    if (isApiConfigured) await refreshAcademic("quizzes");
+    clearFormValues("quiz");
+    setQuizEditor(null);
+    quizForm.resetFields();
+    messageApi.success(quizId ? "Quiz updated." : "Quiz added.");
+  };
+
   const saveExam = async (values) => {
     const examId = recordId(examEditor);
     const exam = {
@@ -479,11 +549,12 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
       const endpoint = {
         courses: "courses",
         assignments: "assignments",
+        quizzes: "quizzes",
         exams: "exams",
         attendance: "attendance",
       }[collection];
       await request(
-        `/${collection === "assignments" ? "assignments" : "academic/" + endpoint}/${id}`,
+        `/${collection === "assignments" || collection === "quizzes" ? endpoint : "academic/" + endpoint}/${id}`,
         {
           method: "DELETE",
         },
@@ -493,7 +564,7 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
       collection,
       workspace[collection].filter((item) => recordId(item) !== id),
     );
-    if (isApiConfigured) await refreshAcademic(collection === "assignments" ? "assignments" : collection === "exams" ? "exams" : "attendance");
+    if (isApiConfigured) await refreshAcademic(collection === "assignments" || collection === "quizzes" ? collection : collection === "exams" ? "exams" : "attendance");
     messageApi.success(
       collection === "attendance"
         ? "Attendance deleted successfully."
@@ -769,6 +840,68 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
                   />
                 ),
               }}
+              scroll={{ x: 680 }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} xl={24}>
+          <Card
+            className="academic-panel"
+            title="Quizzes"
+            extra={
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => openQuizEditor()}>
+                Add quiz
+              </Button>
+            }
+          >
+            <Table
+              className="academic-table"
+              rowKey={recordId}
+              columns={[
+                {
+                  title: "Quiz",
+                  dataIndex: "title",
+                  render: (title, record) => (
+                    <div className="academic-task-title">
+                      <Text strong>{title}</Text>
+                      <Text type="secondary"><BookOutlined /> {record.course}</Text>
+                    </div>
+                  ),
+                },
+                {
+                  title: "Due",
+                  dataIndex: "dueDate",
+                  render: (date) => <Space size={6}><CalendarOutlined /><span>{formatDate(date)}</span></Space>,
+                },
+                {
+                  title: "Priority",
+                  dataIndex: "priority",
+                  render: (priority) => <Tag color={priority === "High" ? "volcano" : "blue"}>{priority}</Tag>,
+                },
+                {
+                  title: "Status",
+                  render: (_, record) => {
+                    const status = record.status || "To do";
+                    return <Tag color={statusColor(status)}>{status}</Tag>;
+                  },
+                },
+                {
+                  title: "Actions",
+                  key: "actions",
+                  render: (_, record) => (
+                    <Space size="small">
+                      <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openQuizEditor(record)} aria-label={`Edit ${record.title}`} />
+                      <Popconfirm title="Delete this quiz?" okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => removeItem("quizzes", recordId(record), "Quiz")}>
+                        <Button danger type="text" size="small" icon={<DeleteOutlined />} aria-label={`Delete ${record.title}`} />
+                      </Popconfirm>
+                    </Space>
+                  ),
+                },
+              ]}
+              dataSource={[...workspace.quizzes].sort((a, b) => (b.dueDate || "").localeCompare(a.dueDate || ""))}
+              loading={loading || tableLoading.quizzes}
+              pagination={false}
+              locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No quizzes yet" /> }}
               scroll={{ x: 680 }}
             />
           </Card>
@@ -1164,6 +1297,55 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
                 label="Progress"
                 rules={[{ required: true }]}
               >
+                <select className="academic-native-select">
+                  <option value="To do">To do</option>
+                  <option value="In progress">In progress</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={recordId(quizEditor) ? "Edit quiz" : "Add quiz"}
+        open={quizEditor !== null}
+        onCancel={() => {
+          setQuizEditor(null);
+          quizForm.resetFields();
+        }}
+        onOk={() => quizForm.submit()}
+        okText={recordId(quizEditor) ? "Save changes" : "Add quiz"}
+        destroyOnClose
+      >
+        <Form
+          form={quizForm}
+          layout="vertical"
+          onFinish={saveQuiz}
+          onValuesChange={(_, values) => updateFormValues("quiz", values)}
+        >
+          <Form.Item name="title" label="Quiz title" rules={[{ required: true, message: "Enter a quiz title" }]}>
+            <Input placeholder="e.g. Midterm quiz" />
+          </Form.Item>
+          <Form.Item name="course" label="Course" rules={[{ required: true, message: "Enter the course" }]}>
+            <Input list="course-options" placeholder="Select or type a course" />
+          </Form.Item>
+          <Form.Item name="dueDate" label="Due date" rules={[{ required: true, message: "Choose a due date" }]}>
+            <Input type="date" />
+          </Form.Item>
+          <Row gutter={12}>
+            <Col span={12}>
+              <Form.Item name="priority" label="Priority" rules={[{ required: true }]}>
+                <select className="academic-native-select">
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="status" label="Quiz status" rules={[{ required: true }]}>
                 <select className="academic-native-select">
                   <option value="To do">To do</option>
                   <option value="In progress">In progress</option>
