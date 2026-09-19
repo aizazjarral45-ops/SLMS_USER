@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Badge,
   Button,
   Card,
   Checkbox,
@@ -11,6 +10,7 @@ import {
   Empty,
   Form,
   Input,
+  Modal,
   Popconfirm,
   Row,
   Select,
@@ -23,7 +23,6 @@ import {
 } from "antd";
 import {
   CheckCircleOutlined,
-  CoffeeOutlined,
   DeleteOutlined,
   DollarOutlined,
   EditOutlined,
@@ -78,6 +77,10 @@ function formatDateInput(value) {
   return date.toISOString().slice(0, 10);
 }
 
+function getTrimmedValue(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function getStudentRollNumber(application) {
   const details =
     application?.applicantDetails &&
@@ -88,9 +91,7 @@ function getStudentRollNumber(application) {
     details?.studentId ??
     details?.rollNumber ??
     application?.rollNumber ??
-    (typeof application?.studentId === "string"
-      ? application.studentId
-      : "");
+    (typeof application?.studentId === "string" ? application.studentId : "");
   return typeof value === "string" || typeof value === "number"
     ? String(value)
     : "";
@@ -123,7 +124,11 @@ function getSavedApplications() {
   }
 }
 
-function Hostel({ applications: applicationsProp, onApplicationsChange, loading = false }) {
+function Hostel({
+  applications: applicationsProp,
+  onApplicationsChange,
+  loading = false,
+}) {
   const [form] = Form.useForm();
   const [messageApi, contextHolder] = message.useMessage();
   const [fallbackApplications, setFallbackApplications] =
@@ -132,8 +137,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
   const applications = isApiConfigured
     ? remoteApplications
     : Array.isArray(applicationsProp)
-    ? applicationsProp
-    : fallbackApplications;
+      ? applicationsProp
+      : fallbackApplications;
   const setApplications = useCallback(
     (nextValue) => {
       if (onApplicationsChange) {
@@ -154,11 +159,62 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
   const [fees, setFees] = useState([]);
   const [editingFeeId, setEditingFeeId] = useState(null);
   const [feesLoading, setFeesLoading] = useState(false);
+  const [selfManagement, setSelfManagement] = useState(null);
+  const [selfManagementLoading, setSelfManagementLoading] = useState(false);
   const [feeSubmitting, setFeeSubmitting] = useState(false);
   const [deletingFeeId, setDeletingFeeId] = useState(null);
   const [applicationSubmitting, setApplicationSubmitting] = useState(false);
+  const [applicationModalOpen, setApplicationModalOpen] = useState(false);
+  const [feesModalOpen, setFeesModalOpen] = useState(false);
+  const [roomForm] = Form.useForm();
+  const [roommateForm] = Form.useForm();
+  const [roomDetails, setRoomDetails] = useState(null);
+  const [roomDetailsLoading, setRoomDetailsLoading] = useState(false);
+  const [roomDetailsSaving, setRoomDetailsSaving] = useState(false);
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [roommateModalOpen, setRoommateModalOpen] = useState(false);
+  const [roommateSaving, setRoommateSaving] = useState(false);
+  const [editingRoommateId, setEditingRoommateId] = useState(null);
+  const [savedRoommates, setSavedRoommates] = useState([]);
+  const [roommatesLoaded, setRoommatesLoaded] = useState(false);
   const loadApplicationRef = useRef(null);
   const loadFeesRef = useRef(null);
+
+  const loadStudentRoomData = useCallback(async (showLoading = false) => {
+    if (!isApiConfigured) return;
+    if (showLoading) setRoomDetailsLoading(true);
+    try {
+      const [roomResult, roommateResult] = await Promise.all([
+        request("/hostel/room-details"),
+        request("/hostel/roommates"),
+      ]);
+      const room = roomResult?.roomDetails || roomResult?.room || roomResult;
+      setRoomDetails(
+        room &&
+          Object.values(room).some(
+            (value) => value !== null && value !== undefined && value !== "",
+          )
+          ? room
+          : null,
+      );
+      setSavedRoommates(
+        Array.isArray(roommateResult?.roommates)
+          ? roommateResult.roommates
+          : Array.isArray(roommateResult)
+            ? roommateResult
+            : [],
+      );
+      setRoommatesLoaded(true);
+    } catch (error) {
+      if (error?.status !== 404) {
+        setRemoteError(
+          formatDisplayValue(error?.message, "Unable to load room details."),
+        );
+      }
+    } finally {
+      if (showLoading) setRoomDetailsLoading(false);
+    }
+  }, []);
 
   const normalizeRemoteApplication = (application) => {
     if (!application) return null;
@@ -214,7 +270,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
         setRemoteApplications(next ? [next] : []);
         setEditingKey(next?.key || null);
         form.setFieldsValue(next ? getApplicationFormValues(next) : {});
-        if (!isApiConfigured) setApplications(next ? [next] : []);
         setRemoteError("");
         return next;
       } catch (error) {
@@ -245,21 +300,139 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
         if (!cancelled) setFeesLoading(false);
       }
     };
+    const loadSelfManagement = async () => {
+      setSelfManagementLoading(true);
+      try {
+        const result = await request("/hostel/self-management");
+        if (!cancelled) setSelfManagement(result || null);
+      } catch (error) {
+        if (!cancelled && error?.status !== 404) {
+          setRemoteError(
+            formatDisplayValue(
+              error?.message,
+              "Unable to load hostel self-management details.",
+            ),
+          );
+        }
+      } finally {
+        if (!cancelled) setSelfManagementLoading(false);
+      }
+    };
     loadApplicationRef.current = loadMyApplication;
     loadFeesRef.current = loadFees;
     const handleRealtimeChange = (event) => {
       const resource = event.detail?.resource;
       if (resource === "hostel") loadMyApplication(false);
+      if (resource === "hostel") loadSelfManagement();
       if (resource === "fees") loadFees();
     };
     window.addEventListener("slms:data-changed", handleRealtimeChange);
     loadMyApplication();
     loadFees();
+    loadSelfManagement();
+    loadStudentRoomData(true);
     return () => {
       cancelled = true;
       window.removeEventListener("slms:data-changed", handleRealtimeChange);
     };
-  }, [form, setApplications]);
+  }, [form, loadStudentRoomData, setApplications]);
+
+  const saveRoomDetails = async (values) => {
+    setRoomDetailsSaving(true);
+    const savedValues = {
+      ...values,
+      checkInDate: formatDateInput(values.checkInDate),
+      expectedCheckoutDate: formatDateInput(values.expectedCheckoutDate),
+    };
+    try {
+      if (isApiConfigured) {
+        await request("/hostel/room-details", {
+          method: roomDetails ? "PUT" : "POST",
+          body: savedValues,
+        });
+        await loadStudentRoomData();
+      } else {
+        setRoomDetails(savedValues);
+      }
+      setRoomModalOpen(false);
+      messageApi.success(
+        roomDetails ? "Room details updated." : "Room details saved.",
+      );
+    } catch (error) {
+      messageApi.error(
+        formatDisplayValue(error?.message, "Unable to save room details."),
+      );
+    } finally {
+      setRoomDetailsSaving(false);
+    }
+  };
+
+  const saveRoommate = async (values) => {
+    setRoommateSaving(true);
+    try {
+      if (isApiConfigured) {
+        const endpoint = editingRoommateId
+          ? `/hostel/roommates/${editingRoommateId}`
+          : "/hostel/roommates";
+        await request(endpoint, {
+          method: editingRoommateId ? "PUT" : "POST",
+          body: values,
+        });
+        await loadStudentRoomData();
+      } else {
+        const roommateId =
+          editingRoommateId || values.id || `roommate-${Date.now()}`;
+        setSavedRoommates((current) => {
+          if (!editingRoommateId)
+            return [...current, { ...values, id: roommateId }];
+          return current.map((roommate) =>
+            String(roommate.id || roommate._id || roommate.key) ===
+            String(editingRoommateId)
+              ? { ...roommate, ...values, id: roommate.id || roommateId }
+              : roommate,
+          );
+        });
+        setRoommatesLoaded(true);
+      }
+      setEditingRoommateId(null);
+      roommateForm.resetFields();
+      setRoommateModalOpen(false);
+      messageApi.success(
+        editingRoommateId
+          ? "Roommate details updated."
+          : "Roommate details saved.",
+      );
+    } catch (error) {
+      messageApi.error(
+        formatDisplayValue(error?.message, "Unable to save roommate details."),
+      );
+    } finally {
+      setRoommateSaving(false);
+    }
+  };
+
+  const deleteRoommate = async (roommate) => {
+    const roommateId = roommate.id || roommate._id || roommate.key;
+    try {
+      if (isApiConfigured) {
+        await request(`/hostel/roommates/${roommateId}`, { method: "DELETE" });
+        await loadStudentRoomData();
+      } else {
+        setSavedRoommates((current) =>
+          (current.length ? current : roommates).filter(
+            (item) =>
+              String(item.id || item._id || item.key) !== String(roommateId),
+          ),
+        );
+        setRoommatesLoaded(true);
+      }
+      messageApi.success("Roommate removed.");
+    } catch (error) {
+      messageApi.error(
+        formatDisplayValue(error?.message, "Unable to remove roommate."),
+      );
+    }
+  };
 
   const feesData = useMemo(
     () =>
@@ -284,6 +457,8 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
     [applications, fees],
   );
 
+  const newestApplication = applications[0];
+
   const submitFee = async (values) => {
     const applicationId = newestApplication?._id || newestApplication?.key;
     if (!applicationId) {
@@ -304,11 +479,14 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
       await loadFeesRef.current?.();
       feeForm.resetFields();
       setEditingFeeId(null);
+      setFeesModalOpen(false);
       messageApi.success(
         editingFeeId ? "Fee updated successfully." : "Fee added successfully.",
       );
     } catch (error) {
-      messageApi.error(formatDisplayValue(error?.message, "Fee operation failed."));
+      messageApi.error(
+        formatDisplayValue(error?.message, "Fee operation failed."),
+      );
     } finally {
       setFeeSubmitting(false);
     }
@@ -325,7 +503,9 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
       }
       messageApi.success("Fee deleted successfully.");
     } catch (error) {
-      messageApi.error(formatDisplayValue(error?.message, "Unable to delete fee."));
+      messageApi.error(
+        formatDisplayValue(error?.message, "Unable to delete fee."),
+      );
     } finally {
       setDeletingFeeId(null);
     }
@@ -337,96 +517,102 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
     setApplicationSubmitting(true);
 
     try {
-    if (editingKey) {
-      const existingApplication =
-        applications.find((item) => String(item.key) === String(editingKey)) || {};
+      if (editingKey) {
+        const existingApplication =
+          applications.find(
+            (item) => String(item.key) === String(editingKey),
+          ) || {};
+        if (isApiConfigured) {
+          try {
+            const applicationId = existingApplication._id || editingKey;
+            await request(`/hostel/update/${applicationId}`, {
+              method: "PUT",
+              body: { applicantDetails },
+            });
+            await loadApplicationRef.current?.();
+            setApplicationModalOpen(false);
+            messageApi.success("Your hostel application has been updated.");
+            return;
+          } catch (error) {
+            messageApi.error(
+              formatDisplayValue(
+                error?.message,
+                "Unable to update hostel application.",
+              ),
+            );
+            return;
+          }
+        }
+
+        const updatedApplication = {
+          ...existingApplication,
+          ...applicantDetails,
+        };
+
+        setApplications((current) =>
+          current.map((item) =>
+            item.key === editingKey ? updatedApplication : item,
+          ),
+        );
+
+        setEditingKey(updatedApplication.key);
+        form.setFieldsValue(getApplicationFormValues(updatedApplication));
+        setApplicationModalOpen(false);
+        messageApi.success("Hostel application updated.");
+        return;
+      }
+
       if (isApiConfigured) {
         try {
-          const applicationId = existingApplication._id || editingKey;
-          await request(`/hostel/update/${applicationId}`, {
-            method: "PUT",
+          await request("/hostel/apply", {
+            method: "POST",
             body: { applicantDetails },
           });
-          await loadApplicationRef.current?.();
-          messageApi.success("Your hostel application has been updated.");
+          const next = await loadApplicationRef.current?.();
+          if (next) {
+            setEditingKey(next.key);
+            form.setFieldsValue(getApplicationFormValues(next));
+          }
+          setApplicationModalOpen(false);
+          messageApi.success("Your hostel application has been saved.");
           return;
         } catch (error) {
           messageApi.error(
             formatDisplayValue(
               error?.message,
-              "Unable to update hostel application.",
+              "Unable to save hostel application.",
             ),
           );
           return;
         }
       }
 
-      const updatedApplication = {
-        ...existingApplication,
+      const timestamp = Date.now();
+      const application = {
+        key: String(timestamp),
+        applicationNo: `HST-${String(timestamp).slice(-6)}`,
         ...applicantDetails,
+        fullName: getTrimmedValue(values.fullName),
+        studentId: getTrimmedValue(values.studentId),
+        email: getTrimmedValue(values.email),
+        phone: getTrimmedValue(values.phone),
+        gender: values.gender,
+        program: getTrimmedValue(values.program),
+        semester: values.semester,
+        guardianName: getTrimmedValue(values.guardianName),
+        guardianPhone: getTrimmedValue(values.guardianPhone),
+        emergencyName: getTrimmedValue(values.emergencyName),
+        emergencyPhone: getTrimmedValue(values.emergencyPhone),
+        status: "Pending",
+        submittedAt: new Date().toISOString(),
       };
 
-      setApplications((current) =>
-        current.map((item) =>
-          item.key === editingKey ? updatedApplication : item,
-        ),
-      );
+      setApplications((current) => [application, ...current]);
 
-      setEditingKey(updatedApplication.key);
-      form.setFieldsValue(getApplicationFormValues(updatedApplication));
-      messageApi.success("Hostel application updated.");
-      return;
-    }
-
-    if (isApiConfigured) {
-      try {
-        await request("/hostel/apply", {
-          method: "POST",
-          body: { applicantDetails },
-        });
-        const next = await loadApplicationRef.current?.();
-        if (next) {
-          setEditingKey(next.key);
-          form.setFieldsValue(getApplicationFormValues(next));
-        }
-        messageApi.success("Your hostel application has been saved.");
-        return;
-      } catch (error) {
-        messageApi.error(
-          formatDisplayValue(
-            error?.message,
-            "Unable to save hostel application.",
-          ),
-        );
-        return;
-      }
-    }
-
-    const timestamp = Date.now();
-    const application = {
-      key: String(timestamp),
-      applicationNo: `HST-${String(timestamp).slice(-6)}`,
-      ...applicantDetails,
-      fullName: values.fullName.trim(),
-      studentId: values.studentId.trim(),
-      email: values.email.trim(),
-      phone: values.phone.trim(),
-      gender: values.gender,
-      program: values.program.trim(),
-      semester: values.semester,
-      guardianName: values.guardianName.trim(),
-      guardianPhone: values.guardianPhone.trim(),
-      emergencyName: values.emergencyName.trim(),
-      emergencyPhone: values.emergencyPhone.trim(),
-      status: "Pending",
-      submittedAt: new Date().toISOString(),
-    };
-
-    setApplications((current) => [application, ...current]);
-
-    setEditingKey(application.key);
-    form.setFieldsValue(getApplicationFormValues(application));
-    messageApi.success("Your hostel application has been saved.");
+      setEditingKey(application.key);
+      form.setFieldsValue(getApplicationFormValues(application));
+      setApplicationModalOpen(false);
+      messageApi.success("Your hostel application has been saved.");
     } finally {
       setApplicationSubmitting(false);
     }
@@ -435,27 +621,12 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
   const handleEditApplication = (record) => {
     form.setFieldsValue(getApplicationFormValues(record));
     setEditingKey(record.key);
+    setApplicationModalOpen(true);
     document
       .getElementById("hostel-application-form")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
     messageApi.info(
       "Edit your information and click 'Update application' to save changes.",
-    );
-  };
-
-  const statusBadge = (status) => {
-    const badgeStatus =
-      {
-        Approved: "success",
-        Rejected: "error",
-        Pending: "processing",
-        Submitted: "processing",
-      }[status] || "default";
-    return (
-      <Badge
-        status={badgeStatus}
-        text={formatDisplayValue(status, "Pending")}
-      />
     );
   };
 
@@ -514,6 +685,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
           <Tooltip title="Edit application">
             <Button
               type="text"
+              size="small"
               icon={<EditOutlined />}
               onClick={() => handleEditApplication(record)}
               aria-label="Edit application"
@@ -610,12 +782,58 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
     },
   ];
 
-  const newestApplication = applications[0];
   const latestFee = fees[0];
   const roomAllocation = newestApplication?.roomAllocation;
-
+  const selfRoom =
+    roomDetails ||
+    selfManagement?.application?.roomAllocation ||
+    roomAllocation ||
+    {};
+  const hostelInformation =
+    selfManagement?.hostelInformation ||
+    selfManagement?.hostel ||
+    selfManagement?.information ||
+    {};
+  const displayedRoom = {
+    ...selfRoom,
+    block: selfRoom.block || hostelInformation.block,
+  };
+  const roommates = roommatesLoaded
+    ? savedRoommates
+    : selfManagement?.roommates || [];
+  const hostelRules = selfManagement?.rules?.length
+    ? selfManagement.rules
+    : [
+        {
+          title: "Keep shared areas clean",
+          description: "Leave kitchens, corridors, and bathrooms tidy.",
+        },
+        {
+          title: "Respect quiet hours",
+          description: "Keep noise low during study and sleeping hours.",
+        },
+        {
+          title: "Follow safety rules",
+          description: "Do not use prohibited appliances or block exits.",
+        },
+        {
+          title: "Respect your roommates",
+          description:
+            "Share facilities responsibly and report concerns to the warden.",
+        },
+      ];
   return (
-    <div className="hostel-page">
+    <div
+      className="hostel-page"
+      style={{
+        width: "100%",
+        maxWidth: 1440,
+        margin: "0 auto",
+        padding: "clamp(12px, 2vw, 28px)",
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}
+    >
       {contextHolder}
       {remoteError ? (
         <Alert
@@ -625,22 +843,23 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
           description={remoteError}
         />
       ) : null}
-      <section className="hostel-hero">
+      <section className="hostel-hero" style={{ marginBottom: 20 }}>
         <div className="hostel-hero-copy">
           <Tag icon={<HomeOutlined />} className="hostel-eyebrow">
             Hostel Portal
           </Tag>
-          <Title level={1}>Find a room that feels like home.</Title>
+          <Title level={1}>Manage your hostel stay in one place.</Title>
           <Paragraph>
-            Submit your student details and emergency contact in one place.
-            Track review progress and room allocation from this panel.
+            View your room and roommates, update your saved application and
+            guardian information, track fee records and status, and review
+            residence essentials and hostel rules.
           </Paragraph>
           <Space wrap className="hostel-hero-meta">
             <span>
-              <CheckCircleOutlined /> Secure student details
+              <HomeOutlined /> My room &amp; Roommates
             </span>
             <span>
-              <PhoneOutlined /> Emergency contact ready
+              <TeamOutlined /> guardian information
             </span>
           </Space>
         </div>
@@ -649,28 +868,24 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
           <div className="hostel-hero-card-icon">
             <SafetyCertificateOutlined />
           </div>
-          <Text type="secondary">Application progress</Text>
-          <Title level={3}>One complete form</Title>
+          <Text type="secondary">Hostel overview</Text>
+          <Title level={3}>Application and fees</Title>
           <Paragraph>
-            Share your personal and guardian information to create your request.
+            Keep your application, contact details, fee records, room
+            information, and hostel guidance up to date.
           </Paragraph>
-          <Tag
-            color={
-              newestApplication?.status === "Approved"
-                ? "green"
-                : newestApplication?.status === "Rejected"
-                  ? "red"
-                  : "blue"
-            }
-          >
-            {newestApplication
-              ? `Application status: ${formatDisplayValue(newestApplication.status, "Pending")}`
-              : "Application status: Pending"}
+
+          <Tag color={latestFee?.status === "Paid" ? "green" : "orange"}>
+            Fee status: {formatDisplayValue(latestFee?.status, "Pending")}
           </Tag>
         </Card>
       </section>
 
-      <Row gutter={[16, 16]} className="hostel-stat-grid">
+      <Row
+        gutter={[16, 16]}
+        className="hostel-stat-grid"
+        style={{ marginBottom: 20 }}
+      >
         <Col xs={24} sm={12} xl={6}>
           <Card className="hostel-stat-card">
             <div>
@@ -727,425 +942,13 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
               <Title level={4}>
                 {formatDisplayValue(latestFee?.status, "Pending")}
               </Title>
-              <Tag
-                color={
-                  latestFee?.status === "Paid" ? "green" : "orange"
-                }
-              >
-                {latestFee?.status === "Paid"
-                  ? "✓ Paid"
-                  : "⚠ Reminder"}
+              <Tag color={latestFee?.status === "Paid" ? "green" : "orange"}>
+                {latestFee?.status === "Paid" ? "✓ Paid" : "⚠ Reminder"}
               </Tag>
             </div>
           </Card>
         </Col>
       </Row>
-
-      <Row gutter={[20, 20]} align="top">
-        <Col xs={24} xl={24}>
-          <Card
-            className="hostel-panel hostel-form-card"
-            title={
-              <Space>
-                <FileTextOutlined /> Hostel application
-              </Space>
-            }
-            extra={<Tag color="blue">All fields marked * are required</Tag>}
-          >
-            <Alert
-              className="hostel-form-alert"
-              type="info"
-              showIcon
-              message="Complete your details carefully"
-              description="The hostel office uses this information to review your request and contact you when needed."
-            />
-
-            <Form
-              id="hostel-application-form"
-              form={form}
-              layout="vertical"
-              requiredMark="optional"
-              onFinish={submitApplication}
-            >
-              <div className="hostel-form-heading">
-                <TeamOutlined /> Student information
-              </div>
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="fullName"
-                    label="Full name"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter your full name.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="e.g. Ayesha Khan" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="studentId"
-                    label="Student ID / roll number"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter your student ID.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="e.g. CS-2024-102" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="email"
-                    label="email"
-                    rules={[
-                      {
-                        required: true,
-                        type: "email",
-                        message: "Enter a valid email address.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="student@gmail.com" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="phone"
-                    label="Student phone number"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter your phone number.",
-                      },
-                      {
-                        pattern: /^[+]?[0-9\s()-]{7,20}$/,
-                        message: "Enter a valid phone number.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="e.g. +92 300 1234567" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="program"
-                    label="Program / department"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter your program or department.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="e.g. BS Computer Science" />
-                  </Form.Item>
-                </Col>
-                <Col xs={12} md={6}>
-                  <Form.Item
-                    name="semester"
-                    label="Semester"
-                    rules={[
-                      { required: true, message: "Select your semester." },
-                    ]}
-                  >
-                    <Select
-                      placeholder="Select"
-                      options={semesters.map((item) => ({
-                        value: item,
-                        label: item,
-                      }))}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col xs={12} md={6}>
-                  <Form.Item
-                    name="gender"
-                    label="Gender"
-                    rules={[{ required: true, message: "Select your gender." }]}
-                  >
-                    <Select
-                      placeholder="Select"
-                      options={[
-                        { value: "Female", label: "Female" },
-                        { value: "Male", label: "Male" },
-                        {
-                          value: "Prefer not to say",
-                          label: "Prefer not to say",
-                        },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Divider />
-              <div className="hostel-form-heading">
-                <PhoneOutlined /> Guardian and emergency contact
-              </div>
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="guardianName"
-                    label="Parent / guardian name"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter your guardian's name.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="Guardian full name" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="guardianPhone"
-                    label="Guardian phone number"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter the guardian's phone number.",
-                      },
-                      {
-                        pattern: /^[+]?[0-9\s()-]{7,20}$/,
-                        message: "Enter a valid phone number.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="e.g. +92 300 1234567" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="emergencyName"
-                    label="Emergency contact name"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter an emergency contact name.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="Name of person to contact" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="emergencyPhone"
-                    label="Emergency contact phone"
-                    rules={[
-                      {
-                        required: true,
-                        whitespace: true,
-                        message: "Enter an emergency contact phone number.",
-                      },
-                      {
-                        pattern: /^[+]?[0-9\s()-]{7,20}$/,
-                        message: "Enter a valid phone number.",
-                      },
-                    ]}
-                  >
-                    <Input placeholder="e.g. +92 300 1234567" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item
-                name="agreement"
-                valuePropName="checked"
-                rules={[
-                  {
-                    validator: (_, value) =>
-                      value
-                        ? Promise.resolve()
-                        : Promise.reject(
-                            new Error(
-                              "Please confirm that your details are correct.",
-                            ),
-                          ),
-                  },
-                ]}
-              >
-                <Checkbox>
-                  I confirm that the information provided is correct and I agree
-                  to follow hostel rules.
-                </Checkbox>
-              </Form.Item>
-              <Space>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  size="large"
-                  icon={<SendOutlined />}
-                  loading={applicationSubmitting}
-                  disabled={applicationSubmitting}
-                >
-                  {editingKey ? "Edit Application" : "Submit Application"}
-                </Button>
-                {editingKey && (
-                  <Button
-                    size="large"
-                    onClick={() => {
-                      setEditingKey(null);
-                      form.resetFields();
-                      messageApi.info("Editing canceled.");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                )}
-              </Space>
-            </Form>
-          </Card>
-        </Col>
-      </Row>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={12}>
-          <div className="hostel-side-stack">
-            <Card
-              className="hostel-panel"
-              title={
-                <Space>
-                  <HomeOutlined /> Residence essentials
-                </Space>
-              }
-            >
-              <div className="hostel-feature-list">
-                <div>
-                  <span className="hostel-feature-icon">
-                    <WifiOutlined />
-                  </span>
-                  <div>
-                    <strong>Reliable Wi-Fi</strong>
-                    <Text type="secondary">
-                      Stay connected for classes and study.
-                    </Text>
-                  </div>
-                </div>
-                <div>
-                  <span className="hostel-feature-icon">
-                    <CoffeeOutlined />
-                  </span>
-                  <div>
-                    <strong>Dining services</strong>
-                    <Text type="secondary">
-                      Ask the residence team about meal options.
-                    </Text>
-                  </div>
-                </div>
-                <div>
-                  <span className="hostel-feature-icon">
-                    <HeartOutlined />
-                  </span>
-                  <div>
-                    <strong>Student wellbeing</strong>
-                    <Text type="secondary">
-                      Share needs that help staff support you.
-                    </Text>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </Col>
-        <Col xs={24} xl={12}>
-          <div className="hostel-side-stack">
-            <Card
-              className="hostel-panel"
-              title={
-                <Space>
-                  <FileTextOutlined /> Fees status
-                </Space>
-              }
-            >
-              {newestApplication ? (
-                <Descriptions
-                  column={1}
-                  size="large"
-                  className="hostel-latest-details"
-                >
-                  <Descriptions.Item label="Application">
-                    {formatDisplayValue(newestApplication.applicationNo)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Student Name">
-                    {formatDisplayValue(newestApplication.fullName)}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Latest fee amount">
-                    PKR{" "}
-                    {formatDisplayValue(latestFee?.amount, "0")}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Latest paid amount">
-                    PKR{" "}
-                    {formatDisplayValue(
-                      latestFee?.paidAmount,
-                      "0",
-                    )}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Latest fee status">
-                    <Tag
-                      color={
-                        latestFee?.status === "Paid"
-                          ? "green"
-                          : latestFee?.status === "Pending"
-                            ? "orange"
-                            : "red"
-                      }
-                      style={{ width: "auto" }}
-                    >
-                      {formatDisplayValue(latestFee?.status, "N/A")}
-                    </Tag>
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Due Date">
-                    {formatDisplayValue(
-                      latestFee?.dueDate,
-                      "N/A",
-                    )}
-                  </Descriptions.Item>
-                </Descriptions>
-              ) : (
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="Fees information will appear here after submission."
-                />
-              )}
-            </Card>
-          </div>
-        </Col>
-      </Row>
-
-      <Card
-        className="hostel-panel hostel-records-card"
-        title={
-          <Space>
-            <FileTextOutlined /> Saved hostel applications
-          </Space>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={applications}
-          loading={loading || remoteLoading}
-          locale={{
-            emptyText:
-              "No hostel applications saved yet. Complete the form above to add one.",
-          }}
-          pagination={{ pageSize: 5, hideOnSinglePage: true }}
-          scroll={{ x: 820 }}
-        />
-      </Card>
 
       {newestApplication?.status === "Approved" &&
       roomAllocation &&
@@ -1203,70 +1006,202 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
         </Card>
       ) : null}
 
-      <Card
-        className="hostel-panel hostel-records-card hostel-status-card"
-        title={
-          <Space>
-            <SafetyCertificateOutlined /> Application Status
-          </Space>
-        }
-        extra={newestApplication ? statusBadge(newestApplication.status) : null}
-      >
-        <Table
-          rowKey="key"
-          pagination={false}
-          dataSource={newestApplication ? [newestApplication] : []}
-          loading={loading || remoteLoading}
-          columns={[
-            {
-              title: "Application",
-              key: "applicationNo",
-              render: (_, record) =>
-                formatDisplayValue(record.applicationNo, "—"),
-            },
-            {
-              title: "Status",
-              key: "status",
-              render: (_, record) => statusBadge(record.status),
-            },
-            {
-              title: "Submitted",
-              key: "submittedAt",
-              render: (_, record) =>
-                formatDisplayValue(record.submittedAt, "—"),
-            },
-            {
-              title: "Message",
-              key: "statusMessage",
-              render: (_, record) =>
-                record.status === "Approved"
-                  ? "Approved. Room allocation details are shown above."
-                  : record.status === "Rejected"
-                    ? "Not approved. Please contact the hostel office."
-                    : "Your application is awaiting hostel office approval.",
-            },
-          ]}
-          locale={{
-            emptyText: "Submit an application to see its approval status.",
-          }}
-          scroll={{ x: 760 }}
-        />
-      </Card>
+      <Row gutter={[16, 16]} align="stretch" style={{ marginBottom: 20 }}>
+        <Col xs={24} xl={12}>
+          <Card
+            className="hostel-panel hostel-records-card"
+            style={{ height: "100%" }}
+            title={
+              <Space>
+                <HomeOutlined /> My room
+              </Space>
+            }
+            extra={
+              <Button
+                type="primary"
+                onClick={() => {
+                  roomForm.setFieldsValue({
+                    ...displayedRoom,
+                    checkInDate: formatDateInput(displayedRoom.checkInDate),
+                    expectedCheckoutDate: formatDateInput(
+                      displayedRoom.expectedCheckoutDate,
+                    ),
+                  });
+                  setRoomModalOpen(true);
+                }}
+              >
+                {roomDetails ? "Edit Details" : "Add Details"}
+              </Button>
+            }
+          >
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="Room number">
+                {formatDisplayValue(displayedRoom.roomNumber)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Block / building">
+                {formatDisplayValue(displayedRoom.block)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Floor">
+                {formatDisplayValue(displayedRoom.floor)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Room type">
+                {formatDisplayValue(displayedRoom.roomType)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Bed number">
+                {formatDisplayValue(displayedRoom.bedNumber)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Check-in date">
+                {formatDisplayValue(displayedRoom.checkInDate)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Expected checkout date">
+                {formatDisplayValue(displayedRoom.expectedCheckoutDate)}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </Col>
+        <Col xs={24} xl={12}>
+          <Card
+            className="hostel-panel hostel-records-card"
+            style={{ height: "100%" }}
+            title={
+              <Space>
+                <TeamOutlined /> Roommates
+              </Space>
+            }
+            extra={
+              <Space wrap>
+                <Tag color="blue">{roommates.length} Assigned</Tag>
+                <Button
+                  type="primary"
+                  onClick={() => {
+                    setEditingRoommateId(null);
+                    roommateForm.resetFields();
+                    setRoommateModalOpen(true);
+                  }}
+                >
+                  Add Roommate
+                </Button>
+              </Space>
+            }
+          >
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 2, hideOnSinglePage: true }}
+              dataSource={roommates}
+              loading={selfManagementLoading || remoteLoading}
+              columns={[
+                {
+                  title: "Name",
+                  dataIndex: "name",
+                  key: "name",
+                  render: (value) => formatDisplayValue(value),
+                },
+                {
+                  title: "Department",
+                  key: "department",
+                  render: (_, row) =>
+                    formatDisplayValue(
+                      row.department || row.program || row.semester,
+                    ),
+                },
+                {
+                  title: "Email",
+                  dataIndex: "email",
+                  key: "email",
+                  render: (value) => formatDisplayValue(value),
+                },
+                {
+                  title: "Phone Number",
+                  dataIndex: "phone",
+                  key: "phone",
+                  render: (value) => formatDisplayValue(value),
+                },
+                {
+                  title: "Action",
+                  key: "action",
+                  render: (_, row) => (
+                    <Space size="small">
+                      <Button
+                        type="link"
+                        icon={<EditOutlined />}
+                        onClick={() => {
+                          const roommateId = row.id || row._id || row.key;
+                          setSavedRoommates(roommates);
+                          setRoommatesLoaded(true);
+                          setEditingRoommateId(roommateId);
+                          roommateForm.setFieldsValue(row);
+                          setRoommateModalOpen(true);
+                        }}
+                        aria-label="Edit roommate"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="link"
+                        danger
+                        size="small"
+                        icon={<DeleteOutlined />}
+                        onClick={() => deleteRoommate(row)}
+                        aria-label="Delete roommate"
+                      >
+                        Delete
+                      </Button>
+                    </Space>
+                  ),
+                },
+              ]}
+              locale={{
+                emptyText: "No roommates are assigned to your current room.",
+              }}
+              scroll={{ x: 560 }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <Card
-        className="hostel-panel hostel-records-card hostel-contact-card"
+        className="hostel-panel hostel-records-card"
+        style={{ marginBottom: 20 }}
         title={
           <Space>
-            <PhoneOutlined /> Guardian & emergency contacts
+            <FileTextOutlined /> Saved hostel applications & guardian
+            information
           </Space>
         }
         extra={
-          <Tag color="green">
-            {applications.length} saved record
-            {applications.length === 1 ? "" : "s"}
-          </Tag>
+          <Button
+            type="primary"
+            block
+            onClick={() => {
+              if (newestApplication) {
+                form.setFieldsValue(
+                  getApplicationFormValues(newestApplication),
+                );
+                setEditingKey(newestApplication.key);
+              } else {
+                form.resetFields();
+                setEditingKey(null);
+              }
+              setApplicationModalOpen(true);
+            }}
+          >
+            Add Application
+          </Button>
         }
       >
+        <Table
+          columns={columns}
+          dataSource={applications}
+          loading={loading || remoteLoading}
+          locale={{
+            emptyText:
+              "No hostel applications saved yet. Complete the form above to add one.",
+          }}
+          pagination={{ pageSize: 5, hideOnSinglePage: true }}
+          scroll={{ x: 820 }}
+        />
+        <Divider />
         <Alert
           className="hostel-contact-alert"
           type="info"
@@ -1287,112 +1222,6 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
       </Card>
 
       <Card
-        className="hostel-panel hostel-records-card hostel-fees-card"
-        title={
-          <Space>
-            <FileTextOutlined /> Hostel fees structure
-          </Space>
-        }
-        extra={
-          <Tag color="blue">
-            {feesData.length} fees record{feesData.length === 1 ? "" : "s"}
-          </Tag>
-        }
-      >
-        <Alert
-          className="hostel-fees-alert"
-          type="info"
-          showIcon
-          message="Manage multiple fee records for your saved hostel application."
-          description="Each fee record is stored separately and can be edited or deleted without changing the application."
-        />
-        <Form
-          form={feeForm}
-          layout="vertical"
-          onFinish={submitFee}
-          style={{ marginTop: 16 }}
-        >
-          <Row gutter={16}>
-            <Col xs={24} md={8}>
-              <Form.Item name="feeType" label="Fee type" initialValue="Tuition">
-                <Input placeholder="e.g. Hostel fee" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item
-                name="amount"
-                label="Amount (PKR)"
-                rules={[{ required: true, message: "Enter the fee amount." }]}
-              >
-                <Input type="number" min="0" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="paidAmount" label="Paid amount (PKR)" initialValue={0}>
-                <Input type="number" min="0" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="dueDate" label="Due date">
-                <Input type="date" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="status" label="Payment status" initialValue="Pending">
-                <Select
-                  options={[
-                    { value: "Pending", label: "Pending" },
-                    { value: "Partial", label: "Partial" },
-                    { value: "Paid", label: "Paid" },
-                    { value: "Overdue", label: "Overdue" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="paymentMethod" label="Payment method" initialValue="Cash">
-                <Select
-                  options={[
-                    { value: "Cash", label: "Cash" },
-                    { value: "Bank transfer", label: "Bank transfer" },
-                    { value: "Card", label: "Card" },
-                    { value: "Online", label: "Online" },
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={8}>
-              <Form.Item name="invoiceNumber" label="Invoice number">
-                <Input />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Space>
-            <Button
-              type="primary"
-              htmlType="submit"
-              size="large"
-              icon={<DollarOutlined />}
-              loading={feeSubmitting}
-              disabled={!newestApplication || feeSubmitting}
-            >
-              {editingFeeId ? "Update Fee" : "Add Fee"}
-            </Button>
-            {editingFeeId ? (
-              <Button
-                onClick={() => {
-                  feeForm.resetFields();
-                  setEditingFeeId(null);
-                }}
-              >
-                Cancel
-              </Button>
-            ) : null}
-          </Space>
-        </Form>
-        </Card>
-
-      <Card
         className="hostel-panel hostel-records-card hostel-fees-table-card"
         title={
           <Space>
@@ -1400,11 +1229,24 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
           </Space>
         }
         extra={
-          <Tag color="blue">
-            {feesData.length} fees record{feesData.length === 1 ? "" : "s"}
-          </Tag>
+          <Space wrap>
+            <Tag color="blue">
+              {feesData.length} fees record{feesData.length === 1 ? "" : "s"}
+            </Tag>
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditingFeeId(null);
+                feeForm.resetFields();
+                setFeesModalOpen(true);
+              }}
+            >
+              Add Fees
+            </Button>
+          </Space>
         }
-      > <Table
+      >
+        <Table
           columns={[
             {
               title: "Student",
@@ -1485,6 +1327,7 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
                         invoiceNumber: record.invoiceNumber,
                       });
                       setEditingFeeId(record._id);
+                      setFeesModalOpen(true);
                     }}
                     aria-label="Edit fee"
                     disabled={feeSubmitting || Boolean(deletingFeeId)}
@@ -1511,13 +1354,515 @@ function Hostel({ applications: applicationsProp, onApplicationsChange, loading 
           dataSource={feesData}
           loading={feesLoading}
           locale={{
-            emptyText:
-              "Add a fee record after saving your hostel application.",
+            emptyText: "Add a fee record after saving your hostel application.",
           }}
           pagination={{ pageSize: 5, hideOnSinglePage: true }}
           scroll={{ x: 1000 }}
         />
       </Card>
+      <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
+        <Col xs={24} xl={24}>
+          <Card
+            className="hostel-panel hostel-records-card"
+            title={
+              <Space>
+                <FileTextOutlined /> Hostel rules
+              </Space>
+            }
+          >
+            {hostelRules.length ? (
+              <div className="hostel-feature-list">
+                {hostelRules.map((rule, index) => (
+                  <div key={rule.id || rule.title || index}>
+                    <span className="hostel-feature-icon">
+                      <SafetyCertificateOutlined />
+                    </span>
+                    <div>
+                      <strong>
+                        {formatDisplayValue(rule.title || rule.name)}
+                      </strong>
+                      <Text type="secondary">
+                        {formatDisplayValue(rule.description || rule.message)}
+                      </Text>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Hostel rules are not available yet."
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
+
+      <Modal
+        open={applicationModalOpen}
+        onCancel={() => setApplicationModalOpen(false)}
+        footer={null}
+        width="min(900px, calc(100vw - 32px))"
+        title="Hostel application"
+      >
+        <Card
+          className="hostel-panel hostel-form-card"
+          title={
+            <Space>
+              <FileTextOutlined /> Hostel application
+            </Space>
+          }
+          extra={<Tag color="blue">All fields marked * are required</Tag>}
+        >
+          <Alert
+            className="hostel-form-alert"
+            type="info"
+            showIcon
+            message="Complete your details carefully"
+            description="The hostel office uses this information to review your request and contact you when needed."
+          />
+
+          <Form
+            id="hostel-application-form"
+            form={form}
+            layout="vertical"
+            requiredMark="optional"
+            onFinish={submitApplication}
+          >
+            <div className="hostel-form-heading">
+              <TeamOutlined /> Student information
+            </div>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="fullName"
+                  label="Full name"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter your full name.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="e.g. Ayesha Khan" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="studentId"
+                  label="Student ID / roll number"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter your student ID.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="e.g. CS-2024-102" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="email"
+                  label="email"
+                  rules={[
+                    {
+                      required: true,
+                      type: "email",
+                      message: "Enter a valid email address.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="student@gmail.com" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="phone"
+                  label="Student phone number"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter your phone number.",
+                    },
+                    {
+                      pattern: /^[+]?[0-9\s()-]{7,20}$/,
+                      message: "Enter a valid phone number.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="e.g. +92 300 1234567" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="program"
+                  label="Program / department"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter your program or department.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="e.g. BS Computer Science" />
+                </Form.Item>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Item
+                  name="semester"
+                  label="Semester"
+                  rules={[{ required: true, message: "Select your semester." }]}
+                >
+                  <Select
+                    placeholder="Select"
+                    options={semesters.map((item) => ({
+                      value: item,
+                      label: item,
+                    }))}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Item
+                  name="gender"
+                  label="Gender"
+                  rules={[{ required: true, message: "Select your gender." }]}
+                >
+                  <Select
+                    placeholder="Select"
+                    options={[
+                      { value: "Female", label: "Female" },
+                      { value: "Male", label: "Male" },
+                      {
+                        value: "Prefer not to say",
+                        label: "Prefer not to say",
+                      },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Divider />
+            <div className="hostel-form-heading">
+              <PhoneOutlined /> Guardian and emergency contact
+            </div>
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="guardianName"
+                  label="Parent / guardian name"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter your guardian's name.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="Guardian full name" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="guardianPhone"
+                  label="Guardian phone number"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter the guardian's phone number.",
+                    },
+                    {
+                      pattern: /^[+]?[0-9\s()-]{7,20}$/,
+                      message: "Enter a valid phone number.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="e.g. +92 300 1234567" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="emergencyName"
+                  label="Emergency contact name"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter an emergency contact name.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="Name of person to contact" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  name="emergencyPhone"
+                  label="Emergency contact phone"
+                  rules={[
+                    {
+                      required: true,
+                      whitespace: true,
+                      message: "Enter an emergency contact phone number.",
+                    },
+                    {
+                      pattern: /^[+]?[0-9\s()-]{7,20}$/,
+                      message: "Enter a valid phone number.",
+                    },
+                  ]}
+                >
+                  <Input placeholder="e.g. +92 300 1234567" />
+                </Form.Item>
+              </Col>
+            </Row>
+
+            <Form.Item
+              name="agreement"
+              valuePropName="checked"
+              rules={[
+                {
+                  validator: (_, value) =>
+                    value
+                      ? Promise.resolve()
+                      : Promise.reject(
+                          new Error(
+                            "Please confirm that your details are correct.",
+                          ),
+                        ),
+                },
+              ]}
+            >
+              <Checkbox>
+                I confirm that the information provided is correct and I agree
+                to follow hostel rules.
+              </Checkbox>
+            </Form.Item>
+            <Space>
+              <Button
+              type="secondary"
+                htmlType="submit"
+                size="large"
+                icon={<SendOutlined />}
+                loading={applicationSubmitting}
+                disabled={applicationSubmitting}
+              >
+                {editingKey ? "Edit Application" : "Submit Application"}
+              </Button>
+              {editingKey && (
+                <Button
+                  size="large"
+                  onClick={() => {
+                    setEditingKey(null);
+                    form.resetFields();
+                    messageApi.info("Editing canceled.");
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+            </Space>
+          </Form>
+        </Card>
+      </Modal>
+
+      <Modal
+        open={roomModalOpen}
+        title="Room details"
+        footer={null}
+        onCancel={() => setRoomModalOpen(false)}
+      >
+        <Form form={roomForm} layout="vertical" onFinish={saveRoomDetails}>
+          <Form.Item name="roomNumber" label="Room Number">
+            <Input />
+          </Form.Item>
+          <Form.Item name="block" label="Block">
+            <Input />
+          </Form.Item>
+          <Form.Item name="floor" label="Floor">
+            <Input />
+          </Form.Item>
+          <Form.Item name="roomType" label="Room Type">
+            <Input />
+          </Form.Item>
+          <Form.Item name="bedNumber" label="Bed Number">
+            <Input />
+          </Form.Item>
+          <Form.Item name="checkInDate" label="Check-in Date">
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item name="expectedCheckoutDate" label="Expected checkout date">
+            <Input type="date" />
+          </Form.Item>
+          <Space>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={roomDetailsSaving}
+            >
+              Save
+            </Button>
+            <Button onClick={() => setRoomModalOpen(false)}>Cancel</Button>
+          </Space>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={roommateModalOpen}
+        title={editingRoommateId ? "Edit Roommate" : "Head Roommate"}
+        footer={null}
+        onCancel={() => setRoommateModalOpen(false)}
+      >
+        <Form form={roommateForm} layout="vertical" onFinish={saveRoommate}>
+          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="department"
+            label="Department"
+            rules={[{ required: true }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ required: true, type: "email" }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="phone"
+            label="Phone Number"
+            rules={[{ required: true }]}
+          >
+            <Input />
+          </Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={roommateSaving}>
+              Save
+            </Button>
+            <Button onClick={() => setRoommateModalOpen(false)}>Cancel</Button>
+          </Space>
+        </Form>
+      </Modal>
+
+      <Modal
+        open={feesModalOpen}
+        onCancel={() => setFeesModalOpen(false)}
+        footer={null}
+        width="min(900px, calc(100vw - 32px))"
+        title="Hostel fees structure"
+      >
+        <Alert
+          className="hostel-fees-alert"
+          type="info"
+          showIcon
+          message="Manage multiple fee records for your saved hostel application."
+          description="Each fee record is stored separately and can be edited or deleted without changing the application."
+        />
+        <Form
+          form={feeForm}
+          layout="vertical"
+          onFinish={submitFee}
+          style={{ marginTop: 16 }}
+        >
+          <Row gutter={16}>
+            <Col xs={24} md={8}>
+              <Form.Item name="feeType" label="Fee type" initialValue="Tuition">
+                <Input placeholder="e.g. Hostel fee" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="amount"
+                label="Amount (PKR)"
+                rules={[{ required: true, message: "Enter the fee amount." }]}
+              >
+                <Input type="number" min="0" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="paidAmount"
+                label="Paid amount (PKR)"
+                initialValue={0}
+              >
+                <Input type="number" min="0" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="dueDate" label="Due date">
+                <Input type="date" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="status"
+                label="Payment status"
+                initialValue="Pending"
+              >
+                <Select
+                  options={[
+                    { value: "Pending", label: "Pending" },
+                    { value: "Partial", label: "Partial" },
+                    { value: "Paid", label: "Paid" },
+                    { value: "Overdue", label: "Overdue" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item
+                name="paymentMethod"
+                label="Payment method"
+                initialValue="Cash"
+              >
+                <Select
+                  options={[
+                    { value: "Cash", label: "Cash" },
+                    { value: "Bank transfer", label: "Bank transfer" },
+                    { value: "Card", label: "Card" },
+                    { value: "Online", label: "Online" },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={8}>
+              <Form.Item name="invoiceNumber" label="Invoice number">
+                <Input />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Space>
+            <Button
+              type="primary"
+              htmlType="submit"
+              size="large"
+              icon={<DollarOutlined />}
+              loading={feeSubmitting}
+              disabled={!newestApplication || feeSubmitting}
+            >
+              {editingFeeId ? "Update Fee" : "Add Fee"}
+            </Button>
+            <Button
+              onClick={() => {
+                feeForm.resetFields();
+                setEditingFeeId(null);
+                setFeesModalOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+          </Space>
+        </Form>
+      </Modal>
     </div>
   );
 }
