@@ -231,7 +231,8 @@ function Academic({ workspace: workspaceProp, onWorkspaceChange, loading = false
   const outstandingAssignments = useMemo(
     () =>
       workspace.assignments.filter(
-        (assignment) => getAssignmentStatus(assignment) !== "Completed",
+        (assignment) =>
+          ["To do", "In progress"].includes(getAssignmentStatus(assignment)),
       ),
     [workspace.assignments],
   );

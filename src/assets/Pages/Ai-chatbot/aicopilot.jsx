@@ -18,17 +18,20 @@ import {
   SendOutlined,
   UserOutlined,
 } from "@ant-design/icons";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import "./aicopilot.css";
 import { isApiConfigured, request } from "../../../api/client";
 
-// const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
 const { Title, Paragraph, Text } = Typography;
 
 const suggestedPrompts = [
   "What assignments are still open?",
   "How is my attendance?",
   "Check my budget.",
-  "Summarize my hostel application.",
+  "Summarize my complaints.",
+  "Check my Expenses History.",
+  "What is my next exam?",
 ];
 
 const createId = (prefix) =>
@@ -60,6 +63,38 @@ const completedExchangeCount = (items) => {
   }
   return count;
 };
+
+function AssistantMessage({ content }) {
+  return (
+    <div className="copilot-markdown">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          a: ({ children, href, ...props }) => (
+            <a {...props} href={href} target="_blank" rel="noreferrer">
+              {children}
+            </a>
+          ),
+          code: ({ children, className, ...props }) => {
+            const isInline = !className;
+            return isInline ? (
+              <code {...props}>{children}</code>
+            ) : (
+              <code className={className} {...props}>
+                {children}
+              </code>
+            );
+          },
+          pre: ({ children }) => (
+            <pre className="copilot-code-block">{children}</pre>
+          ),
+        }}
+      >
+        {content || ""}
+      </ReactMarkdown>
+    </div>
+  );
+}
 
 function buildResponse(prompt, data) {
   const text = prompt.toLowerCase();
@@ -140,48 +175,74 @@ function buildResponse(prompt, data) {
 
 function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   const [fallbackMessages, setFallbackMessages] = useState([]);
+  const [riskResult, setRiskResult] = useState(null);
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState(null);
+  const predictPerformance = async () => {
+    setRiskLoading(true);
+    setRiskError(null);
+    try {
+      const result = await request("/academic/risk-prediction");
+      setRiskResult(result.data || result);
+    } catch (error) {
+      console.error("Unable to fetch risk prediction:", error);
+      setRiskError(
+        "Unable to fetch your prediction right now. Please try again.",
+      );
+    } finally {
+      setRiskLoading(false);
+    }
+  };
   const messages = Array.isArray(messagesProp)
     ? messagesProp
     : fallbackMessages;
-  const setMessages = useCallback((nextValue) => {
-    if (onMessagesChange) {
-      onMessagesChange((current) =>
-        typeof nextValue === "function"
-          ? nextValue(Array.isArray(current) ? current : [])
-          : nextValue,
+  const setMessages = useCallback(
+    (nextValue) => {
+      if (onMessagesChange) {
+        onMessagesChange((current) =>
+          typeof nextValue === "function"
+            ? nextValue(Array.isArray(current) ? current : [])
+            : nextValue,
+        );
+        return;
+      }
+      setFallbackMessages((current) =>
+        typeof nextValue === "function" ? nextValue(current) : nextValue,
       );
-      return;
-    }
-    setFallbackMessages((current) =>
-      typeof nextValue === "function" ? nextValue(current) : nextValue,
-    );
-  }, [onMessagesChange]);
+    },
+    [onMessagesChange],
+  );
   const [draft, setDraft] = useState("");
+  const [predicting, setPredicting] = useState(false);
   const [typing, setTyping] = useState(false);
   const offlineConversationRef = useRef({
     _id: createId("conversation"),
     title: "New conversation",
     messages: [],
   });
-  const [conversationId, setConversationId] = useState(
-    () => (isApiConfigured ? null : offlineConversationRef.current._id),
+  const [conversationId, setConversationId] = useState(() =>
+    isApiConfigured ? null : offlineConversationRef.current._id,
   );
   const [conversations, setConversations] = useState(() =>
     isApiConfigured ? [] : [offlineConversationRef.current],
   );
   const [conversationReady, setConversationReady] = useState(!isApiConfigured);
-  const [conversationLoading, setConversationLoading] = useState(isApiConfigured);
+  const [conversationLoading, setConversationLoading] =
+    useState(isApiConfigured);
   const [historyActionLoading, setHistoryActionLoading] = useState(false);
   const operationRef = useRef(0);
-  const setActiveConversation = useCallback((conversation) => {
-    const normalized = normalizeConversation(conversation);
-    setConversationId(normalized._id);
-    setMessages(normalized.messages);
-    setConversations((current) => [
-      normalized,
-      ...current.filter((item) => String(item._id) !== normalized._id),
-    ]);
-  }, [setMessages]);
+  const setActiveConversation = useCallback(
+    (conversation) => {
+      const normalized = normalizeConversation(conversation);
+      setConversationId(normalized._id);
+      setMessages(normalized.messages);
+      setConversations((current) => [
+        normalized,
+        ...current.filter((item) => String(item._id) !== normalized._id),
+      ]);
+    },
+    [setMessages],
+  );
 
   useEffect(() => {
     if (!isApiConfigured) return undefined;
@@ -191,30 +252,31 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       const result = await request("/ai/conversations");
       let conversation = result.conversations?.[0];
       if (!conversation) {
-        conversation = (await request("/ai/conversations", {
+        conversation = (
+          await request("/ai/conversations", {
             method: "POST",
             body: { title: "New conversation" },
-          })).conversation;
-      } else {
-        conversation = (
-          await request(`/ai/conversations/${conversation._id}`)
+          })
         ).conversation;
+      } else {
+        conversation = (await request(`/ai/conversations/${conversation._id}`))
+          .conversation;
       }
       if (cancelled || operation !== operationRef.current) return;
-      setConversations(
-        (result.conversations || []).map(normalizeConversation),
-      );
+      setConversations((result.conversations || []).map(normalizeConversation));
       setActiveConversation(conversation);
       setConversationReady(true);
     };
-    loadConversation().catch((error) => {
-      if (!cancelled) {
-        console.error("Unable to load AI conversation:", error);
-        setConversationReady(true);
-      }
-    }).finally(() => {
-      if (!cancelled) setConversationLoading(false);
-    });
+    loadConversation()
+      .catch((error) => {
+        if (!cancelled) {
+          console.error("Unable to load AI conversation:", error);
+          setConversationReady(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setConversationLoading(false);
+      });
     return () => {
       cancelled = true;
     };
@@ -303,58 +365,65 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
     setTyping(true);
     try {
       if (isApiConfigured) {
-      let activeConversationId = conversationId;
-      if (!activeConversationId) {
-        const created = await request("/ai/conversations", {
-          method: "POST",
-          body: { title: "New conversation" },
-        });
-        activeConversationId = created.conversation._id;
-        setConversationId(activeConversationId);
-      }
-      const result = await request(`/ai/conversations/${activeConversationId}/message`, {
-        method: "POST",
-        body: { message: content },
-      });
-      if (operation !== operationRef.current) return;
-      setActiveConversation(result.conversation);
-      } else {
-      await new Promise((resolve) => window.setTimeout(resolve, 350));
-      const assistantMessage = {
-        id: createId("message"),
-        role: "assistant",
-        content: buildResponse(content, data),
-        createdAt: new Date().toISOString(),
-      };
-      if (operation === operationRef.current) {
-        setMessages((current) => [...current, assistantMessage]);
-        setConversations((current) =>
-          current.map((conversation) =>
-            String(conversation._id) === String(conversationId)
-              ? {
-                  ...conversation,
-                  title:
-                    conversation.title === "New conversation"
-                      ? content.slice(0, 40)
-                      : conversation.title,
-                  messages: [...(conversation.messages || []), userMessage, assistantMessage],
-                }
-              : conversation,
-          ),
+        let activeConversationId = conversationId;
+        if (!activeConversationId) {
+          const created = await request("/ai/conversations", {
+            method: "POST",
+            body: { title: "New conversation" },
+          });
+          activeConversationId = created.conversation._id;
+          setConversationId(activeConversationId);
+        }
+        const result = await request(
+          `/ai/conversations/${activeConversationId}/message`,
+          {
+            method: "POST",
+            body: { message: content },
+          },
         );
-      }
+        if (operation !== operationRef.current) return;
+        setActiveConversation(result.conversation);
+      } else {
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+        const assistantMessage = {
+          id: createId("message"),
+          role: "assistant",
+          content: buildResponse(content, data),
+          createdAt: new Date().toISOString(),
+        };
+        if (operation === operationRef.current) {
+          setMessages((current) => [...current, assistantMessage]);
+          setConversations((current) =>
+            current.map((conversation) =>
+              String(conversation._id) === String(conversationId)
+                ? {
+                    ...conversation,
+                    title:
+                      conversation.title === "New conversation"
+                        ? content.slice(0, 40)
+                        : conversation.title,
+                    messages: [
+                      ...(conversation.messages || []),
+                      userMessage,
+                      assistantMessage,
+                    ],
+                  }
+                : conversation,
+            ),
+          );
+        }
       }
     } catch (error) {
       console.error("Unable to generate AI reply:", error);
       if (operation !== operationRef.current) return;
       setMessages((current) => [
-      ...current,
-      {
-        id: createId("message"),
-        role: "assistant",
-        content: "I could not reach Gemini right now. Please try again.",
-        createdAt: new Date().toISOString(),
-      },
+        ...current,
+        {
+          id: createId("message"),
+          role: "assistant",
+          content: "I could not reach Gemini right now. Please try again.",
+          createdAt: new Date().toISOString(),
+        },
       ]);
     } finally {
       setTyping(false);
@@ -377,8 +446,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
       } catch (error) {
         if (operation === operationRef.current)
           console.error("Unable to undo the last AI prompt:", error);
-      }
-      finally {
+      } finally {
         setHistoryActionLoading(false);
       }
       return;
@@ -436,7 +504,13 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
   };
 
   if (conversationLoading) {
-    return <div className="first-section"><Card><Skeleton active /></Card></div>;
+    return (
+      <div className="first-section">
+        <Card>
+          <Skeleton active />
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -457,6 +531,58 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
               </Paragraph>
             </div>
           </Space>
+        </Card>
+      </div>
+      <div className="first-section">
+        <Card
+          className="copilot-panel performance-prediction-card"
+          title="Predict Your Performance"
+        >
+          <Paragraph className="performance-prediction-description">
+            Get an instant risk prediction based on your assignments, quizzes,
+            attendance, and upcoming exams.
+          </Paragraph>
+          <Button
+            type="primary"
+            block
+            style={{
+              marginTop: 8,
+              background: "#16a34a",
+              borderColor: "#16a34a",
+              borderRadius: 50,
+            }}
+            onClick={predictPerformance}
+            loading={predicting}
+            disabled={conversationLoading || typing}
+          >
+            Predict Your Performance
+          </Button>
+          {riskError ? (
+            <Paragraph className="performance-prediction-error">
+              {riskError}
+            </Paragraph>
+          ) : null}
+          {riskResult ? (
+            <div className="performance-prediction-result">
+              <Tag
+                className="performance-prediction-status"
+                color={
+                  riskResult.risk_label === "good"
+                    ? "green"
+                    : riskResult.risk_label === "average"
+                      ? "orange"
+                      : "red"
+                }
+              >
+                {String(riskResult.risk_label || "").toUpperCase()}
+              </Tag>
+              <ul className="performance-prediction-suggestions">
+                {(riskResult.suggestions || []).map((tip, index) => (
+                  <li key={index}>{tip}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </Card>
       </div>
       <div className="copilot-page">
@@ -483,7 +609,9 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                 icon={<DeleteOutlined />}
                 onClick={confirmClearChat}
                 loading={historyActionLoading}
-                disabled={conversationLoading || (!conversations.length && !typing)}
+                disabled={
+                  conversationLoading || (!conversations.length && !typing)
+                }
                 aria-label="Clear chat"
               >
                 Clear
@@ -523,6 +651,7 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
             >
               New Chat
             </Button>
+
             <Card className="copilot-panel" title="Suggested Prompts">
               <div className="copilot-chip-group">
                 {suggestedPrompts.map((prompt) => (
@@ -600,7 +729,11 @@ function Copilot({ data = {}, messages: messagesProp, onMessagesChange }) {
                             wordBreak: "break-word",
                           }}
                         >
-                          {item.content}
+                          {isUser ? (
+                            item.content
+                          ) : (
+                            <AssistantMessage content={item.content} />
+                          )}
                         </div>
                       </div>
                     </div>

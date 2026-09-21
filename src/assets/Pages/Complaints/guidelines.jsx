@@ -9,22 +9,22 @@ import {
 export const guidanceItems = () => [
   {
     icon: <PaperClipOutlined style={{ color: "#1890ff" }} />,
-    text: "Add clear evidence or screenshots for faster review.",
+    text: "Take ownership of your complaint: explain the issue clearly and attach evidence or screenshots.",
   },
   {
     icon: <WarningOutlined style={{ color: "#fa8c16" }} />,
-    text: "Mark truly urgent issues as High priority only when they affect safety or exams.",
+    text: "Set the priority yourself. Use High only for safety risks, exam disruption, or issues needing immediate action.",
   },
   {
     icon: <EnvironmentOutlined style={{ color: "#52c41a" }} />,
-    text: "Hostel and IT complaints usually resolve fastest when the exact location is included.",
+    text: "Enter the exact location, room, device, or service affected so the right team can resolve it faster.",
   },
   {
     icon: <InboxOutlined style={{ color: "#1890ff" }} />,
-    text: "Attach any relevant reference details to avoid delays and reduce follow-up questions.",
+    text: "Review your details before submitting, then track the complaint status and respond to follow-up requests.",
   },
   {
     icon: <CalendarOutlined style={{ color: "#fa8c16" }} />,
-    text: "Include date and time when the issue occurred to help the support team investigate accurately.",
+    text: "Record when the issue started, add updates as it changes, and close the complaint after confirming the solution.",
   },
 ];
